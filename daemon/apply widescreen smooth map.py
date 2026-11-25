@@ -12,7 +12,7 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
         pass
 
 MASTER_LUA_CODE = r"""
--- Last Z master engine overhaul v8.1 (Spatial 50x50 grid, cached reflection/materials, R3 read-only preload)
+-- Last Z master engine overhaul v8.2 (Zero-gap svLod=1 pipelined sweep, viewport-first 50x50 grid, R3 read-only preload)
 
 local function IsNull(o)
     if o == nil then return true end
@@ -573,10 +573,10 @@ function _G.ShouldBuildPointNow(selfMgr, pointIndex, entry, camX, camY, isEvictC
         if mCat == "BOOMER" or mCat == "BOSS" then
             if toggles and toggles.showBoomers == false then return false end
             if mCat == "BOSS" then return true end
-            return dist <= (isEvictCheck and 340 or 260)
+            return dist <= (isEvictCheck and 480 or 380)
         else
             if toggles and toggles.showZombies == false then return false end
-            return dist <= (isEvictCheck and 250 or 180)
+            return dist <= (isEvictCheck and 360 or 280)
         end
     elseif pType == 7 then
         if toggles and toggles.showResources == false then return false end
@@ -590,9 +590,9 @@ function _G.ShouldBuildPointNow(selfMgr, pointIndex, entry, camX, camY, isEvictC
             entry._isSmallBuild = isSmall
         end
         if isSmall then
-            return dist <= (isEvictCheck and 260 or 190)
+            return dist <= (isEvictCheck and 300 or 220)
         else
-            return dist <= (isEvictCheck and 560 or 420)
+            return dist <= (isEvictCheck and 680 or 520)
         end
     end
 
@@ -1444,7 +1444,7 @@ function _G.ApplyLastZWorldMaster()
         end
     })
 
-    local _DEFAULT_REQ_RANGE_CELL = { x = 16, y = 16 }
+    local _DEFAULT_REQ_RANGE_CELL = { x = 24, y = 28 }
     local _SAFE_LOD_REQUEST_RANGE = {}
     for lodIdx = 1, 20 do
         _SAFE_LOD_REQUEST_RANGE[lodIdx] = _DEFAULT_REQ_RANGE_CELL
@@ -1513,8 +1513,12 @@ function _G.ApplyLastZWorldMaster()
         return false
     end
 
-    -- Always request svLod = 0 (Full Detail: Resources, Zombies, Bases, Events) from server
+    -- Zoomed out (lod >= 3): request svLod = 1 (71x101 box, 3.7x area, 100% HQs/Zombies/Resources/Cities/Radar)
+    -- Zoomed in (lod <= 2): request svLod = 0 (48x41 box, includes small seasonal decor tiles)
     mgr.GetServerLod = function(self, lod)
+        if type(lod) == "number" and lod >= 3 then
+            return 1
+        end
         return 0
     end
 
@@ -1538,7 +1542,7 @@ function _G.ApplyLastZWorldMaster()
         return false
     end
 
-    -- Smooth, zero-stutter frame budgets for DoParse (35/frame) and BuildAsync (12/frame)
+    -- High-throughput zero-stutter frame budgets for DoParse (90/frame) and BuildAsync (60..180/frame)
     local _parseFrame = -1
     local _parseCount = 0
     mgr.IsBusy = function(self)
@@ -1548,7 +1552,7 @@ function _G.ApplyLastZWorldMaster()
             _parseCount = 0
         end
         _parseCount = _parseCount + 1
-        return _parseCount > 35
+        return _parseCount > 90
     end
 
     local _buildFrame = -1
@@ -1560,8 +1564,10 @@ function _G.ApplyLastZWorldMaster()
             _buildCount = 0
         end
         _buildCount = _buildCount + 1
-        local qLen = (self.toBuildList and #self.toBuildList) or 0
-        local limit = (qLen > 50) and 100 or 30
+        local totalLen = (self.toBuildList and #self.toBuildList) or 0
+        local headIdx = tonumber(self.toBuildListHead or 1) or 1
+        local remaining = totalLen - headIdx + 1
+        local limit = (remaining > 80) and 180 or 60
         return _buildCount > limit
     end
 
@@ -1577,7 +1583,8 @@ function _G.ApplyLastZWorldMaster()
     -- Persistent Cache Lifecycle Hooks (Per-server cache; never wipe viewpoints across scene switches)
     local mt = getmetatable(mgr)
     local proto = (mt and type(mt.__index) == "table") and mt.__index or mgr
-    if proto and not proto._masterCacheLifecycleHookedV81 then
+    if proto and not proto._masterCacheLifecycleHookedV82 then
+        proto._masterCacheLifecycleHookedV82 = true
         proto._masterCacheLifecycleHookedV81 = true
         proto._masterCacheLifecycleHookedV8 = true
         proto._masterCacheLifecycleHooked = true
@@ -1627,19 +1634,29 @@ function _G.ApplyLastZWorldMaster()
         local origAddPointInfo = proto._origAddPointInfoV8 or proto.AddPointInfo
         proto._origAddPointInfoV8 = origAddPointInfo
         if origAddPointInfo then
-            proto.AddPointInfo = function(self, pointIndex, info, ...)
-                local sid = ResolveCacheServerId(nil, self)
-                if pointIndex and info then
-                    local ptCache = GetServerCacheTables(sid, self)
-                    ptCache[pointIndex] = info
-                    if self.allViewPoints and not self.allViewPoints[pointIndex] then
-                        self.allViewPoints[pointIndex] = { pointIndex = pointIndex, pointInfo = info }
-                    end
-                    MarkWorldCacheDirty(sid, 1)
+            proto.AddPointInfo = function(self, arg1, arg2, ...)
+                local pKey, pInfo
+                if type(arg1) == "table" and arg2 == nil then
+                    pInfo = arg1
+                    pKey = tonumber(arg1.id or arg1.pointIndex or arg1.mainIndex)
+                else
+                    pKey = arg1
+                    pInfo = arg2
                 end
-                local ret = origAddPointInfo(self, pointIndex, info, ...)
-                if pointIndex and self.allViewPoints and self.allViewPoints[pointIndex] then
-                    IndexViewPoint(self, pointIndex, self.allViewPoints[pointIndex], true)
+                local sid = ResolveCacheServerId(nil, self)
+                if pKey and pInfo then
+                    local ptCache = GetServerCacheTables(sid, self)
+                    if ptCache[pKey] ~= pInfo then
+                        ptCache[pKey] = pInfo
+                        MarkWorldCacheDirty(sid, 1)
+                    end
+                    if self.allViewPoints and not self.allViewPoints[pKey] then
+                        self.allViewPoints[pKey] = { pointIndex = pKey, pointInfo = pInfo }
+                    end
+                end
+                local ret = origAddPointInfo(self, arg1, arg2, ...)
+                if pKey and self.allViewPoints and self.allViewPoints[pKey] then
+                    IndexViewPoint(self, pKey, self.allViewPoints[pKey], true)
                 end
                 return ret
             end
@@ -1648,19 +1665,29 @@ function _G.ApplyLastZWorldMaster()
         local origAddDesertInfo = proto._origAddDesertInfoV8 or proto.AddDesertInfo
         proto._origAddDesertInfoV8 = origAddDesertInfo
         if origAddDesertInfo then
-            proto.AddDesertInfo = function(self, pointIndex, info, ...)
-                local sid = ResolveCacheServerId(nil, self)
-                if pointIndex and info then
-                    local _, desertCache = GetServerCacheTables(sid, self)
-                    desertCache[pointIndex] = info
-                    if self.allViewPoints and not self.allViewPoints[pointIndex] then
-                        self.allViewPoints[pointIndex] = { pointIndex = pointIndex, desertInfo = info }
-                    end
-                    MarkWorldCacheDirty(sid, 1)
+            proto.AddDesertInfo = function(self, arg1, arg2, ...)
+                local dKey, dInfo
+                if type(arg1) == "table" and arg2 == nil then
+                    dInfo = arg1
+                    dKey = tonumber(arg1.id or arg1.pointIndex or arg1.mainIndex)
+                else
+                    dKey = arg1
+                    dInfo = arg2
                 end
-                local ret = origAddDesertInfo(self, pointIndex, info, ...)
-                if pointIndex and self.allViewPoints and self.allViewPoints[pointIndex] then
-                    IndexViewPoint(self, pointIndex, self.allViewPoints[pointIndex], true)
+                local sid = ResolveCacheServerId(nil, self)
+                if dKey and dInfo then
+                    local _, desertCache = GetServerCacheTables(sid, self)
+                    if desertCache[dKey] ~= dInfo then
+                        desertCache[dKey] = dInfo
+                        MarkWorldCacheDirty(sid, 1)
+                    end
+                    if self.allViewPoints and not self.allViewPoints[dKey] then
+                        self.allViewPoints[dKey] = { pointIndex = dKey, desertInfo = dInfo }
+                    end
+                end
+                local ret = origAddDesertInfo(self, arg1, arg2, ...)
+                if dKey and self.allViewPoints and self.allViewPoints[dKey] then
+                    IndexViewPoint(self, dKey, self.allViewPoints[dKey], true)
                 end
                 return ret
             end
@@ -1723,6 +1750,19 @@ function _G.ApplyLastZWorldMaster()
         end
     end
 
+    -- Safe guard WorldHeroDispatchTaskObject against destroyed GameObject when preloading in City view
+    local ok_whd, whd = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldHeroDispatchTaskObject")
+    if ok_whd and whd and not whd._masterNullGuarded then
+        whd._masterNullGuarded = true
+        local origUpdateReward = whd.UpdateShowRewardUI
+        if type(origUpdateReward) == "function" then
+            whd.UpdateShowRewardUI = function(self, ...)
+                if not self or not self.gameObject or IsNull(self.gameObject) then return end
+                return origUpdateReward(self, ...)
+            end
+        end
+    end
+
     -- Safe guard mgr.AddOccupyPoints2Queued against uninitialized World static manager
     if mgr and mgr.AddOccupyPoints2Queued and not mgr._masterAddOccupyGuarded then
         mgr._masterAddOccupyGuarded = true
@@ -1748,26 +1788,56 @@ function _G.ApplyLastZWorldMaster()
 
     -- Restore all cached viewpoints from persistent memory/disk and sync spatial buckets
     pcall(_G.RestoreWorldMapCache)
-    SyncSpatialGridIfReplaced(mgr)
+    if mgr.allViewPoints then
+        local sidSync = ResolveCacheServerId(nil, mgr)
+        local ptSync, desSync = GetServerCacheTables(sidSync, mgr)
+        for k, v in pairs(mgr.allViewPoints) do
+            if type(v) == "table" then
+                if v.pointInfo ~= nil and ptSync[k] ~= v.pointInfo then
+                    ptSync[k] = v.pointInfo
+                    MarkWorldCacheDirty(sidSync, 1)
+                end
+                if v.desertInfo ~= nil and desSync[k] ~= v.desertInfo then
+                    desSync[k] = v.desertInfo
+                    MarkWorldCacheDirty(sidSync, 1)
+                end
+            end
+        end
+        RebuildSpatialGrid(mgr)
+    else
+        SyncSpatialGridIfReplaced(mgr)
+    end
 
-    -- Preload and stream nearby spatial buckets synchronously on world entry
+    -- Preload and stream nearby spatial buckets synchronously on world entry (viewport-first concentric rings)
     local initCamX, initCamY = GetActualCameraTilePos(mgr, ws)
     if mgr.isInit == true and mgr.allViewPoints and mgr.AddToBuildList then
         local grid = _G._MasterSpatialGrid
-        local minBx = math.floor((initCamX - 250) / BUCKET_SIZE)
-        local maxBx = math.floor((initCamX + 250) / BUCKET_SIZE)
-        local minBy = math.floor((initCamY - 250) / BUCKET_SIZE)
-        local maxBy = math.floor((initCamY + 250) / BUCKET_SIZE)
+        local camBx = math.floor(initCamX / BUCKET_SIZE)
+        local camBy = math.floor(initCamY / BUCKET_SIZE)
+        local minBx = math.max(0, math.floor((initCamX - 300) / BUCKET_SIZE))
+        local maxBx = math.min(20, math.floor((initCamX + 300) / BUCKET_SIZE))
+        local minBy = math.max(0, math.floor((initCamY - 300) / BUCKET_SIZE))
+        local maxBy = math.min(20, math.floor((initCamY + 300) / BUCKET_SIZE))
+        local ordered = {}
         for bx = minBx, maxBx do
             for by = minBy, maxBy do
-                local bucket = grid and grid[by * 4096 + bx]
-                if bucket then
-                    for k, v in pairs(bucket) do
-                        if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
-                            if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
-                                if ShouldBuildPointNow(mgr, k, v, initCamX, initCamY, false) then
-                                    mgr:AddToBuildList(k)
-                                end
+                local bKey = by * 4096 + bx
+                if grid and grid[bKey] then
+                    local dx = bx - camBx
+                    local dy = by - camBy
+                    ordered[#ordered + 1] = { key = bKey, d2 = dx * dx + dy * dy }
+                end
+            end
+        end
+        table.sort(ordered, function(a, b) return a.d2 < b.d2 end)
+        for i = 1, #ordered do
+            local bucket = grid[ordered[i].key]
+            if bucket then
+                for k, v in pairs(bucket) do
+                    if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                        if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
+                            if ShouldBuildPointNow(mgr, k, v, initCamX, initCamY, false) then
+                                mgr:AddToBuildList(k)
                             end
                         end
                     end
@@ -1881,8 +1951,8 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
     mgr._bgSweepServerId = serverId
 
     local tmManager = TimerManager:GetInstance()
-    local maxTileX = (TileCountX or 1000) - 30
-    local maxTileY = (TileCountY or 1000) - 30
+    local tileW = TileCountX or 1000
+    local tileH = TileCountY or 1000
     local startX, startY = 500, 500
 
     local curWsInit = SceneManager and SceneManager.World
@@ -1898,22 +1968,96 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
         end
     end
 
-    local gridStepX = 70
-    local gridStepY = 60
+    -- Zero-gap overlapping svLod=1 grid (server returns 71x101 full-detail HQs/Zombies/Resources/Cities/Radar)
+    -- Step 64x90 guarantees 7..11 tiles overlap on every border and full 0..999 edge-to-edge coverage (176 sectors)
+    local xs = {}
+    for gx = 32, tileW - 32, 64 do
+        xs[#xs + 1] = gx
+    end
+    if xs[#xs] < (tileW - 36) then
+        xs[#xs + 1] = tileW - 32
+    end
+    local ys = {}
+    for gy = 48, tileH - 48, 90 do
+        ys[#ys + 1] = gy
+    end
+    if ys[#ys] < (tileH - 52) then
+        ys[#ys + 1] = tileH - 48
+    end
+
     local allSectors = {}
-    for gx = 30, maxTileX, gridStepX do
-        for gy = 30, maxTileY, gridStepY do
-            local dist = math.max(math.abs(gx - startX), math.abs(gy - startY))
-            table.insert(allSectors, { x = gx, y = gy, d = dist })
+    for ix = 1, #xs do
+        local gx = xs[ix]
+        for iy = 1, #ys do
+            local gy = ys[iy]
+            local dx = gx - startX
+            local dy = gy - startY
+            allSectors[#allSectors + 1] = { x = gx, y = gy, d2 = dx * dx + dy * dy }
         end
     end
-    table.sort(allSectors, function(a, b) return a.d < b.d end)
+    table.sort(allSectors, function(a, b) return a.d2 < b.d2 end)
 
     local sweepToken = (mgr._bgSweepToken or 0) + 1
     mgr._bgSweepToken = sweepToken
     local sIdx = 1
     local dirtyTicks = 0
-    local fastStepDelay = forceRestart and 0.18 or 0.28
+    local fastStepDelay = forceRestart and 0.075 or 0.12
+    local batchSize = forceRestart and 2 or 1
+    local lastSortX, lastSortY = startX, startY
+
+    local function sendSectorSvLod1(gx, gy, targetSid)
+        local cx = math.max(0, math.min(tileW - 1, math.floor(gx)))
+        local cy = math.max(0, math.min(tileH - 1, math.floor(gy)))
+        if mgr.isInit == true then
+            mgr.waitingForReply = false
+            mgr:DoSendViewRequest(cx, cy, 1, targetSid)
+            return
+        end
+        -- In City view (CurrSceneID == 1), SceneUtils.ClampTilePosXY clamps to 80x80 city bounds.
+        -- Send the exact GetViewLevelWorldInfo packet directly with 0..999 world coordinates so City preloading works seamlessly.
+        if SFSNetwork and SFSNetwork.SendMessage and MsgDefines and MsgDefines.GetViewLevelWorldInfo then
+            local realSid = targetSid
+            local worldId = 0
+            local p = LuaEntry and LuaEntry.Player
+            if p then
+                if p.IsInSelfServer then
+                    local okSelf, inSelf = pcall(p.IsInSelfServer, p)
+                    if okSelf and inSelf == false and p.GetCrossServerId then
+                        local okCross, cSid = pcall(p.GetCrossServerId, p)
+                        if okCross and tonumber(cSid) and tonumber(cSid) > 0 then
+                            realSid = tonumber(cSid)
+                        end
+                    end
+                end
+                if p.GetCurWorldId then
+                    local okWid, wid = pcall(p.GetCurWorldId, p)
+                    if okWid and tonumber(wid) then
+                        worldId = tonumber(wid)
+                    end
+                end
+            end
+            SFSNetwork.SendMessage(MsgDefines.GetViewLevelWorldInfo, cx, cy, 0, 1, realSid, worldId, nil, 0)
+        end
+    end
+
+    local function reprioritizeRemaining(camX, camY)
+        if sIdx >= #allSectors then return end
+        local tail = {}
+        local n = 0
+        for i = sIdx, #allSectors do
+            local sec = allSectors[i]
+            local dx = sec.x - camX
+            local dy = sec.y - camY
+            sec.d2 = dx * dx + dy * dy
+            n = n + 1
+            tail[n] = sec
+        end
+        table.sort(tail, function(a, b) return a.d2 < b.d2 end)
+        for i = 1, n do
+            allSectors[sIdx + i - 1] = tail[i]
+        end
+        lastSortX, lastSortY = camX, camY
+    end
 
     _G._FullMapLoadState = {
         active = true,
@@ -1944,16 +2088,26 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
         local realCamX, realCamY = nil, nil
         if curWs and curWs.Camera and mgr.isInit == true then
             realCamX, realCamY = GetActualCameraTilePos(mgr, curWs)
+            if realCamX and realCamY and (math.abs(realCamX - lastSortX) >= 80 or math.abs(realCamY - lastSortY) >= 80) then
+                reprioritizeRemaining(realCamX, realCamY)
+            end
         end
 
         if sIdx <= #allSectors then
-            local sec = allSectors[sIdx]
-            sIdx = sIdx + 1
-            mgr.waitingForReply = false
-            mgr:DoSendViewRequest(sec.x, sec.y, 0, serverId)
+            local prevReqX = mgr.reqPos and mgr.reqPos.x or nil
+            local prevReqY = mgr.reqPos and mgr.reqPos.y or nil
+            local sent = 0
+            while sent < batchSize and sIdx <= #allSectors do
+                local sec = allSectors[sIdx]
+                sIdx = sIdx + 1
+                sent = sent + 1
+                sendSectorSvLod1(sec.x, sec.y, serverId)
+            end
 
             if realCamX and realCamY and mgr.reqPos and mgr.reqPos.Set then
                 mgr.reqPos:Set(realCamX, realCamY)
+            elseif prevReqX and prevReqY and mgr.reqPos and mgr.reqPos.Set then
+                mgr.reqPos:Set(prevReqX, prevReqY)
             end
 
             _G._FullMapLoadState.active = true
@@ -1961,8 +2115,8 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
             _G._FullMapLoadState.total = #allSectors
             _G._FullMapLoadState.serverId = serverId
 
-            dirtyTicks = dirtyTicks + 1
-            if (dirtyTicks % 8) == 0 then
+            dirtyTicks = dirtyTicks + sent
+            if (dirtyTicks % 4) < sent then
                 pcall(_G.RefreshMasterOverlayUI)
             end
             if dirtyTicks >= 40 then
@@ -1971,7 +2125,7 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
             end
             tmManager:DelayInvoke(sStep, fastStepDelay)
         else
-            -- Completed full 1000x1000 world map sweep. Flush disk cache, rest for 60s, then repeat for live changes
+            -- Completed full 1000x1000 zero-gap map sweep. Flush disk cache, rest 60s, then gently refresh
             _G.SaveWorldCacheToDisk(serverId, true)
             _G._FullMapLoadState.active = false
             _G._FullMapLoadState.done = #allSectors
@@ -1979,23 +2133,33 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
             _G._ForceStreamRescan = true
             pcall(_G.RefreshMasterOverlayUI)
             sIdx = 1
-            fastStepDelay = 0.28
+            if realCamX and realCamY then
+                reprioritizeRemaining(realCamX, realCamY)
+            end
+            fastStepDelay = 0.14
+            batchSize = 1
             tmManager:DelayInvoke(sStep, 60.0)
         end
     end
     sStep()
 
-    -- Continuous parser pump so incoming packets are decoded even while in City view
+    -- Adaptive parser pump so incoming packets decode immediately even while in City view
     local pumpToken = (mgr._bgPumpToken or 0) + 1
     mgr._bgPumpToken = pumpToken
     local function sPump()
         if mgr._bgPumpToken ~= pumpToken then return end
+        local hasPending = false
         pcall(function()
             if mgr.ParseServerDataAsync then
                 mgr:ParseServerDataAsync()
             end
+            local mq = mgr.messageQueue
+            local pm = mgr.pointMessageArray
+            if (type(mq) == "table" and #mq > 0) or (type(pm) == "table" and #pm > 0) then
+                hasPending = true
+            end
         end)
-        tmManager:DelayInvoke(sPump, 0.08)
+        tmManager:DelayInvoke(sPump, hasPending and 0.04 or 0.15)
     end
     sPump()
     return true
@@ -2018,34 +2182,45 @@ function _G.TriggerFullMapLoad(forceRestart)
         SyncSpatialGridIfReplaced(mgr)
         _G.StartBackgroundWorldPreloader(forceRestart ~= false)
         _G._ForceStreamRescan = true
-        -- Immediately queue an initial burst of unbuilt points in nearby spatial buckets if in World view
+        -- Immediately queue an initial viewport-first burst of unbuilt points in concentric spatial buckets
         if mgr.isInit == true and mgr.allViewPoints and mgr.AddToBuildList then
             local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+            local camBx = math.floor(camX / BUCKET_SIZE)
+            local camBy = math.floor(camY / BUCKET_SIZE)
             local burst = 0
             local grid = _G._MasterSpatialGrid
-            local minBx = math.floor((camX - 430) / BUCKET_SIZE)
-            local maxBx = math.floor((camX + 430) / BUCKET_SIZE)
-            local minBy = math.floor((camY - 430) / BUCKET_SIZE)
-            local maxBy = math.floor((camY + 430) / BUCKET_SIZE)
+            local minBx = math.max(0, math.floor((camX - 530) / BUCKET_SIZE))
+            local maxBx = math.min(20, math.floor((camX + 530) / BUCKET_SIZE))
+            local minBy = math.max(0, math.floor((camY - 530) / BUCKET_SIZE))
+            local maxBy = math.min(20, math.floor((camY + 530) / BUCKET_SIZE))
+            local ordered = {}
             for bx = minBx, maxBx do
                 for by = minBy, maxBy do
-                    local bucket = grid and grid[by * 4096 + bx]
-                    if bucket then
-                        for k, v in pairs(bucket) do
-                            if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
-                                if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
-                                    if _G.ShouldBuildPointNow(mgr, k, v, camX, camY, false) then
-                                        mgr:AddToBuildList(k)
-                                        burst = burst + 1
-                                        if burst >= 400 then break end
-                                    end
+                    local bKey = by * 4096 + bx
+                    if grid and grid[bKey] then
+                        local dx = bx - camBx
+                        local dy = by - camBy
+                        ordered[#ordered + 1] = { key = bKey, d2 = dx * dx + dy * dy }
+                    end
+                end
+            end
+            table.sort(ordered, function(a, b) return a.d2 < b.d2 end)
+            for i = 1, #ordered do
+                local bucket = grid[ordered[i].key]
+                if bucket then
+                    for k, v in pairs(bucket) do
+                        if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                            if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
+                                if _G.ShouldBuildPointNow(mgr, k, v, camX, camY, false) then
+                                    mgr:AddToBuildList(k)
+                                    burst = burst + 1
+                                    if burst >= 800 then break end
                                 end
                             end
                         end
                     end
-                    if burst >= 400 then break end
                 end
-                if burst >= 400 then break end
+                if burst >= 800 then break end
             end
         end
     end
@@ -2180,7 +2355,7 @@ if TimerManager then
         local curMgr = DataCenter and DataCenter.WorldPointManager
         local isNowInWorld = (curMgr and curMgr.isInit == true)
         if isNowInWorld then
-            if not curMgr._masterAppliedForThisWorldSession or curMgr:GetServerLod(6) ~= 0 then
+            if not curMgr._masterAppliedForThisWorldSession or curMgr:GetServerLod(6) > 1 then
                 if _G.ApplyLastZWorldMaster then
                     local ok, res = pcall(_G.ApplyLastZWorldMaster)
                     _G._LastMasterStatus = tostring(ok) .. ": " .. tostring(res)
@@ -2207,12 +2382,12 @@ if TimerManager then
     end
     tmManager:DelayInvoke(hb, 0.05)
 
-    -- Dynamic Spatial Viewport Streamer: 50x50 Spatial Bucketing (O(local + dirty) instead of O(73k))
+    -- Dynamic Spatial Viewport Streamer: 50x50 Spatial Bucketing with viewport-first concentric priority
     local streamToken = (_G._masterStreamToken or 0) + 1
     _G._masterStreamToken = streamToken
     local lastStreamCamX, lastStreamCamY = -9999, -9999
     local streamHasMoreWork = true
-    local STREAM_MAX_RADIUS = 430
+    local STREAM_MAX_RADIUS = 530
     local _pendingBucketKeys = {}
     local _pendingBucketIdx = 1
     local _pendingBucketSeen = {}
@@ -2221,6 +2396,24 @@ if TimerManager then
         if not _pendingBucketSeen[bKey] and _G._MasterSpatialGrid and _G._MasterSpatialGrid[bKey] then
             _pendingBucketSeen[bKey] = true
             _pendingBucketKeys[#_pendingBucketKeys + 1] = bKey
+        end
+    end
+
+    local function _sortPendingNearest(camBx, camBy)
+        local n = #_pendingBucketKeys - _pendingBucketIdx + 1
+        if n <= 1 then return end
+        local items = {}
+        for i = _pendingBucketIdx, #_pendingBucketKeys do
+            local bk = _pendingBucketKeys[i]
+            local bx = bk % 4096
+            local by = math.floor(bk / 4096)
+            local dx = bx - camBx
+            local dy = by - camBy
+            items[#items + 1] = { key = bk, d2 = dx * dx + dy * dy }
+        end
+        table.sort(items, function(a, b) return a.d2 < b.d2 end)
+        for i = 1, #items do
+            _pendingBucketKeys[_pendingBucketIdx + i - 1] = items[i].key
         end
     end
 
@@ -2242,6 +2435,8 @@ if TimerManager then
             streamHasMoreWork = false
         end
         local camX, camY = GetActualCameraTilePos(curMgr, curWs)
+        local camBx = math.floor(camX / BUCKET_SIZE)
+        local camBy = math.floor(camY / BUCKET_SIZE)
         local moved = (math.abs(camX - lastStreamCamX) >= 6 or math.abs(camY - lastStreamCamY) >= 6)
         local forced = (_G._ForceStreamRescan == true)
         local dirtyBuckets = _G._MasterDirtyBuckets
@@ -2252,6 +2447,7 @@ if TimerManager then
             return
         end
 
+        local needSort = false
         if forced then
             _pendingBucketKeys = {}
             _pendingBucketIdx = 1
@@ -2265,12 +2461,13 @@ if TimerManager then
             end
             lastStreamCamX = camX
             lastStreamCamY = camY
+            needSort = true
         else
             if moved then
-                local minBx = math.floor((camX - STREAM_MAX_RADIUS) / BUCKET_SIZE)
-                local maxBx = math.floor((camX + STREAM_MAX_RADIUS) / BUCKET_SIZE)
-                local minBy = math.floor((camY - STREAM_MAX_RADIUS) / BUCKET_SIZE)
-                local maxBy = math.floor((camY + STREAM_MAX_RADIUS) / BUCKET_SIZE)
+                local minBx = math.max(0, math.floor((camX - STREAM_MAX_RADIUS) / BUCKET_SIZE))
+                local maxBx = math.min(20, math.floor((camX + STREAM_MAX_RADIUS) / BUCKET_SIZE))
+                local minBy = math.max(0, math.floor((camY - STREAM_MAX_RADIUS) / BUCKET_SIZE))
+                local maxBy = math.min(20, math.floor((camY + STREAM_MAX_RADIUS) / BUCKET_SIZE))
                 for bx = minBx, maxBx do
                     for by = minBy, maxBy do
                         _enqueueStreamBucket(by * 4096 + bx)
@@ -2278,13 +2475,19 @@ if TimerManager then
                 end
                 lastStreamCamX = camX
                 lastStreamCamY = camY
+                needSort = true
             end
             if hasDirty then
                 for dk in pairs(dirtyBuckets) do
                     dirtyBuckets[dk] = nil
                     _enqueueStreamBucket(dk)
                 end
+                needSort = true
             end
+        end
+
+        if needSort then
+            _sortPendingNearest(camBx, camBy)
         end
 
         local queuedThisTick = 0
@@ -2293,6 +2496,9 @@ if TimerManager then
         if grid and curMgr.AddToBuildList then
             while _pendingBucketIdx <= #_pendingBucketKeys do
                 local bKey = _pendingBucketKeys[_pendingBucketIdx]
+                local bx = bKey % 4096
+                local by = math.floor(bKey / 4096)
+                local isViewportCore = (math.abs(bx - camBx) <= 1 and math.abs(by - camBy) <= 1)
                 local bucket = grid[bKey]
                 if bucket then
                     for k, v in pairs(bucket) do
@@ -2301,7 +2507,7 @@ if TimerManager then
                                 if _G.ShouldBuildPointNow(curMgr, k, v, camX, camY, false) then
                                     curMgr:AddToBuildList(k)
                                     queuedThisTick = queuedThisTick + 1
-                                    if queuedThisTick >= 250 then
+                                    if (not isViewportCore) and queuedThisTick >= 600 then
                                         hitCap = true
                                         break
                                     end
@@ -2330,9 +2536,9 @@ if TimerManager then
     local function runCameraStreamer()
         if _G._masterStreamToken ~= streamToken then return end
         pcall(_streamWork)
-        tmManager:DelayInvoke(runCameraStreamer, 0.20)
+        tmManager:DelayInvoke(runCameraStreamer, streamHasMoreWork and 0.05 or 0.20)
     end
-    tmManager:DelayInvoke(runCameraStreamer, 0.20)
+    tmManager:DelayInvoke(runCameraStreamer, 0.05)
 end
 
 -- R3 Safe Strictly Read-Only Pre-Loading (Staggered post-login warm-up, zero SFS/UI/Guide mutation)

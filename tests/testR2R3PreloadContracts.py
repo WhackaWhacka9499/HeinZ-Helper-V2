@@ -911,6 +911,29 @@ class TestR2HookAndBridgeContracts(unittest.TestCase):
             self.assertIsNone(lua.eval("_G._PersistentWorldPointCacheByServer[702][100502]"))
             self.assertIsNone(lua.eval("_G._PersistentWorldPointCacheByServer[702]['100502']"))
 
+            # Real Last Z 1-arg AddPointInfo(pi) / AddDesertInfo(di) with .id must also index, cache, and mark dirty
+            lua.execute(
+                r"""
+                local mgr = DataCenter.WorldPointManager
+                mgr._origAddPointInfoV8 = function(self, pi)
+                    self.allViewPoints[pi.id] = { pointIndex = pi.id, pointInfo = pi }
+                end
+                mgr._origAddDesertInfoV8 = function(self, di)
+                    self.allViewPoints[di.id] = self.allViewPoints[di.id] or { pointIndex = di.id }
+                    self.allViewPoints[di.id].desertInfo = di
+                end
+                _G._testProto._masterCacheLifecycleHookedV82 = false
+                _G.ApplyLastZWorldMaster()
+                _G._WorldCacheDirtyCount[702] = 0
+                mgr:AddPointInfo({ id = 200300, pointType = 6, name = "Real1ArgHQ" })
+                mgr:AddDesertInfo({ id = 200300, desertType = 1 })
+                """
+            )
+            self.assertIsNotNone(lua.eval("_G._PersistentWorldPointCacheByServer[702][200300]"))
+            self.assertIsNotNone(lua.eval("_G._PersistentDesertCacheByServer[702][200300]"))
+            self.assertGreaterEqual(lua.eval("_G._WorldCacheDirtyCount[702]"), 2)
+            self.assertIsNotNone(lua.eval("next(_G._MasterDirtyBuckets)"))
+
     def test_lua_view_and_lod_request_range_return_lod_indexed_tables(self) -> None:
         """lupa: GetViewLevelRange and GetLodRequestRange must return LOD-indexed tables so UpdateViewRequest never throws nil range."""
         with tempfile.TemporaryDirectory() as tmp:
@@ -948,9 +971,11 @@ class TestR2HookAndBridgeContracts(unittest.TestCase):
                 _G.ApplyLastZWorldMaster()
                 """
             )
-            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[1].x"), 16)
-            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[1].y"), 16)
-            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[4].x"), 16)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[1].x"), 24)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[1].y"), 28)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[4].x"), 24)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetServerLod(6)"), 1)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetServerLod(1)"), 0)
 
 
 
