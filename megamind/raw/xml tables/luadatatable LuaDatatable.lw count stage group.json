@@ -1,0 +1,238 @@
+{
+  "index": {
+    "max_hp": {
+      "1": 2,
+      "2": "number"
+    },
+    "hp_bar_height": {
+      "1": 11,
+      "2": "number"
+    },
+    "unit_prefab": {
+      "1": 8,
+      "2": "string"
+    },
+    "move_speed": {
+      "1": 5,
+      "2": "number"
+    },
+    "class": {
+      "1": 4,
+      "2": "string"
+    },
+    "unit_pt": {
+      "1": 3,
+      "2": "number"
+    },
+    "face_dir": {
+      "1": 7,
+      "2": "string"
+    },
+    "unit_radius": {
+      "1": 6,
+      "2": "number"
+    },
+    "id": {
+      "1": 1,
+      "2": "number"
+    },
+    "move_anim": {
+      "1": 12,
+      "2": "array"
+    },
+    "dead_vfx": {
+      "1": 9,
+      "2": "string"
+    },
+    "hit_vfx": {
+      "1": 10,
+      "2": "string"
+    },
+    "contact_anim": {
+      "1": 14,
+      "2": "array"
+    },
+    "engage_anim": {
+      "1": 13,
+      "2": "array"
+    }
+  },
+  "data": {
+    "10001": {
+      "14": "table: 000001F05ECD9550",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_monster_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A50",
+      "11": 2,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_xuezi_cm.prefab",
+      "13": "table: 000001F05ECD8A50",
+      "7": "-1",
+      "8": "Assets/Main/Prefabs/Barrel/Zombie/Barrel_zombie_pink.prefab",
+      "5": 5,
+      "6": 400,
+      "3": 1,
+      "4": "Zombie",
+      "1": 10001,
+      "2": 4
+    },
+    "2000": {
+      "14": "table: 000001F05ECD8A10",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_stone_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A10",
+      "11": 3,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_Aiyinsitan_attack_hit_cm.prefab",
+      "13": "table: 000001F05ECD8A10",
+      "7": "0",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/BunkerUnit.prefab",
+      "5": 0,
+      "6": 2000,
+      "3": 30,
+      "4": "Tower",
+      "1": 2000,
+      "2": 150
+    },
+    "1000": {
+      "14": "table: 000001F05ECD9550",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_monster_hit_cm.prefab",
+      "12": "table: 000001F05ECD9C90",
+      "11": 2,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_xuezi_cm.prefab",
+      "13": "table: 000001F05ECDA490",
+      "7": "-1",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/ZombieUnit.prefab",
+      "5": 5,
+      "6": 400,
+      "3": 1,
+      "4": "Zombie",
+      "1": 1000,
+      "2": 3
+    },
+    "1001": {
+      "14": "table: 000001F05ECD9550",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_monster_hit_cm.prefab",
+      "12": "table: 000001F05ECDA050",
+      "11": 2,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_xuezi_cm.prefab",
+      "13": "table: 000001F05ECDA410",
+      "7": "-1",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/A_Monster_Zombie01_Hat_cm.prefab",
+      "5": 5,
+      "6": 400,
+      "3": 1,
+      "4": "Zombie",
+      "1": 1001,
+      "2": 4
+    },
+    "2001": {
+      "14": "table: 000001F05ECD8A10",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_Metal_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A10",
+      "11": 4,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_qiyoutong_cm.prefab",
+      "13": "table: 000001F05ECD8A10",
+      "7": "90",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/O_env_daba_01_cm.prefab",
+      "5": 0,
+      "6": 2000,
+      "3": 30,
+      "4": "Tower",
+      "1": 2001,
+      "2": 150
+    },
+    "1002": {
+      "14": "table: 000001F05ECD9550",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_monster_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A50",
+      "11": 2,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_xuezi_cm.prefab",
+      "13": "table: 000001F05ECD8A50",
+      "7": "-1",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/A_Monster_dog01_cm.prefab",
+      "5": 8,
+      "6": 400,
+      "3": 1,
+      "4": "Zombie",
+      "1": 1002,
+      "2": 3
+    },
+    "1003": {
+      "14": "table: 000001F05ECD9550",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_monster_hit_cm.prefab",
+      "12": "table: 000001F05ECDA090",
+      "11": 2,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_xuezi_cm.prefab",
+      "13": "table: 000001F05ECDA0D0",
+      "7": "-1",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/A_Monster_Zombie_girl01_cm.prefab",
+      "5": 5,
+      "6": 400,
+      "3": 1,
+      "4": "Zombie",
+      "1": 1003,
+      "2": 3
+    },
+    "10000": {
+      "14": "table: 000001F05ECD9550",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_monster_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A50",
+      "11": 2,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_xuezi_cm.prefab",
+      "13": "table: 000001F05ECD8A50",
+      "7": "-1",
+      "8": "Assets/Main/Prefabs/Barrel/Zombie/Barrel_zombie01.prefab",
+      "5": 5,
+      "6": 400,
+      "3": 1,
+      "4": "Zombie",
+      "1": 10000,
+      "2": 3
+    },
+    "20000": {
+      "14": "table: 000001F05ECD8A10",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_stone_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A10",
+      "11": 3,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_Aiyinsitan_attack_hit_cm.prefab",
+      "13": "table: 000001F05ECD8A10",
+      "7": "0",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/BunkerUnit.prefab",
+      "5": 0,
+      "6": 2000,
+      "3": 30,
+      "4": "Tower",
+      "1": 20000,
+      "2": 130
+    },
+    "2002": {
+      "14": "table: 000001F05ECD8A10",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_Metal_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A10",
+      "11": 4,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_qiyoutong_cm.prefab",
+      "13": "table: 000001F05ECD8A10",
+      "7": "90",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/O_env_daba_02_cm.prefab",
+      "5": 0,
+      "6": 2000,
+      "3": 30,
+      "4": "Tower",
+      "1": 2002,
+      "2": 150
+    },
+    "2003": {
+      "14": "table: 000001F05ECD8A10",
+      "10": "Assets/Main/Prefabs/LWCountBattle/HitVfx/Eff_Metal_hit_cm.prefab",
+      "12": "table: 000001F05ECD8A10",
+      "11": 3,
+      "9": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_Aiyinsitan_attack_hit_cm.prefab",
+      "13": "table: 000001F05ECD8A10",
+      "7": "0",
+      "8": "Assets/Main/Prefabs/LWCountBattle/Units/O_env_xiaoche_02_cm.prefab",
+      "5": 0,
+      "6": 2000,
+      "3": 20,
+      "4": "Tower",
+      "1": 2003,
+      "2": 100
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"xml":"aps_collect_resource","table_keys":["TableName.CollectResource"],"columns":["id","resourceType","para","diffPoint","model"],"row_count":3,"rows":{"10001":["10001","10000","10001","14,-4","CollectResourceIron"],"10002":["10002","11","","14,-13","CollectResourceWater"],"10003":["10003","10000","10000","6,-14","CollectResourceWood"]}}

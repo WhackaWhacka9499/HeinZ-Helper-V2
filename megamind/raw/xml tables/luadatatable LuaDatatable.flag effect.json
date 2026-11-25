@@ -1,0 +1,154 @@
+{
+  "index": {
+    "flag_effect_effect": {
+      "1": 6,
+      "2": "string"
+    },
+    "world_season": {
+      "1": 2,
+      "2": "number"
+    },
+    "flag_effect_title": {
+      "1": 5,
+      "2": "number"
+    },
+    "flag_effect_season": {
+      "1": 8,
+      "2": "string"
+    },
+    "flag_effect_pic": {
+      "1": 7,
+      "2": "string"
+    },
+    "flag_effect_bg": {
+      "1": 4,
+      "2": "string"
+    },
+    "id": {
+      "1": 1,
+      "2": "number"
+    },
+    "effect_title": {
+      "1": 9,
+      "2": "number"
+    },
+    "order": {
+      "1": 3,
+      "2": "number"
+    },
+    "effect_des": {
+      "1": 10,
+      "2": "number"
+    }
+  },
+  "data": {
+    "301": {
+      "9": 5640006,
+      "10": 5640010,
+      "7": "c_season4_flag_title_03",
+      "8": "UIseason_tab_S4",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS4_flag_003",
+      "3": 1,
+      "4": "c_texture_season4_flag_allot_bg_02",
+      "1": 301,
+      "2": 3
+    },
+    "201": {
+      "9": 5640003,
+      "10": 5640010,
+      "7": "c_season3_flag_title_03",
+      "8": "UIseason_tab_S3",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS3_flag_003",
+      "3": 1,
+      "4": "c_texture_season3_flag_allot_bg_02",
+      "1": 201,
+      "2": 2
+    },
+    "303": {
+      "9": 5640004,
+      "10": 5640012,
+      "7": "c_season4_flag_title_01",
+      "8": "UIseason_tab_S4",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS4_flag_001",
+      "3": 3,
+      "4": "c_texture_season4_flag_allot_bg_01",
+      "1": 303,
+      "2": 3
+    },
+    "203": {
+      "9": 5640001,
+      "10": 5640012,
+      "7": "c_season3_flag_title_01",
+      "8": "UIseason_tab_S3",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS3_flag_001",
+      "3": 3,
+      "4": "c_texture_season3_flag_allot_bg_01",
+      "1": 203,
+      "2": 2
+    },
+    "403": {
+      "9": 5640007,
+      "10": 5640012,
+      "7": "c_season5_flag_title_01",
+      "8": "UIseason_tab_S5",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS5_flag_001",
+      "3": 3,
+      "4": "c_texture_season5_flag_allot_bg_01",
+      "1": 403,
+      "2": 4
+    },
+    "401": {
+      "9": 5640009,
+      "10": 5640010,
+      "7": "c_season5_flag_title_03",
+      "8": "UIseason_tab_S5",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS5_flag_003",
+      "3": 1,
+      "4": "c_texture_season5_flag_allot_bg_02",
+      "1": 401,
+      "2": 4
+    },
+    "202": {
+      "9": 5640002,
+      "10": 5640011,
+      "7": "c_season3_flag_title_02",
+      "8": "UIseason_tab_S3",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS3_flag_002",
+      "3": 2,
+      "4": "c_texture_season3_flag_allot_bg_01",
+      "1": 202,
+      "2": 2
+    },
+    "302": {
+      "9": 5640005,
+      "10": 5640011,
+      "7": "c_season4_flag_title_02",
+      "8": "UIseason_tab_S4",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS4_flag_002",
+      "3": 2,
+      "4": "c_texture_season4_flag_allot_bg_01",
+      "1": 302,
+      "2": 3
+    },
+    "402": {
+      "9": 5640008,
+      "10": 5640011,
+      "7": "c_season5_flag_title_02",
+      "8": "UIseason_tab_S5",
+      "5": 376037,
+      "6": "Eff_SeasonGloryRewardViewS5_flag_002",
+      "3": 2,
+      "4": "c_texture_season5_flag_allot_bg_01",
+      "1": 402,
+      "2": 4
+    }
+  }
+}

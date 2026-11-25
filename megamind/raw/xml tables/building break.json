@@ -1,0 +1,1 @@
+{"xml":"building_break","table_keys":["TableName.BuildingBreak"],"columns":["id","buildlv","show_lv","description","direction_id","condition1","condition2","condition3"],"row_count":1,"rows":{"100":["100","1-100","90-100","130448","1;2;3","400000;100","710000;100","797000;100"]}}

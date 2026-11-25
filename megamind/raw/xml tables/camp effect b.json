@@ -1,0 +1,1 @@
+{"xml":"camp_effect_b","table_keys":["TableName.CampEffect_B"],"columns":["id","camp_type","camp_effect","icon","des"],"row_count":4,"rows":{"3":["3","3","2;7","UITroops_img_fetters02","150217"],"4":["4","4","2;10","UITroops_img_fetters03","150218"],"1":["1","1","2;3","UITroops_img_fetters0","150215"],"2":["2","2","2;5","UITroops_img_fetters01","150216"]}}

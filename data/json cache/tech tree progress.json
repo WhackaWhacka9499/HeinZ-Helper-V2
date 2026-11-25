@@ -1,0 +1,1764 @@
+{
+  "laboratory_summary": {
+    "total_technologies_researched": 229,
+    "total_active_tech_trees": 13,
+    "overall_levels_completed": 1527,
+    "overall_levels_maximum": 1590,
+    "overall_laboratory_progress_percentage": 96.04,
+    "trees_100_percent_maxed_count": 8
+  },
+  "season_1_mastery": {
+    "level": 30,
+    "stored_exp": 6010000,
+    "active_plan": 1,
+    "status": "Fully Active"
+  },
+  "trees": [
+    {
+      "tab_id": 1,
+      "tree_name": "New Home",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "50/50",
+      "levels_completed": 50,
+      "levels_maximum": 50,
+      "nodes": [
+        {
+          "tech_id": "302900",
+          "name": "Wind Power",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303900",
+          "name": "Underground Deal Ⅱ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303000",
+          "name": "Food Production",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "305000",
+          "name": "Self-Defense Tricks",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303400",
+          "name": "Firearms Assembly",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304100",
+          "name": "Equipment Enhancement I",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302100",
+          "name": "Stock Management Ⅳ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304900",
+          "name": "Firearms Assembly",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "305200",
+          "name": "Tactical Cover",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303700",
+          "name": "Firearms Upgrading",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303200",
+          "name": "Assembly Tech",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302300",
+          "name": "Food Gathering",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304200",
+          "name": "Gun Sight I",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300900",
+          "name": "Mechanical Parts",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304600",
+          "name": "Food Production",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301900",
+          "name": "Fast Drive",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302400",
+          "name": "Advanced Mathematics I",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300500",
+          "name": "Underground Deal I",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304700",
+          "name": "Assembly Tech",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302700",
+          "name": "Rider Camp",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301200",
+          "name": "Wood Harvest",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "305700",
+          "name": "Skillful Craftsman Ⅱ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302600",
+          "name": "Multitasking",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300200",
+          "name": "Stock Management Ⅰ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304500",
+          "name": "Wind Power",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301600",
+          "name": "Wood Harvest",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304800",
+          "name": "Emergency Training",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304300",
+          "name": "Multitasking",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301800",
+          "name": "Advanced Mathematics I",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301100",
+          "name": "Stock Management Ⅲ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300800",
+          "name": "Fast Drive",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300600",
+          "name": "House Renovation",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300700",
+          "name": "Stock Management Ⅱ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301700",
+          "name": "Wind Power",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300100",
+          "name": "Stacking Technique",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "305100",
+          "name": "Explosion-proof Armor",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300400",
+          "name": "Shooter Camp",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302000",
+          "name": "Skillful Craftsman Ⅰ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "300000",
+          "name": "Wind Power",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302200",
+          "name": "Food Production",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "305600",
+          "name": "Engine Upgrading",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301500",
+          "name": "Vehicle Parts",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303800",
+          "name": "House Renovation",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304000",
+          "name": "Fighting Skills I",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "301000",
+          "name": "Food Production",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "305800",
+          "name": "Advanced Mathematics Ⅱ",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "304400",
+          "name": "Food Gathering",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303300",
+          "name": "Emergency Training",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "303100",
+          "name": "Wood Harvest",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "302500",
+          "name": "Wood Harvest",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 6,
+      "tree_name": "Shelter Building",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "18/18",
+      "levels_completed": 110,
+      "levels_maximum": 110,
+      "nodes": [
+        {
+          "tech_id": "1068000",
+          "name": "Quick Harvest",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1067000",
+          "name": "Anti Theft",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1069000",
+          "name": "Gold Panning",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1077000",
+          "name": "Skillful Craftsman Ⅰ",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1062000",
+          "name": "Food Warehouse",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1073000",
+          "name": "Centralized Storage",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1070000",
+          "name": "Farming Technology",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1074000",
+          "name": "Parallel Work I",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1072000",
+          "name": "Food Warehouse",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1065000",
+          "name": "Lead Battery",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1060000",
+          "name": "Farming Technology",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1061000",
+          "name": "Woodcutter",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1075000",
+          "name": "Lead Battery",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1063000",
+          "name": "Centralized Storage",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1064000",
+          "name": "Skillful Craftsman Ⅰ",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1071000",
+          "name": "Woodcutter",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1066000",
+          "name": "Wind Drive I",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1076000",
+          "name": "Wind Drive I",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 7,
+      "tree_name": "Elite Troops",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "21/21",
+      "levels_completed": 115,
+      "levels_maximum": 115,
+      "nodes": [
+        {
+          "tech_id": "1162000",
+          "name": "Tactical Cover",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1160000",
+          "name": "Stronger Armor",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1161000",
+          "name": "Shield Upgrade",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1159000",
+          "name": "Weapon Upgrading",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1157000",
+          "name": "Mobility Enhancement",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1158000",
+          "name": "Melee Combat",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1168000",
+          "name": "Mobile Defense",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1167000",
+          "name": "Joint Operation",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1169000",
+          "name": "Combat Policy",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1170000",
+          "name": "Interceptions",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1155000",
+          "name": "Field Training",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1156000",
+          "name": "Camo Coating",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1153000",
+          "name": "Arms Assembly",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1165000",
+          "name": "Arms Assembly",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1164000",
+          "name": "Quick Assembly",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1150000",
+          "name": "Fire Up",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1152000",
+          "name": "Quick Assembly",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1166000",
+          "name": "Target Training",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1154000",
+          "name": "Target Training",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1151000",
+          "name": "Armor Upgrade",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1163000",
+          "name": "Demolition Crew",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 22,
+      "tree_name": "Hero Training",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "13/13",
+      "levels_completed": 67,
+      "levels_maximum": 67,
+      "nodes": [
+        {
+          "tech_id": "1612000",
+          "name": "Strength Training",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1611000",
+          "name": "Attack Special Training",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1604000",
+          "name": "Light of Order",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1600000",
+          "name": "Attack Special Training",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1608000",
+          "name": "Shield of Order",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1602000",
+          "name": "Rose Bloom",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1603000",
+          "name": "Morning Star",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1607000",
+          "name": "Dawn's Light",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1601000",
+          "name": "Strength Training",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1606000",
+          "name": "Rose Barrier",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1605000",
+          "name": "Resource Gathering",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1610000",
+          "name": "Resource Gathering",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1609000",
+          "name": "Cockpit",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 8,
+      "tree_name": "HQ Management",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "20/20",
+      "levels_completed": 195,
+      "levels_maximum": 195,
+      "nodes": [
+        {
+          "tech_id": "1099000",
+          "name": "Centralized Storage",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1093000",
+          "name": "Quick Harvest",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1103000",
+          "name": "House Renovation",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1098000",
+          "name": "Food Warehouse",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1104000",
+          "name": "Wind Drive I",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1102000",
+          "name": "Anti Theft",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1092000",
+          "name": "Storage Battery",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1101000",
+          "name": "Skillful Craftsman Ⅰ",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1096000",
+          "name": "Farming Technology",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1106000",
+          "name": "Lead Battery",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1091000",
+          "name": "Photovoltaics",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1094000",
+          "name": "Gold Panning",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1090000",
+          "name": "Anti Theft",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1108000",
+          "name": "Storage Battery",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1109000",
+          "name": "Hospital Expansion",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1105000",
+          "name": "Safe Box",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1095000",
+          "name": "Rapid Casualty Care",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1107000",
+          "name": "Photovoltaics",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1097000",
+          "name": "Woodcutter",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1100000",
+          "name": "Parallel Work I",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 9,
+      "tree_name": "Military Strategies",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "18/18",
+      "levels_completed": 149,
+      "levels_maximum": 149,
+      "nodes": [
+        {
+          "tech_id": "1193000",
+          "name": "Field Training",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1181000",
+          "name": "Armor Upgrade",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1197000",
+          "name": "Aerocraft Material",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1196000",
+          "name": "Enhanced Armor",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1185000",
+          "name": "Interceptions",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1184000",
+          "name": "Combat Policy",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1180000",
+          "name": "Fire Up",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1183000",
+          "name": "Mobile Defense",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1192000",
+          "name": "Armor Upgrade",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1195000",
+          "name": "Alloy Plate",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1182000",
+          "name": "Joint Operation",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1191000",
+          "name": "Fire Up",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1194000",
+          "name": "Camo Coating",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1188000",
+          "name": "Arms Assembly",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1187000",
+          "name": "Quick Assembly",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1189000",
+          "name": "Target Training",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1190000",
+          "name": "Recharge Shield",
+          "level": 3,
+          "max_level": 3,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1186000",
+          "name": "Demolition Crew",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 10,
+      "tree_name": "Siege to Seize",
+      "progress_percentage": 90.0,
+      "is_100_percent_maxed": false,
+      "nodes_maxed": "16/18",
+      "levels_completed": 162,
+      "levels_maximum": 180,
+      "nodes": [
+        {
+          "tech_id": "1242000",
+          "name": "Mobile Defense",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1243000",
+          "name": "Mobility Enhancement",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1252000",
+          "name": "Stronger Armor",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1251000",
+          "name": "Demolition Crew",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1247000",
+          "name": "Propulsion",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1257000",
+          "name": "Recharge Shield",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1241000",
+          "name": "Joint Operation",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1245000",
+          "name": "Weapon Upgrading",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1253000",
+          "name": "Shield Upgrade",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1244000",
+          "name": "Melee Combat",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1254000",
+          "name": "Tactical Cover",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1246000",
+          "name": "Load Module",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1250000",
+          "name": "Target Training",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1249000",
+          "name": "Arms Assembly",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1248000",
+          "name": "Quick Assembly",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1240000",
+          "name": "Demolition Crew",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1255000",
+          "name": "Joint Operation",
+          "level": 11,
+          "max_level": 20,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1256000",
+          "name": "Mobile Defense",
+          "level": 11,
+          "max_level": 20,
+          "is_maxed": false
+        }
+      ]
+    },
+    {
+      "tab_id": 11,
+      "tree_name": "Peace Shield",
+      "progress_percentage": 88.5,
+      "is_100_percent_maxed": false,
+      "nodes_maxed": "14/16",
+      "levels_completed": 146,
+      "levels_maximum": 165,
+      "nodes": [
+        {
+          "tech_id": "1270000",
+          "name": "Auto Repair",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1271000",
+          "name": "Combat Policy",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1274000",
+          "name": "Melee Combat",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1281000",
+          "name": "Shield Upgrade",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1273000",
+          "name": "Mobility Enhancement",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1272000",
+          "name": "Interceptions",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1282000",
+          "name": "Tactical Cover",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1285000",
+          "name": "Recharge Shield",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1279000",
+          "name": "Urgent Rescue",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1280000",
+          "name": "Stronger Armor",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1275000",
+          "name": "Weapon Upgrading",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1276000",
+          "name": "Quick Assembly",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1278000",
+          "name": "Target Training",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1277000",
+          "name": "Arms Assembly",
+          "level": 5,
+          "max_level": 5,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1283000",
+          "name": "Combat Policy",
+          "level": 11,
+          "max_level": 20,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1284000",
+          "name": "Interceptions",
+          "level": 10,
+          "max_level": 20,
+          "is_maxed": false
+        }
+      ]
+    },
+    {
+      "tab_id": 12,
+      "tree_name": "Rapid Growth",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "16/16",
+      "levels_completed": 185,
+      "levels_maximum": 185,
+      "nodes": [
+        {
+          "tech_id": "1135000",
+          "name": "Hospital Expansion",
+          "level": 20,
+          "max_level": 20,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1134000",
+          "name": "Skillful Craftsman Ⅰ",
+          "level": 20,
+          "max_level": 20,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1129000",
+          "name": "Parallel Work I",
+          "level": 15,
+          "max_level": 15,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1126000",
+          "name": "Skillful Craftsman Ⅰ",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1131000",
+          "name": "Woodcutter",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1124000",
+          "name": "Photovoltaics",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1122000",
+          "name": "Safe Box",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1133000",
+          "name": "Centralized Storage",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1121000",
+          "name": "Wind Drive I",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1125000",
+          "name": "Storage Battery",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1130000",
+          "name": "Farming Technology",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1128000",
+          "name": "Gold Panning",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1120000",
+          "name": "House Renovation",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1123000",
+          "name": "Lead Battery",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1132000",
+          "name": "Food Warehouse",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1127000",
+          "name": "Quick Harvest",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 4,
+      "tree_name": "Alliance Recognition",
+      "progress_percentage": 100.0,
+      "is_100_percent_maxed": true,
+      "nodes_maxed": "19/19",
+      "levels_completed": 183,
+      "levels_maximum": 183,
+      "nodes": [
+        {
+          "tech_id": "1017000",
+          "name": "Event King",
+          "level": 20,
+          "max_level": 20,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1003000",
+          "name": "Event Expert",
+          "level": 20,
+          "max_level": 20,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1004000",
+          "name": "Augmented Engine",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1010000",
+          "name": "Incentive - Mod Vehicle",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1016000",
+          "name": "Incentive - Killing",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1006000",
+          "name": "Production Line Expansion",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1014000",
+          "name": "Incentive - Training",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1012000",
+          "name": "Incentive - Equipment",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1005000",
+          "name": "Transport Capacity Up",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1009000",
+          "name": "Incentive - Gathering",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1015000",
+          "name": "Incentive - Recruiting",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1001000",
+          "name": "Zent Gatherer",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1000000",
+          "name": "Collect Wood",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1011000",
+          "name": "Incentive - Development",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1013000",
+          "name": "Incentive - Creeps",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1007000",
+          "name": "Fast Production",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1018000",
+          "name": "One More!",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1002000",
+          "name": "Prime Rewards",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1008000",
+          "name": "Super Rewards",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        }
+      ]
+    },
+    {
+      "tab_id": 5,
+      "tree_name": "Fully Armed Alliance",
+      "progress_percentage": 91.2,
+      "is_100_percent_maxed": false,
+      "nodes_maxed": "10/15",
+      "levels_completed": 146,
+      "levels_maximum": 160,
+      "nodes": [
+        {
+          "tech_id": "1031000",
+          "name": "Piercing Shot",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1032000",
+          "name": "Tough Shield",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1041000",
+          "name": "Assaulter's Attack Training",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1035000",
+          "name": "Circuitous Tactics",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1037000",
+          "name": "Peacebreaker",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1044000",
+          "name": "Assaulter's Defense Training",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1033000",
+          "name": "Bazooka",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1036000",
+          "name": "Alloy Composite",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1030000",
+          "name": "Mechanical Repair I",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1034000",
+          "name": "Hold Fast",
+          "level": 10,
+          "max_level": 10,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1038000",
+          "name": "Annihilation",
+          "level": 13,
+          "max_level": 20,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1040000",
+          "name": "Shooter's Attack Training",
+          "level": 9,
+          "max_level": 10,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1039000",
+          "name": "Rider's Attack Training",
+          "level": 8,
+          "max_level": 10,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1043000",
+          "name": "Shooter's Defense Training",
+          "level": 8,
+          "max_level": 10,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1042000",
+          "name": "Rider's Defense Training",
+          "level": 8,
+          "max_level": 10,
+          "is_maxed": false
+        }
+      ]
+    },
+    {
+      "tab_id": 21,
+      "tree_name": "Unit Special Training",
+      "progress_percentage": 60.0,
+      "is_100_percent_maxed": false,
+      "nodes_maxed": "0/2",
+      "levels_completed": 12,
+      "levels_maximum": 20,
+      "nodes": [
+        {
+          "tech_id": "1570000",
+          "name": "Fire Up",
+          "level": 6,
+          "max_level": 10,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1571000",
+          "name": "Armor Upgrade",
+          "level": 6,
+          "max_level": 10,
+          "is_maxed": false
+        }
+      ]
+    },
+    {
+      "tab_id": 26,
+      "tree_name": "Age of Steel",
+      "progress_percentage": 63.6,
+      "is_100_percent_maxed": false,
+      "nodes_maxed": "1/3",
+      "levels_completed": 7,
+      "levels_maximum": 11,
+      "nodes": [
+        {
+          "tech_id": "1680000",
+          "name": "Steel Plant",
+          "level": 1,
+          "max_level": 1,
+          "is_maxed": true
+        },
+        {
+          "tech_id": "1682000",
+          "name": "Woodcutter",
+          "level": 3,
+          "max_level": 5,
+          "is_maxed": false
+        },
+        {
+          "tech_id": "1681000",
+          "name": "Farming Technology",
+          "level": 3,
+          "max_level": 5,
+          "is_maxed": false
+        }
+      ]
+    }
+  ]
+}

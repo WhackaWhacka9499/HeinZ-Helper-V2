@@ -1,0 +1,939 @@
+
+==================== GetViewLevelRange (L229-240) ====================
+  Locals: ['R0:self(pc 0..21)']
+  Upvals: ['U0:_ENV', 'U1:ViewLevelRange_Old', 'U2:InitViewLevelRangeFromItemConfig', 'U3:ViewLevelRange', 'U4:ViewLevelRangeLandscape']
+  Consts: ["K0:'LuaEntry'", "K1:'DataConfig'", "K2:'CheckSwitch'", "K3:'world_view_orientate_push'", "K4:'UIRotator'", "K5:'IsPortraitScreen'"]
+  000 GETTABUP   R1 := U0[K0('LuaEntry')]
+  001 GETFIELD   R1 := R1.K1('DataConfig')
+  002 SELF       R2 := R1; R1 := R1:K2('CheckSwitch')
+  003 LOADK      R3 := K3('world_view_orientate_push')
+  004 CALL       R1(nargs=2, nret=1)
+  005 TEST       A=1 B=0 C=0 k=1
+  006 JMP        goto 9
+  007 GETUPVAL   R1 := U1(ViewLevelRange_Old)
+  008 RETURN1    A=1 B=2 C=0 k=0
+  009 GETUPVAL   R1 := U2(InitViewLevelRangeFromItemConfig)
+  010 CALL       R1(nargs=0, nret=0)
+  011 GETTABUP   R1 := U0[K4('UIRotator')]
+  012 GETFIELD   R1 := R1.K5('IsPortraitScreen')
+  013 CALL       R1(nargs=0, nret=1)
+  014 TEST       A=1 B=0 C=0 k=0
+  015 JMP        goto 18
+  016 GETUPVAL   R1 := U3(ViewLevelRange)
+  017 RETURN1    A=1 B=2 C=0 k=0
+  018 GETUPVAL   R1 := U4(ViewLevelRangeLandscape)
+  019 RETURN1    A=1 B=2 C=0 k=0
+  020 RETURN0    A=1 B=1 C=0 k=0
+
+==================== GetViewBounds (L243-253) ====================
+  Locals: ['R0:self(pc 0..49)', 'R1:paddingX(pc 0..49)', 'R2:paddingY(pc 0..49)', 'R3:ranges(pc 2..49)', 'R4:lodLv(pc 14..49)', 'R5:viewLevelRange(pc 15..49)', 'R6:halfRangeWidth(pc 23..49)', 'R7:halfRangeHeight(pc 31..49)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'GetViewLevelRange'", "K1:'math'", "K2:'max'", "K3:'min'", "K4:'lodLv'", "K5:'x'", 'K6:0.5', "K7:'y'", "K8:'reqPos'"]
+  000 SELF       R4 := R0; R3 := R0:K0('GetViewLevelRange')
+  001 CALL       R3(nargs=1, nret=1)
+  002 GETTABUP   R4 := U0[K1('math')]
+  003 GETFIELD   R4 := R4.K2('max')
+  004 LOADI      R5 := 1
+  005 GETTABUP   R6 := U0[K1('math')]
+  006 GETFIELD   R6 := R6.K3('min')
+  007 GETFIELD   R7 := R0.K4('lodLv')
+  008 TEST       A=7 B=0 C=0 k=1
+  009 JMP        goto 11
+  010 LOADI      R7 := 1
+  011 LEN        A=8 B=3 C=0 k=0
+  012 CALL       R6(nargs=2, nret=-1)
+  013 CALL       R4(nargs=-1, nret=1)
+  014 GETTABLE   A=5 B=3 C=4 k=0
+  015 GETFIELD   R6 := R5.K5('x')
+  016 MULK       A=6 B=6 C=6 k=0
+  017 MMBINK     A=6 B=6 C=8 k=0
+  018 TESTSET    A=7 B=1 C=0 k=1
+  019 JMP        goto 21
+  020 LOADI      R7 := 0
+  021 ADD        A=6 B=6 C=7 k=0
+  022 MMBIN      A=6 B=7 C=6 k=0
+  023 GETFIELD   R7 := R5.K7('y')
+  024 MULK       A=7 B=7 C=6 k=0
+  025 MMBINK     A=7 B=6 C=8 k=0
+  026 TESTSET    A=8 B=2 C=0 k=1
+  027 JMP        goto 29
+  028 LOADI      R8 := 0
+  029 ADD        A=7 B=7 C=8 k=0
+  030 MMBIN      A=7 B=8 C=6 k=0
+  031 GETFIELD   R8 := R0.K8('reqPos')
+  032 GETFIELD   R8 := R8.K5('x')
+  033 SUB        A=8 B=8 C=6 k=0
+  034 MMBIN      A=8 B=6 C=7 k=0
+  035 GETFIELD   R9 := R0.K8('reqPos')
+  036 GETFIELD   R9 := R9.K5('x')
+  037 ADD        A=9 B=9 C=6 k=0
+  038 MMBIN      A=9 B=6 C=6 k=0
+  039 GETFIELD   R10 := R0.K8('reqPos')
+  040 GETFIELD   R10 := R10.K7('y')
+  041 SUB        A=10 B=10 C=7 k=0
+  042 MMBIN      A=10 B=7 C=7 k=0
+  043 GETFIELD   R11 := R0.K8('reqPos')
+  044 GETFIELD   R11 := R11.K7('y')
+  045 ADD        A=11 B=11 C=7 k=0
+  046 MMBIN      A=11 B=7 C=6 k=0
+  047 RETURN     A=8 B=5 C=0 k=0
+  048 RETURN0    A=8 B=1 C=0 k=0
+
+==================== GetServerLod (L1106-1127) ====================
+  Locals: ['R0:self(pc 0..31)', 'R1:lod(pc 0..31)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'LuaEntry'", "K1:'DataConfig'", "K2:'CheckSwitch'", "K3:'new_view_level'"]
+  000 GETTABUP   R2 := U0[K0('LuaEntry')]
+  001 GETFIELD   R2 := R2.K1('DataConfig')
+  002 SELF       R3 := R2; R2 := R2:K2('CheckSwitch')
+  003 LOADK      R4 := K3('new_view_level')
+  004 CALL       R2(nargs=2, nret=1)
+  005 TEST       A=2 B=0 C=0 k=0
+  006 JMP        goto 20
+  007 GEI        A=1 B=133 C=0 k=0
+  008 JMP        goto 11
+  009 LOADI      R2 := 3
+  010 RETURN1    A=2 B=2 C=0 k=0
+  011 EQI        A=1 B=132 C=0 k=0
+  012 JMP        goto 15
+  013 LOADI      R2 := 2
+  014 RETURN1    A=2 B=2 C=0 k=0
+  015 GEI        A=1 B=130 C=0 k=0
+  016 JMP        goto 28
+  017 LOADI      R2 := 1
+  018 RETURN1    A=2 B=2 C=0 k=0
+  019 JMP        goto 28
+  020 GEI        A=1 B=133 C=0 k=0
+  021 JMP        goto 24
+  022 LOADI      R2 := 2
+  023 RETURN1    A=2 B=2 C=0 k=0
+  024 GEI        A=1 B=130 C=0 k=0
+  025 JMP        goto 28
+  026 LOADI      R2 := 1
+  027 RETURN1    A=2 B=2 C=0 k=0
+  028 LOADI      R2 := 0
+  029 RETURN1    A=2 B=2 C=0 k=0
+  030 RETURN0    A=2 B=1 C=0 k=0
+
+==================== UpdateViewRequest (L981-1018) ====================
+  Locals: ['R0:self(pc 0..118)', 'R1:isForce(pc 0..118)', 'R2:CS_World(pc 7..118)', 'R3:x(pc 9..118)', 'R4:y(pc 9..118)', 'R5:z(pc 9..118)', 'R6:svLod(pc 18..118)', 'R7:curTilePosX(pc 27..118)', 'R8:curTilePosY(pc 27..118)', 'R9:deltaX(pc 86..117)', 'R10:deltaY(pc 93..117)', 'R11:range(pc 98..117)', 'R12:req(pc 106..117)']
+  Upvals: ['U0:_ENV', 'U1:clamp']
+  Consts: ["K0:'isInit'", 'K1:False', "K2:'CS'", "K3:'SceneManager'", "K4:'World'", "K5:'GetCurTarget'", "K6:'curCameraTarget'", "K7:'Set'", "K8:'GetServerLod'", "K9:'lodLv'", "K10:'SceneUtils'", "K11:'WorldToTileXZ'", "K12:'x'", "K13:'z'", "K14:'ForceChangeScene'", "K15:'TileCountX'", "K16:'TileCountY'", 'K17:True', "K18:'SendViewRequest'", "K19:'LuaEntry'", "K20:'Player'", "K21:'GetSelfServerId'", "K22:'reqPos'", 'K23:None', "K24:'DataCenter'", "K25:'WorldMissileManager'", "K26:'UpdateWorldMissile'", "K27:'startViewRequest'", "K28:'IsInWorld'", "K29:'IsCanSendWorldGet'", "K30:'math'", "K31:'abs'", "K32:'y'", "K33:'GetLodRequestRange'"]
+  000 GETFIELD   R2 := R0.K0('isInit')
+  001 EQK        A=2 B=1 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN0    A=2 B=1 C=0 k=0
+  004 GETTABUP   R2 := U0[K2('CS')]
+  005 GETFIELD   R2 := R2.K3('SceneManager')
+  006 GETFIELD   R2 := R2.K4('World')
+  007 SELF       R4 := R2; R3 := R2:K5('GetCurTarget')
+  008 CALL       R3(nargs=1, nret=3)
+  009 GETFIELD   R6 := R0.K6('curCameraTarget')
+  010 SELF       R7 := R6; R6 := R6:K7('Set')
+  011 MOVE       A=8 B=3 C=0 k=0
+  012 MOVE       A=9 B=4 C=0 k=0
+  013 MOVE       A=10 B=5 C=0 k=0
+  014 CALL       R6(nargs=4, nret=0)
+  015 SELF       R7 := R0; R6 := R0:K8('GetServerLod')
+  016 GETFIELD   R8 := R0.K9('lodLv')
+  017 CALL       R6(nargs=2, nret=1)
+  018 GETTABUP   R7 := U0[K10('SceneUtils')]
+  019 GETFIELD   R7 := R7.K11('WorldToTileXZ')
+  020 GETFIELD   R8 := R0.K6('curCameraTarget')
+  021 GETFIELD   R8 := R8.K12('x')
+  022 GETFIELD   R9 := R0.K6('curCameraTarget')
+  023 GETFIELD   R9 := R9.K13('z')
+  024 GETTABUP   R10 := U0[K14('ForceChangeScene')]
+  025 GETFIELD   R10 := R10.K4('World')
+  026 CALL       R7(nargs=3, nret=2)
+  027 GETUPVAL   R9 := U1(clamp)
+  028 MOVE       A=10 B=7 C=0 k=0
+  029 LOADI      R11 := 0
+  030 GETTABUP   R12 := U0[K15('TileCountX')]
+  031 ADDI       A=12 B=12 C=126 k=0
+  032 MMBINI     A=12 B=128 C=7 k=0
+  033 CALL       R9(nargs=3, nret=1)
+  034 MOVE       A=7 B=9 C=0 k=0
+  035 GETUPVAL   R9 := U1(clamp)
+  036 MOVE       A=10 B=8 C=0 k=0
+  037 LOADI      R11 := 0
+  038 GETTABUP   R12 := U0[K16('TileCountY')]
+  039 ADDI       A=12 B=12 C=126 k=0
+  040 MMBINI     A=12 B=128 C=7 k=0
+  041 CALL       R9(nargs=3, nret=1)
+  042 MOVE       A=8 B=9 C=0 k=0
+  043 EQK        A=1 B=17 C=0 k=0
+  044 JMP        goto 55
+  045 SELF       R10 := R0; R9 := R0:K18('SendViewRequest')
+  046 MOVE       A=11 B=7 C=0 k=0
+  047 MOVE       A=12 B=8 C=0 k=0
+  048 MOVE       A=13 B=6 C=0 k=0
+  049 GETTABUP   R14 := U0[K19('LuaEntry')]
+  050 GETFIELD   R14 := R14.K20('Player')
+  051 SELF       R15 := R14; R14 := R14:K21('GetSelfServerId')
+  052 CALL       R14(nargs=1, nret=-1)
+  053 CALL       R9(nargs=-1, nret=0)
+  054 RETURN0    A=9 B=1 C=0 k=0
+  055 GETFIELD   R9 := R0.K22('reqPos')
+  056 EQK        A=9 B=23 C=0 k=0
+  057 JMP        goto 59
+  058 RETURN0    A=9 B=1 C=0 k=0
+  059 GETTABUP   R9 := U0[K24('DataCenter')]
+  060 GETFIELD   R9 := R9.K25('WorldMissileManager')
+  061 SELF       R10 := R9; R9 := R9:K26('UpdateWorldMissile')
+  062 GETFIELD   R11 := R0.K22('reqPos')
+  063 CALL       R9(nargs=2, nret=0)
+  064 GETFIELD   R9 := R0.K27('startViewRequest')
+  065 EQK        A=9 B=1 C=0 k=0
+  066 JMP        goto 68
+  067 RETURN0    A=9 B=1 C=0 k=0
+  068 GETTABUP   R9 := U0[K3('SceneManager')]
+  069 GETFIELD   R9 := R9.K28('IsInWorld')
+  070 CALL       R9(nargs=0, nret=1)
+  071 TEST       A=9 B=0 C=0 k=0
+  072 JMP        goto 117
+  073 GETTABUP   R9 := U0[K3('SceneManager')]
+  074 GETFIELD   R9 := R9.K4('World')
+  075 SELF       R10 := R9; R9 := R9:K29('IsCanSendWorldGet')
+  076 CALL       R9(nargs=1, nret=1)
+  077 TEST       A=9 B=0 C=0 k=0
+  078 JMP        goto 117
+  079 GETTABUP   R9 := U0[K30('math')]
+  080 GETFIELD   R9 := R9.K31('abs')
+  081 GETFIELD   R10 := R0.K22('reqPos')
+  082 GETFIELD   R10 := R10.K12('x')
+  083 SUB        A=10 B=10 C=7 k=0
+  084 MMBIN      A=10 B=7 C=7 k=0
+  085 CALL       R9(nargs=1, nret=1)
+  086 GETTABUP   R10 := U0[K30('math')]
+  087 GETFIELD   R10 := R10.K31('abs')
+  088 GETFIELD   R11 := R0.K22('reqPos')
+  089 GETFIELD   R11 := R11.K32('y')
+  090 SUB        A=11 B=11 C=8 k=0
+  091 MMBIN      A=11 B=8 C=7 k=0
+  092 CALL       R10(nargs=1, nret=1)
+  093 SELF       R12 := R0; R11 := R0:K33('GetLodRequestRange')
+  094 CALL       R11(nargs=1, nret=1)
+  095 ADDI       A=12 B=6 C=128 k=0
+  096 MMBINI     A=6 B=128 C=6 k=0
+  097 GETTABLE   A=11 B=11 C=12 k=0
+  098 GETFIELD   R12 := R11.K12('x')
+  099 LT         A=12 B=9 C=0 k=1
+  100 JMP        goto 105
+  101 GETFIELD   R12 := R11.K32('y')
+  102 LT         A=12 B=10 C=0 k=1
+  103 JMP        goto 105
+  104 LFALSESKIP A=12 B=0 C=0 k=0
+  105 LOADTRUE   A=12 B=0 C=0 k=0
+  106 TEST       A=12 B=0 C=0 k=0
+  107 JMP        goto 117
+  108 SELF       R14 := R0; R13 := R0:K18('SendViewRequest')
+  109 MOVE       A=15 B=7 C=0 k=0
+  110 MOVE       A=16 B=8 C=0 k=0
+  111 MOVE       A=17 B=6 C=0 k=0
+  112 GETTABUP   R18 := U0[K19('LuaEntry')]
+  113 GETFIELD   R18 := R18.K20('Player')
+  114 SELF       R19 := R18; R18 := R18:K21('GetSelfServerId')
+  115 CALL       R18(nargs=1, nret=-1)
+  116 CALL       R13(nargs=-1, nret=0)
+  117 RETURN0    A=9 B=1 C=0 k=0
+
+==================== SendViewRequest (L1021-1040) ====================
+  Locals: ['R0:self(pc 0..32)', 'R1:tilePosX(pc 0..32)', 'R2:tilePosY(pc 0..32)', 'R3:viewLevel(pc 0..32)', 'R4:serverId(pc 0..32)', 'R5:now(pc 11..25)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'disableRequestOpt'", "K1:'waitingForReply'", "K2:'UITimeManager'", "K3:'GetInstance'", "K4:'GetServerTime'", "K5:'lastSendTime'", "K6:'pendingRequest'", "K7:'tilePosX'", "K8:'tilePosY'", "K9:'viewLevel'", "K10:'serverId'", "K11:'DoSendViewRequest'"]
+  000 GETFIELD   R5 := R0.K0('disableRequestOpt')
+  001 TEST       A=5 B=0 C=0 k=1
+  002 JMP        goto 25
+  003 GETFIELD   R5 := R0.K1('waitingForReply')
+  004 TEST       A=5 B=0 C=0 k=0
+  005 JMP        goto 25
+  006 GETTABUP   R5 := U0[K2('UITimeManager')]
+  007 SELF       R6 := R5; R5 := R5:K3('GetInstance')
+  008 CALL       R5(nargs=1, nret=1)
+  009 SELF       R6 := R5; R5 := R5:K4('GetServerTime')
+  010 CALL       R5(nargs=1, nret=1)
+  011 GETFIELD   R6 := R0.K5('lastSendTime')
+  012 SUB        A=6 B=5 C=6 k=0
+  013 MMBIN      A=5 B=6 C=7 k=0
+  014 LOADI      R7 := 10000
+  015 LT         A=6 B=7 C=0 k=0
+  016 JMP        goto 25
+  017 NEWTABLE   A=6 B=3 C=0 k=0
+  018 EXTRAARG   A=0 B=0 C=0 k=0
+  019 SETFIELD   R6.K7('tilePosX') := R1
+  020 SETFIELD   R6.K8('tilePosY') := R2
+  021 SETFIELD   R6.K9('viewLevel') := R3
+  022 SETFIELD   R6.K10('serverId') := R4
+  023 SETFIELD   R0.K6('pendingRequest') := R6
+  024 RETURN0    A=6 B=1 C=0 k=0
+  025 SELF       R6 := R0; R5 := R0:K11('DoSendViewRequest')
+  026 MOVE       A=7 B=1 C=0 k=0
+  027 MOVE       A=8 B=2 C=0 k=0
+  028 MOVE       A=9 B=3 C=0 k=0
+  029 MOVE       A=10 B=4 C=0 k=0
+  030 CALL       R5(nargs=5, nret=0)
+  031 RETURN0    A=5 B=1 C=0 k=0
+
+==================== DoSendViewRequest (L1042-1094) ====================
+  Locals: ['R0:self(pc 0..133)', 'R1:tilePosX(pc 0..133)', 'R2:tilePosY(pc 0..133)', 'R3:viewLevel(pc 0..133)', 'R4:serverId(pc 0..133)', 'R5:realReqServerId(pc 30..133)', 'R6:isInSelfServer(pc 34..133)', 'R7:worldId(pc 45..133)', 'R8:deltaParam(pc 59..133)', 'R9:isPortrait(pc 76..133)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'waitingForReply'", 'K1:True', "K2:'pendingRequest'", 'K3:None', "K4:'lastSendTime'", "K5:'UITimeManager'", "K6:'GetInstance'", "K7:'GetServerTime'", "K8:'LuaEntry'", "K9:'DataConfig'", "K10:'CheckSwitch'", "K11:'new_view_level'", "K12:'SceneUtils'", "K13:'ClampTilePosXY'", "K14:'Player'", "K15:'IsInSelfServer'", 'K16:False', "K17:'GetCrossServerId'", "K18:'GetCurWorldId'", "K19:'CommonUtil'", "K20:'IsInDragonActivity'", "K21:'serverType'", "K22:'ServerType'", "K23:'CROSS_THRONE'", "K24:'world_get_march_delta'", "K25:'lastMarchReqParam'", "K26:'UIRotator'", "K27:'IsPortraitScreen'", "K28:'SFSNetwork'", "K29:'SendMessage'", "K30:'MsgDefines'", "K31:'GetViewLevelWorldInfo'", "K32:'SetLastMarchReqParam'", "K33:'CrossNetwork'", "K34:'ObserveNewSever'", "K35:'x'", "K36:'y'", "K37:'type'", 'K38:0', "K39:'forceServerId'", "K40:'worldId'", "K41:'reqPos'", "K42:'Vector2'", "K43:'New'", "K44:'Set'"]
+  000 SETFIELD   R0.K0('waitingForReply') := K1(True)
+  001 SETFIELD   R0.K2('pendingRequest') := K3(None)
+  002 GETTABUP   R5 := U0[K5('UITimeManager')]
+  003 SELF       R6 := R5; R5 := R5:K6('GetInstance')
+  004 CALL       R5(nargs=1, nret=1)
+  005 SELF       R6 := R5; R5 := R5:K7('GetServerTime')
+  006 CALL       R5(nargs=1, nret=1)
+  007 SETFIELD   R0.K4('lastSendTime') := R5
+  008 GETTABUP   R5 := U0[K8('LuaEntry')]
+  009 GETFIELD   R5 := R5.K9('DataConfig')
+  010 SELF       R6 := R5; R5 := R5:K10('CheckSwitch')
+  011 LOADK      R7 := K11('new_view_level')
+  012 CALL       R5(nargs=2, nret=1)
+  013 TEST       A=5 B=0 C=0 k=0
+  014 JMP        goto 19
+  015 GTI        A=3 B=130 C=0 k=0
+  016 JMP        goto 22
+  017 LOADI      R3 := 3
+  018 JMP        goto 22
+  019 GTI        A=3 B=129 C=0 k=0
+  020 JMP        goto 22
+  021 LOADI      R3 := 2
+  022 GETTABUP   R5 := U0[K12('SceneUtils')]
+  023 GETFIELD   R5 := R5.K13('ClampTilePosXY')
+  024 MOVE       A=6 B=1 C=0 k=0
+  025 MOVE       A=7 B=2 C=0 k=0
+  026 CALL       R5(nargs=2, nret=2)
+  027 MOVE       A=2 B=6 C=0 k=0
+  028 MOVE       A=1 B=5 C=0 k=0
+  029 MOVE       A=5 B=4 C=0 k=0
+  030 GETTABUP   R6 := U0[K8('LuaEntry')]
+  031 GETFIELD   R6 := R6.K14('Player')
+  032 SELF       R7 := R6; R6 := R6:K15('IsInSelfServer')
+  033 CALL       R6(nargs=1, nret=1)
+  034 EQK        A=6 B=16 C=0 k=0
+  035 JMP        goto 41
+  036 GETTABUP   R7 := U0[K8('LuaEntry')]
+  037 GETFIELD   R7 := R7.K14('Player')
+  038 SELF       R8 := R7; R7 := R7:K17('GetCrossServerId')
+  039 CALL       R7(nargs=1, nret=1)
+  040 MOVE       A=5 B=7 C=0 k=0
+  041 GETTABUP   R7 := U0[K8('LuaEntry')]
+  042 GETFIELD   R7 := R7.K14('Player')
+  043 SELF       R8 := R7; R7 := R7:K18('GetCurWorldId')
+  044 CALL       R7(nargs=1, nret=1)
+  045 GETTABUP   R8 := U0[K19('CommonUtil')]
+  046 GETFIELD   R8 := R8.K20('IsInDragonActivity')
+  047 CALL       R8(nargs=0, nret=1)
+  048 TEST       A=8 B=0 C=0 k=1
+  049 JMP        goto 57
+  050 GETTABUP   R8 := U0[K8('LuaEntry')]
+  051 GETFIELD   R8 := R8.K14('Player')
+  052 GETFIELD   R8 := R8.K21('serverType')
+  053 GETTABUP   R9 := U0[K22('ServerType')]
+  054 GETFIELD   R9 := R9.K23('CROSS_THRONE')
+  055 EQ         A=8 B=9 C=0 k=0
+  056 JMP        goto 58
+  057 LOADI      R3 := 0
+  058 LOADNIL    A=8 B=0 C=0 k=0
+  059 GETTABUP   R9 := U0[K8('LuaEntry')]
+  060 GETFIELD   R9 := R9.K9('DataConfig')
+  061 SELF       R10 := R9; R9 := R9:K10('CheckSwitch')
+  062 LOADK      R11 := K24('world_get_march_delta')
+  063 CALL       R9(nargs=2, nret=1)
+  064 TEST       A=9 B=0 C=0 k=0
+  065 JMP        goto 67
+  066 GETFIELD   R8 := R0.K25('lastMarchReqParam')
+  067 GETTABUP   R9 := U0[K26('UIRotator')]
+  068 GETFIELD   R9 := R9.K27('IsPortraitScreen')
+  069 CALL       R9(nargs=0, nret=1)
+  070 TEST       A=9 B=0 C=0 k=0
+  071 JMP        goto 75
+  072 LOADI      R9 := 1
+  073 TEST       A=9 B=0 C=0 k=1
+  074 JMP        goto 76
+  075 LOADI      R9 := 0
+  076 GETTABUP   R10 := U0[K28('SFSNetwork')]
+  077 GETFIELD   R10 := R10.K29('SendMessage')
+  078 GETTABUP   R11 := U0[K30('MsgDefines')]
+  079 GETFIELD   R11 := R11.K31('GetViewLevelWorldInfo')
+  080 MOVE       A=12 B=1 C=0 k=0
+  081 MOVE       A=13 B=2 C=0 k=0
+  082 LOADI      R14 := 0
+  083 MOVE       A=15 B=3 C=0 k=0
+  084 MOVE       A=16 B=5 C=0 k=0
+  085 MOVE       A=17 B=7 C=0 k=0
+  086 MOVE       A=18 B=8 C=0 k=0
+  087 MOVE       A=19 B=9 C=0 k=0
+  088 CALL       R10(nargs=9, nret=0)
+  089 GETTABUP   R10 := U0[K8('LuaEntry')]
+  090 GETFIELD   R10 := R10.K9('DataConfig')
+  091 SELF       R11 := R10; R10 := R10:K10('CheckSwitch')
+  092 LOADK      R12 := K24('world_get_march_delta')
+  093 CALL       R10(nargs=2, nret=1)
+  094 TEST       A=10 B=0 C=0 k=0
+  095 JMP        goto 101
+  096 SELF       R11 := R0; R10 := R0:K32('SetLastMarchReqParam')
+  097 MOVE       A=12 B=1 C=0 k=0
+  098 MOVE       A=13 B=2 C=0 k=0
+  099 MOVE       A=14 B=3 C=0 k=0
+  100 CALL       R10(nargs=4, nret=0)
+  101 EQK        A=6 B=16 C=0 k=0
+  102 JMP        goto 118
+  103 GETTABUP   R10 := U0[K8('LuaEntry')]
+  104 GETFIELD   R10 := R10.K33('CrossNetwork')
+  105 SELF       R11 := R10; R10 := R10:K34('ObserveNewSever')
+  106 NEWTABLE   A=12 B=4 C=0 k=0
+  107 EXTRAARG   A=0 B=0 C=0 k=0
+  108 SETFIELD   R12.K35('x') := R1
+  109 SETFIELD   R12.K36('y') := R2
+  110 SETFIELD   R12.K37('type') := K38(0)
+  111 SETFIELD   R12.K39('forceServerId') := R5
+  112 GETTABUP   R13 := U0[K8('LuaEntry')]
+  113 GETFIELD   R13 := R13.K14('Player')
+  114 SELF       R14 := R13; R13 := R13:K18('GetCurWorldId')
+  115 CALL       R13(nargs=1, nret=1)
+  116 SETFIELD   R12.K40('worldId') := R13
+  117 CALL       R10(nargs=2, nret=0)
+  118 GETFIELD   R10 := R0.K41('reqPos')
+  119 EQK        A=10 B=3 C=0 k=0
+  120 JMP        goto 127
+  121 GETTABUP   R10 := U0[K42('Vector2')]
+  122 GETFIELD   R10 := R10.K43('New')
+  123 LOADI      R11 := 0
+  124 LOADI      R12 := 0
+  125 CALL       R10(nargs=2, nret=1)
+  126 SETFIELD   R0.K41('reqPos') := R10
+  127 GETFIELD   R10 := R0.K41('reqPos')
+  128 SELF       R11 := R10; R10 := R10:K44('Set')
+  129 MOVE       A=12 B=1 C=0 k=0
+  130 MOVE       A=13 B=2 C=0 k=0
+  131 CALL       R10(nargs=3, nret=0)
+  132 RETURN0    A=10 B=1 C=0 k=0
+
+==================== BuildAsync (L2677-2791) ====================
+  Locals: ['R0:self(pc 0..224)', 'R1:count(pc 1..224)', 'R2:minX(pc 3..224)', 'R3:maxX(pc 3..224)', 'R4:minY(pc 3..224)', 'R5:maxY(pc 3..224)', 'R6:head(pc 4..224)', 'R7:listLen(pc 6..224)', 'R8:buildSet(pc 7..224)', 'R9:mainIndex(pc 23..219)', 'R10:checkLod(pc 27..219)', 'R11:tileData(pc 30..219)', 'R12:pointInfo(pc 33..219)', 'R13:pType(pc 40..120)', 'R14:monsterInfo(pc 88..120)', 'R15:special(pc 101..120)', 'R16:template(pc 108..111)', 'R17:obj(pc 145..218)', 'R18:px(pc 151..175)', 'R19:py(pc 151..175)', 'R20:objType(pc 178..218)']
+  Upvals: ['U0:OtherPointLod', 'U1:_ENV', 'U2:SelfPointLod', 'U3:OtherPlayerLod', 'U4:NightSacrificeLod', 'U5:DesertPointLod']
+  Consts: ["K0:'GetViewBounds'", "K1:'toBuildListHead'", "K2:'toBuildList'", "K3:'toBuildSet'", 'K4:None', "K5:'IsSyncBusy'", "K6:'GetWorldTileInfo'", "K7:'pointInfo'", "K8:'mainIndex'", "K9:'WorldBuildUtil'", "K10:'GetPlayerType'", "K11:'pointType'", "K12:'WorldPointType'", "K13:'WORLD_ALLIANCE_BUILD'", "K14:'DRAGON_BUILDING'", "K15:'CROSS_THRONE_BUILD'", "K16:'SECRET_KEY'", "K17:'PlayerType'", "K18:'PlayerSelf'", "K19:'PlayerAlliance'", "K20:'PlayerAllianceLeader'", "K21:'PlayerOther'", "K22:'PointType'", "K23:'WorldMonster'", "K24:'_parsedExtra'", "K25:'extraInfo'", "K26:'PBController'", "K27:'ParsePbFromBytes'", "K28:'protobuf.WorldPointMonster'", "K29:'DataCenter'", "K30:'MonsterTemplateManager'", "K31:'GetMonsterTemplate'", "K32:'monsterId'", "K33:'special'", "K34:'MonsterSpecialType'", "K35:'NightSacrificePriest'", "K36:'NightSacrificeAltar'", "K37:'desertInfo'", "K38:'pointIndex'", "K39:'DestroyObject'", "K40:'_compactBuildList'", "K41:'lodLv'", "K42:'GetObjectByPoint'", "K43:'SceneUtils'", "K44:'IndexToTileXY'", "K45:'IsOutOfRange2'", 'K46:False', "K47:'CheckDragonSecretKeyPoint2'", "K48:'CreateObject'", "K49:'CheckAndConsumeMoveCityCreateEffect'", "K50:'GetPointType'", "K51:'IsNeedUpdateBuildObject'", "K52:'isSkinUpdate'", "K53:'CheckSkinUpdate'", "K54:'UpdateGameObject'"]
+  000 LOADI      R1 := 0
+  001 SELF       R3 := R0; R2 := R0:K0('GetViewBounds')
+  002 CALL       R2(nargs=1, nret=4)
+  003 GETFIELD   R6 := R0.K1('toBuildListHead')
+  004 GETFIELD   R7 := R0.K2('toBuildList')
+  005 LEN        A=7 B=7 C=0 k=0
+  006 GETFIELD   R8 := R0.K3('toBuildSet')
+  007 EQK        A=8 B=4 C=0 k=0
+  008 JMP        goto 13
+  009 NEWTABLE   A=9 B=0 C=0 k=0
+  010 EXTRAARG   A=0 B=0 C=0 k=0
+  011 MOVE       A=8 B=9 C=0 k=0
+  012 SETFIELD   R0.K3('toBuildSet') := R8
+  013 LE         A=6 B=7 C=0 k=0
+  014 JMP        goto 220
+  015 SELF       R10 := R0; R9 := R0:K5('IsSyncBusy')
+  016 CALL       R9(nargs=1, nret=1)
+  017 TEST       A=9 B=0 C=0 k=1
+  018 JMP        goto 220
+  019 ADDI       A=1 B=1 C=128 k=0
+  020 MMBINI     A=1 B=128 C=6 k=0
+  021 GETFIELD   R9 := R0.K2('toBuildList')
+  022 GETTABLE   A=9 B=9 C=6 k=0
+  023 SETTABLE   A=8 B=9 C=4 k=1
+  024 ADDI       A=6 B=6 C=128 k=0
+  025 MMBINI     A=6 B=128 C=6 k=0
+  026 GETUPVAL   R10 := U0(OtherPointLod)
+  027 SELF       R12 := R0; R11 := R0:K6('GetWorldTileInfo')
+  028 MOVE       A=13 B=9 C=0 k=0
+  029 CALL       R11(nargs=2, nret=1)
+  030 EQK        A=11 B=4 C=0 k=1
+  031 JMP        goto 13
+  032 GETFIELD   R12 := R11.K7('pointInfo')
+  033 EQK        A=12 B=4 C=0 k=1
+  034 JMP        goto 121
+  035 GETFIELD   R9 := R12.K8('mainIndex')
+  036 GETTABUP   R13 := U1[K9('WorldBuildUtil')]
+  037 GETFIELD   R13 := R13.K10('GetPlayerType')
+  038 MOVE       A=14 B=12 C=0 k=0
+  039 CALL       R13(nargs=1, nret=1)
+  040 GETFIELD   R14 := R12.K11('pointType')
+  041 GETTABUP   R15 := U1[K12('WorldPointType')]
+  042 GETFIELD   R15 := R15.K13('WORLD_ALLIANCE_BUILD')
+  043 EQ         A=14 B=15 C=0 k=1
+  044 JMP        goto 64
+  045 GETFIELD   R14 := R12.K11('pointType')
+  046 GETTABUP   R15 := U1[K12('WorldPointType')]
+  047 GETFIELD   R15 := R15.K14('DRAGON_BUILDING')
+  048 EQ         A=14 B=15 C=0 k=1
+  049 JMP        goto 64
+  050 GETFIELD   R14 := R12.K11('pointType')
+  051 GETTABUP   R15 := U1[K12('WorldPointType')]
+  052 GETFIELD   R15 := R15.K15('CROSS_THRONE_BUILD')
+  053 EQ         A=14 B=15 C=0 k=1
+  054 JMP        goto 64
+  055 GETFIELD   R14 := R12.K11('pointType')
+  056 GETTABUP   R15 := U1[K12('WorldPointType')]
+  057 GETFIELD   R15 := R15.K16('SECRET_KEY')
+  058 EQ         A=14 B=15 C=0 k=1
+  059 JMP        goto 64
+  060 GETTABUP   R14 := U1[K17('PlayerType')]
+  061 GETFIELD   R14 := R14.K18('PlayerSelf')
+  062 EQ         A=13 B=14 C=0 k=0
+  063 JMP        goto 66
+  064 GETUPVAL   R10 := U2(SelfPointLod)
+  065 JMP        goto 125
+  066 GETTABUP   R14 := U1[K17('PlayerType')]
+  067 GETFIELD   R14 := R14.K19('PlayerAlliance')
+  068 EQ         A=13 B=14 C=0 k=1
+  069 JMP        goto 74
+  070 GETTABUP   R14 := U1[K17('PlayerType')]
+  071 GETFIELD   R14 := R14.K20('PlayerAllianceLeader')
+  072 EQ         A=13 B=14 C=0 k=0
+  073 JMP        goto 76
+  074 GETUPVAL   R10 := U2(SelfPointLod)
+  075 JMP        goto 125
+  076 GETTABUP   R14 := U1[K17('PlayerType')]
+  077 GETFIELD   R14 := R14.K21('PlayerOther')
+  078 EQ         A=13 B=14 C=0 k=0
+  079 JMP        goto 82
+  080 GETUPVAL   R10 := U3(OtherPlayerLod)
+  081 JMP        goto 125
+  082 GETFIELD   R14 := R12.K22('PointType')
+  083 GETTABUP   R15 := U1[K12('WorldPointType')]
+  084 GETFIELD   R15 := R15.K23('WorldMonster')
+  085 EQ         A=14 B=15 C=0 k=0
+  086 JMP        goto 125
+  087 GETFIELD   R14 := R12.K24('_parsedExtra')
+  088 EQK        A=14 B=4 C=0 k=0
+  089 JMP        goto 100
+  090 GETFIELD   R15 := R12.K25('extraInfo')
+  091 EQK        A=15 B=4 C=0 k=1
+  092 JMP        goto 100
+  093 GETTABUP   R15 := U1[K26('PBController')]
+  094 GETFIELD   R15 := R15.K27('ParsePbFromBytes')
+  095 GETFIELD   R16 := R12.K25('extraInfo')
+  096 LOADK      R17 := K28('protobuf.WorldPointMonster')
+  097 CALL       R15(nargs=2, nret=1)
+  098 MOVE       A=14 B=15 C=0 k=0
+  099 SETFIELD   R12.K24('_parsedExtra') := R14
+  100 LOADNIL    A=15 B=0 C=0 k=0
+  101 EQK        A=14 B=4 C=0 k=1
+  102 JMP        goto 111
+  103 GETTABUP   R16 := U1[K29('DataCenter')]
+  104 GETFIELD   R16 := R16.K30('MonsterTemplateManager')
+  105 SELF       R17 := R16; R16 := R16:K31('GetMonsterTemplate')
+  106 GETFIELD   R18 := R14.K32('monsterId')
+  107 CALL       R16(nargs=2, nret=1)
+  108 TESTSET    A=15 B=16 C=0 k=0
+  109 JMP        goto 111
+  110 GETFIELD   R15 := R16.K33('special')
+  111 GETTABUP   R16 := U1[K34('MonsterSpecialType')]
+  112 GETFIELD   R16 := R16.K35('NightSacrificePriest')
+  113 EQ         A=15 B=16 C=0 k=1
+  114 JMP        goto 119
+  115 GETTABUP   R16 := U1[K34('MonsterSpecialType')]
+  116 GETFIELD   R16 := R16.K36('NightSacrificeAltar')
+  117 EQ         A=15 B=16 C=0 k=0
+  118 JMP        goto 125
+  119 GETUPVAL   R10 := U4(NightSacrificeLod)
+  120 JMP        goto 125
+  121 GETFIELD   R13 := R11.K37('desertInfo')
+  122 EQK        A=13 B=4 C=0 k=1
+  123 JMP        goto 125
+  124 GETUPVAL   R10 := U5(DesertPointLod)
+  125 EQK        A=10 B=4 C=0 k=0
+  126 JMP        goto 128
+  127 GETUPVAL   R10 := U0(OtherPointLod)
+  128 GETFIELD   R13 := R11.K8('mainIndex')
+  129 GETFIELD   R14 := R11.K38('pointIndex')
+  130 EQ         A=13 B=14 C=0 k=1
+  131 JMP        goto 139
+  132 SELF       R14 := R0; R13 := R0:K39('DestroyObject')
+  133 GETFIELD   R15 := R11.K38('pointIndex')
+  134 CALL       R13(nargs=2, nret=0)
+  135 SELF       R14 := R0; R13 := R0:K40('_compactBuildList')
+  136 MOVE       A=15 B=6 C=0 k=0
+  137 CALL       R13(nargs=2, nret=0)
+  138 RETURN0    A=13 B=1 C=0 k=0
+  139 GETFIELD   R13 := R0.K41('lodLv')
+  140 LE         A=13 B=10 C=0 k=0
+  141 JMP        goto 13
+  142 SELF       R14 := R0; R13 := R0:K42('GetObjectByPoint')
+  143 MOVE       A=15 B=9 C=0 k=0
+  144 CALL       R13(nargs=2, nret=1)
+  145 EQK        A=13 B=4 C=0 k=0
+  146 JMP        goto 176
+  147 GETTABUP   R14 := U1[K43('SceneUtils')]
+  148 GETFIELD   R14 := R14.K44('IndexToTileXY')
+  149 MOVE       A=15 B=9 C=0 k=0
+  150 CALL       R14(nargs=1, nret=2)
+  151 SELF       R17 := R0; R16 := R0:K45('IsOutOfRange2')
+  152 MOVE       A=18 B=14 C=0 k=0
+  153 MOVE       A=19 B=15 C=0 k=0
+  154 MOVE       A=20 B=2 C=0 k=0
+  155 MOVE       A=21 B=3 C=0 k=0
+  156 MOVE       A=22 B=4 C=0 k=0
+  157 MOVE       A=23 B=5 C=0 k=0
+  158 CALL       R16(nargs=7, nret=1)
+  159 EQK        A=16 B=46 C=0 k=0
+  160 JMP        goto 172
+  161 GETFIELD   R16 := R11.K11('pointType')
+  162 GETTABUP   R17 := U1[K12('WorldPointType')]
+  163 GETFIELD   R17 := R17.K16('SECRET_KEY')
+  164 EQ         A=16 B=17 C=0 k=0
+  165 JMP        goto 168
+  166 SELF       R17 := R0; R16 := R0:K47('CheckDragonSecretKeyPoint2')
+  167 CALL       R16(nargs=1, nret=0)
+  168 SELF       R17 := R0; R16 := R0:K48('CreateObject')
+  169 MOVE       A=18 B=9 C=0 k=0
+  170 CALL       R16(nargs=2, nret=0)
+  171 JMP        goto 13
+  172 SELF       R17 := R0; R16 := R0:K49('CheckAndConsumeMoveCityCreateEffect')
+  173 MOVE       A=18 B=9 C=0 k=0
+  174 CALL       R16(nargs=2, nret=0)
+  175 JMP        goto 13
+  176 SELF       R15 := R13; R14 := R13:K50('GetPointType')
+  177 CALL       R14(nargs=1, nret=1)
+  178 GETFIELD   R15 := R11.K11('pointType')
+  179 EQ         A=14 B=15 C=0 k=1
+  180 JMP        goto 188
+  181 SELF       R16 := R0; R15 := R0:K39('DestroyObject')
+  182 MOVE       A=17 B=9 C=0 k=0
+  183 CALL       R15(nargs=2, nret=0)
+  184 SELF       R16 := R0; R15 := R0:K48('CreateObject')
+  185 MOVE       A=17 B=9 C=0 k=0
+  186 CALL       R15(nargs=2, nret=0)
+  187 JMP        goto 13
+  188 GETFIELD   R15 := R13.K51('IsNeedUpdateBuildObject')
+  189 TEST       A=15 B=0 C=0 k=0
+  190 JMP        goto 202
+  191 SELF       R16 := R13; R15 := R13:K51('IsNeedUpdateBuildObject')
+  192 CALL       R15(nargs=1, nret=1)
+  193 TEST       A=15 B=0 C=0 k=0
+  194 JMP        goto 202
+  195 SELF       R16 := R0; R15 := R0:K39('DestroyObject')
+  196 MOVE       A=17 B=9 C=0 k=0
+  197 CALL       R15(nargs=2, nret=0)
+  198 SELF       R16 := R0; R15 := R0:K48('CreateObject')
+  199 MOVE       A=17 B=9 C=0 k=0
+  200 CALL       R15(nargs=2, nret=0)
+  201 JMP        goto 13
+  202 GETFIELD   R15 := R13.K52('isSkinUpdate')
+  203 TEST       A=15 B=0 C=0 k=0
+  204 JMP        goto 216
+  205 SELF       R16 := R13; R15 := R13:K53('CheckSkinUpdate')
+  206 CALL       R15(nargs=1, nret=1)
+  207 TEST       A=15 B=0 C=0 k=0
+  208 JMP        goto 216
+  209 SELF       R16 := R0; R15 := R0:K39('DestroyObject')
+  210 MOVE       A=17 B=9 C=0 k=0
+  211 CALL       R15(nargs=2, nret=0)
+  212 SELF       R16 := R0; R15 := R0:K48('CreateObject')
+  213 MOVE       A=17 B=9 C=0 k=0
+  214 CALL       R15(nargs=2, nret=0)
+  215 JMP        goto 13
+  216 SELF       R16 := R13; R15 := R13:K54('UpdateGameObject')
+  217 CALL       R15(nargs=1, nret=0)
+  218 JMP        goto 13
+  219 JMP        goto 13
+  220 SELF       R10 := R0; R9 := R0:K40('_compactBuildList')
+  221 MOVE       A=11 B=6 C=0 k=0
+  222 CALL       R9(nargs=2, nret=0)
+  223 RETURN0    A=9 B=1 C=0 k=0
+
+==================== CalcOutOfViewZones (L3097-3154) ====================
+  Locals: ['R0:self(pc 0..135)', 'R1:lodLv(pc 13..135)', 'R2:minX(pc 39..135)', 'R3:maxX(pc 39..135)', 'R4:minY(pc 39..135)', 'R5:maxY(pc 39..135)', 'R6:minZoneX(pc 43..135)', 'R7:minZoneY(pc 43..135)', 'R8:maxZoneX(pc 47..135)', 'R9:maxZoneY(pc 47..135)', 'R10:(for state)(pc 54..124)', 'R11:(for state)(pc 54..124)', 'R12:(for state)(pc 54..124)', 'R13:(for state)(pc 54..124)', 'R14:zoneId(pc 55..122)', 'R15:pointIdMap(pc 55..122)', 'R16:zoneX(pc 58..122)', 'R17:zoneY(pc 58..122)', 'R18:isValidZone(pc 68..122)', 'R19:isBoundaryZone(pc 84..122)', 'R20:(for state)(pc 91..121)', 'R21:(for state)(pc 91..121)', 'R22:(for state)(pc 91..121)', 'R23:(for state)(pc 91..121)', 'R24:pointId(pc 92..119)', 'R25:_(pc 92..119)', 'R26:viewPoint(pc 94..119)', 'R27:tilePos(pc 105..119)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'reqPos'", 'K1:None', "K2:'x'", "K3:'y'", "K4:'lodLv'", "K5:'lastDelPos'", 'K6:-1', "K7:'lastDelSvLod'", "K8:'GetViewBounds'", "K9:'GetZoneCoord'", "K10:'table'", "K11:'clear'", "K12:'validZones'", "K13:'pairs'", "K14:'zonePointMap'", "K15:'UnpackZoneKey'", 'K16:True', "K17:'allViewPoints'", "K18:'mainIndex'", "K19:'outOfViewPoints'", "K20:'mainIndexV2'", "K21:'IsOutOfRange2'"]
+  000 GETFIELD   R1 := R0.K0('reqPos')
+  001 EQK        A=1 B=1 C=0 k=1
+  002 JMP        goto 11
+  003 GETFIELD   R1 := R0.K0('reqPos')
+  004 GETFIELD   R1 := R1.K2('x')
+  005 EQI        A=1 B=127 C=0 k=0
+  006 JMP        goto 12
+  007 GETFIELD   R1 := R0.K0('reqPos')
+  008 GETFIELD   R1 := R1.K3('y')
+  009 EQI        A=1 B=127 C=0 k=0
+  010 JMP        goto 12
+  011 RETURN     A=1 B=1 C=0 k=1
+  012 GETFIELD   R1 := R0.K4('lodLv')
+  013 GETFIELD   R2 := R0.K5('lastDelPos')
+  014 EQK        A=2 B=1 C=0 k=0
+  015 JMP        goto 21
+  016 NEWTABLE   A=2 B=2 C=0 k=0
+  017 EXTRAARG   A=0 B=0 C=0 k=0
+  018 SETFIELD   R2.K2('x') := K6(-1)
+  019 SETFIELD   R2.K3('y') := K6(-1)
+  020 SETFIELD   R0.K5('lastDelPos') := R2
+  021 GETFIELD   R2 := R0.K5('lastDelPos')
+  022 GETFIELD   R2 := R2.K2('x')
+  023 GETFIELD   R3 := R0.K0('reqPos')
+  024 GETFIELD   R3 := R3.K2('x')
+  025 EQ         A=2 B=3 C=0 k=0
+  026 JMP        goto 37
+  027 GETFIELD   R2 := R0.K5('lastDelPos')
+  028 GETFIELD   R2 := R2.K3('y')
+  029 GETFIELD   R3 := R0.K0('reqPos')
+  030 GETFIELD   R3 := R3.K3('y')
+  031 EQ         A=2 B=3 C=0 k=0
+  032 JMP        goto 37
+  033 GETFIELD   R2 := R0.K7('lastDelSvLod')
+  034 EQ         A=2 B=1 C=0 k=0
+  035 JMP        goto 37
+  036 RETURN     A=2 B=1 C=0 k=1
+  037 SELF       R3 := R0; R2 := R0:K8('GetViewBounds')
+  038 CALL       R2(nargs=1, nret=4)
+  039 SELF       R7 := R0; R6 := R0:K9('GetZoneCoord')
+  040 MOVE       A=8 B=2 C=0 k=0
+  041 MOVE       A=9 B=4 C=0 k=0
+  042 CALL       R6(nargs=3, nret=2)
+  043 SELF       R9 := R0; R8 := R0:K9('GetZoneCoord')
+  044 MOVE       A=10 B=3 C=0 k=0
+  045 MOVE       A=11 B=5 C=0 k=0
+  046 CALL       R8(nargs=3, nret=2)
+  047 GETTABUP   R10 := U0[K10('table')]
+  048 GETFIELD   R10 := R10.K11('clear')
+  049 GETFIELD   R11 := R0.K12('validZones')
+  050 CALL       R10(nargs=1, nret=0)
+  051 GETTABUP   R10 := U0[K13('pairs')]
+  052 GETFIELD   R11 := R0.K14('zonePointMap')
+  053 CALL       R10(nargs=1, nret=4)
+  054 TFORPREP   A=10 B=33 C=0 k=1
+  055 SELF       R17 := R0; R16 := R0:K15('UnpackZoneKey')
+  056 MOVE       A=18 B=14 C=0 k=0
+  057 CALL       R16(nargs=2, nret=2)
+  058 LE         A=6 B=16 C=0 k=0
+  059 JMP        goto 66
+  060 LE         A=16 B=8 C=0 k=0
+  061 JMP        goto 66
+  062 LE         A=7 B=17 C=0 k=0
+  063 JMP        goto 66
+  064 LE         A=17 B=9 C=0 k=1
+  065 JMP        goto 67
+  066 LFALSESKIP A=18 B=0 C=0 k=0
+  067 LOADTRUE   A=18 B=0 C=0 k=0
+  068 TEST       A=18 B=0 C=0 k=0
+  069 JMP        goto 72
+  070 GETFIELD   R19 := R0.K12('validZones')
+  071 SETTABLE   A=19 B=14 C=16 k=1
+  072 TESTSET    A=19 B=18 C=0 k=0
+  073 JMP        goto 84
+  074 EQ         A=16 B=6 C=0 k=1
+  075 JMP        goto 83
+  076 EQ         A=16 B=8 C=0 k=1
+  077 JMP        goto 83
+  078 EQ         A=17 B=7 C=0 k=1
+  079 JMP        goto 83
+  080 EQ         A=17 B=9 C=0 k=1
+  081 JMP        goto 83
+  082 LFALSESKIP A=19 B=0 C=0 k=0
+  083 LOADTRUE   A=19 B=0 C=0 k=0
+  084 TEST       A=18 B=0 C=0 k=0
+  085 JMP        goto 88
+  086 TEST       A=19 B=0 C=0 k=0
+  087 JMP        goto 122
+  088 GETTABUP   R20 := U0[K13('pairs')]
+  089 MOVE       A=21 B=15 C=0 k=0
+  090 CALL       R20(nargs=1, nret=4)
+  091 TFORPREP   A=20 B=13 C=0 k=1
+  092 GETFIELD   R26 := R0.K17('allViewPoints')
+  093 GETTABLE   A=26 B=26 C=24 k=0
+  094 EQK        A=26 B=1 C=0 k=1
+  095 JMP        goto 119
+  096 GETFIELD   R27 := R26.K18('mainIndex')
+  097 EQ         A=27 B=24 C=0 k=0
+  098 JMP        goto 119
+  099 TEST       A=18 B=0 C=0 k=1
+  100 JMP        goto 104
+  101 GETFIELD   R27 := R0.K19('outOfViewPoints')
+  102 SETTABLE   A=27 B=24 C=16 k=1
+  103 JMP        goto 119
+  104 GETFIELD   R27 := R26.K20('mainIndexV2')
+  105 EQK        A=27 B=1 C=0 k=1
+  106 JMP        goto 119
+  107 SELF       R29 := R0; R28 := R0:K21('IsOutOfRange2')
+  108 GETFIELD   R30 := R27.K2('x')
+  109 GETFIELD   R31 := R27.K3('y')
+  110 MOVE       A=32 B=2 C=0 k=0
+  111 MOVE       A=33 B=3 C=0 k=0
+  112 MOVE       A=34 B=4 C=0 k=0
+  113 MOVE       A=35 B=5 C=0 k=0
+  114 CALL       R28(nargs=7, nret=1)
+  115 TEST       A=28 B=0 C=0 k=0
+  116 JMP        goto 119
+  117 GETFIELD   R28 := R0.K19('outOfViewPoints')
+  118 SETTABLE   A=28 B=24 C=16 k=1
+  119 TFORCALL   A=20 B=0 C=2 k=0
+  120 TFORLOOP   A=20 B=14 C=0 k=1
+  121 CLOSE      A=20 B=0 C=0 k=0
+  122 TFORCALL   A=10 B=0 C=2 k=0
+  123 TFORLOOP   A=10 B=34 C=0 k=1
+  124 CLOSE      A=10 B=0 C=0 k=0
+  125 SETFIELD   R0.K7('lastDelSvLod') := R1
+  126 GETFIELD   R10 := R0.K5('lastDelPos')
+  127 GETFIELD   R11 := R0.K0('reqPos')
+  128 GETFIELD   R11 := R11.K2('x')
+  129 SETFIELD   R10.K2('x') := R11
+  130 GETFIELD   R10 := R0.K5('lastDelPos')
+  131 GETFIELD   R11 := R0.K0('reqPos')
+  132 GETFIELD   R11 := R11.K3('y')
+  133 SETFIELD   R10.K3('y') := R11
+  134 RETURN     A=10 B=1 C=0 k=1
+
+==================== WPM.DestroyObject (L3066-3072) ====================
+  Locals: ['R0:self(pc 0..12)', 'R1:pointIndex(pc 0..12)', 'R2:obj(pc 2..12)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'allObj'", "K1:'IsNotNull'", "K2:'Destroy'", 'K3:None']
+  000 GETFIELD   R2 := R0.K0('allObj')
+  001 GETTABLE   A=2 B=2 C=1 k=0
+  002 GETTABUP   R3 := U0[K1('IsNotNull')]
+  003 MOVE       A=4 B=2 C=0 k=0
+  004 CALL       R3(nargs=1, nret=1)
+  005 TEST       A=3 B=0 C=0 k=0
+  006 JMP        goto 11
+  007 SELF       R4 := R2; R3 := R2:K2('Destroy')
+  008 CALL       R3(nargs=1, nret=0)
+  009 GETFIELD   R3 := R0.K0('allObj')
+  010 SETTABLE   A=3 B=1 C=3 k=1
+  011 RETURN0    A=3 B=1 C=0 k=0
+
+==================== WPM.OnCameraChange (L959-964) ====================
+  Locals: ['R0:self(pc 0..9)', 'R1:msg(pc 0..9)', 'R2:CS_World(pc 3..9)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'CS'", "K1:'SceneManager'", "K2:'World'", "K3:'curCameraTarget'", "K4:'Set'", "K5:'GetCurTarget'"]
+  000 GETTABUP   R2 := U0[K0('CS')]
+  001 GETFIELD   R2 := R2.K1('SceneManager')
+  002 GETFIELD   R2 := R2.K2('World')
+  003 GETFIELD   R3 := R0.K3('curCameraTarget')
+  004 SELF       R4 := R3; R3 := R3:K4('Set')
+  005 SELF       R6 := R2; R5 := R2:K5('GetCurTarget')
+  006 CALL       R5(nargs=1, nret=-1)
+  007 CALL       R3(nargs=-1, nret=0)
+  008 RETURN0    A=3 B=1 C=0 k=0
+
+==================== WPM.OnLodChanged (L965-970) ====================
+  Locals: ['R0:self(pc 0..8)', 'R1:lod(pc 0..8)']
+  Upvals: []
+  Consts: ["K0:'lodLv'", "K1:'UpdateViewRequest'"]
+  000 GETFIELD   R2 := R0.K0('lodLv')
+  001 EQ         A=2 B=1 C=0 k=1
+  002 JMP        goto 7
+  003 SETFIELD   R0.K0('lodLv') := R1
+  004 SELF       R3 := R0; R2 := R0:K1('UpdateViewRequest')
+  005 LOADTRUE   A=4 B=0 C=0 k=0
+  006 CALL       R2(nargs=2, nret=0)
+  007 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.New (L45-55) ====================
+  Locals: ['R0:obj(pc 10..23)']
+  Upvals: ['U0:class_type', 'U1:_ENV', 'U2:delete', 'U3:_class_mt', 'U4:create']
+  Consts: ["K0:'_class_type'", "K1:'__ctype'", "K2:'ClassType'", "K3:'instance'", "K4:'Delete'", "K5:'setmetatable'"]
+  000 VARARGPREP A=0 B=0 C=0 k=0
+  001 NEWTABLE   A=0 B=3 C=0 k=0
+  002 EXTRAARG   A=0 B=0 C=0 k=0
+  003 GETUPVAL   R1 := U0(class_type)
+  004 SETFIELD   R0.K0('_class_type') := R1
+  005 GETTABUP   R1 := U1[K2('ClassType')]
+  006 GETFIELD   R1 := R1.K3('instance')
+  007 SETFIELD   R0.K1('__ctype') := R1
+  008 GETUPVAL   R1 := U2(delete)
+  009 SETFIELD   R0.K4('Delete') := R1
+  010 GETTABUP   R1 := U1[K5('setmetatable')]
+  011 MOVE       A=2 B=0 C=0 k=0
+  012 GETUPVAL   R4 := U0(class_type)
+  013 GETUPVAL   R3 := U3(_class_mt)
+  014 GETTABLE   A=3 B=3 C=4 k=0
+  015 CALL       R1(nargs=2, nret=0)
+  016 GETUPVAL   R1 := U4(create)
+  017 MOVE       A=2 B=0 C=0 k=0
+  018 GETUPVAL   R3 := U0(class_type)
+  019 VARARG     A=4 B=0 C=0 k=0
+  020 CALL       R1(nargs=-1, nret=0)
+  021 RETURN     A=0 B=2 C=1 k=0
+  022 RETURN     A=1 B=1 C=1 k=0
+
+==================== WMO.__init (L17-22) ====================
+  Locals: ['R0:self(pc 0..7)']
+  Upvals: ['U0:base']
+  Consts: ["K0:'__init'", "K1:'monsterInfo'", 'K2:None', "K3:'monsterLevel'", 'K4:1', "K5:'model'"]
+  000 GETTABUP   R1 := U0[K0('__init')]
+  001 MOVE       A=2 B=0 C=0 k=0
+  002 CALL       R1(nargs=1, nret=0)
+  003 SETFIELD   R0.K1('monsterInfo') := K2(None)
+  004 SETFIELD   R0.K3('monsterLevel') := K4(1)
+  005 SETFIELD   R0.K5('model') := K2(None)
+  006 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.__delete (L24-43) ====================
+  Locals: ['R0:self(pc 0..67)', 'R1:marchType(pc 5..55)']
+  Upvals: ['U0:_ENV', 'U1:base']
+  Consts: ["K0:'monsterInfo'", 'K1:None', "K2:'type'", "K3:'NewMarchType'", "K4:'ACT_BOSS'", "K5:'PUZZLE_BOSS'", "K6:'EventManager'", "K7:'GetInstance'", "K8:'Broadcast'", "K9:'EventId'", "K10:'HideActBossHead'", "K11:'uuid'", "K12:'ALLIANCE_BOSS'", "K13:'HideAllianceBossHead'", "K14:'AllianceBossTimeHide'", "K15:'HideMonsterHead'", "K16:'HideDetectEvent'", "K17:'DeletePlayNextAniTimer'", "K18:'monsterLevel'", 'K19:1', "K20:'model'", "K21:'curAniIndex'", "K22:'__delete'"]
+  000 GETFIELD   R1 := R0.K0('monsterInfo')
+  001 EQK        A=1 B=1 C=0 k=1
+  002 JMP        goto 55
+  003 GETFIELD   R1 := R0.K0('monsterInfo')
+  004 GETFIELD   R1 := R1.K2('type')
+  005 GETTABUP   R2 := U0[K3('NewMarchType')]
+  006 GETFIELD   R2 := R2.K4('ACT_BOSS')
+  007 EQ         A=1 B=2 C=0 k=1
+  008 JMP        goto 13
+  009 GETTABUP   R2 := U0[K3('NewMarchType')]
+  010 GETFIELD   R2 := R2.K5('PUZZLE_BOSS')
+  011 EQ         A=1 B=2 C=0 k=0
+  012 JMP        goto 23
+  013 GETTABUP   R2 := U0[K6('EventManager')]
+  014 SELF       R3 := R2; R2 := R2:K7('GetInstance')
+  015 CALL       R2(nargs=1, nret=1)
+  016 SELF       R3 := R2; R2 := R2:K8('Broadcast')
+  017 GETTABUP   R4 := U0[K9('EventId')]
+  018 GETFIELD   R4 := R4.K10('HideActBossHead')
+  019 GETFIELD   R5 := R0.K0('monsterInfo')
+  020 GETFIELD   R5 := R5.K11('uuid')
+  021 CALL       R2(nargs=3, nret=0)
+  022 JMP        goto 55
+  023 GETTABUP   R2 := U0[K3('NewMarchType')]
+  024 GETFIELD   R2 := R2.K12('ALLIANCE_BOSS')
+  025 EQ         A=1 B=2 C=0 k=0
+  026 JMP        goto 46
+  027 GETTABUP   R2 := U0[K6('EventManager')]
+  028 SELF       R3 := R2; R2 := R2:K7('GetInstance')
+  029 CALL       R2(nargs=1, nret=1)
+  030 SELF       R3 := R2; R2 := R2:K8('Broadcast')
+  031 GETTABUP   R4 := U0[K9('EventId')]
+  032 GETFIELD   R4 := R4.K13('HideAllianceBossHead')
+  033 GETFIELD   R5 := R0.K0('monsterInfo')
+  034 GETFIELD   R5 := R5.K11('uuid')
+  035 CALL       R2(nargs=3, nret=0)
+  036 GETTABUP   R2 := U0[K6('EventManager')]
+  037 SELF       R3 := R2; R2 := R2:K7('GetInstance')
+  038 CALL       R2(nargs=1, nret=1)
+  039 SELF       R3 := R2; R2 := R2:K8('Broadcast')
+  040 GETTABUP   R4 := U0[K9('EventId')]
+  041 GETFIELD   R4 := R4.K14('AllianceBossTimeHide')
+  042 GETFIELD   R5 := R0.K0('monsterInfo')
+  043 GETFIELD   R5 := R5.K11('uuid')
+  044 CALL       R2(nargs=3, nret=0)
+  045 JMP        goto 55
+  046 GETTABUP   R2 := U0[K6('EventManager')]
+  047 SELF       R3 := R2; R2 := R2:K7('GetInstance')
+  048 CALL       R2(nargs=1, nret=1)
+  049 SELF       R3 := R2; R2 := R2:K8('Broadcast')
+  050 GETTABUP   R4 := U0[K9('EventId')]
+  051 GETFIELD   R4 := R4.K15('HideMonsterHead')
+  052 GETFIELD   R5 := R0.K0('monsterInfo')
+  053 GETFIELD   R5 := R5.K11('uuid')
+  054 CALL       R2(nargs=3, nret=0)
+  055 SELF       R2 := R0; R1 := R0:K16('HideDetectEvent')
+  056 CALL       R1(nargs=1, nret=0)
+  057 SELF       R2 := R0; R1 := R0:K17('DeletePlayNextAniTimer')
+  058 CALL       R1(nargs=1, nret=0)
+  059 SETFIELD   R0.K0('monsterInfo') := K1(None)
+  060 SETFIELD   R0.K18('monsterLevel') := K19(1)
+  061 SETFIELD   R0.K20('model') := K1(None)
+  062 SETFIELD   R0.K21('curAniIndex') := K1(None)
+  063 GETTABUP   R1 := U1[K22('__delete')]
+  064 MOVE       A=2 B=0 C=0 k=0
+  065 CALL       R1(nargs=1, nret=0)
+  066 RETURN0    A=1 B=1 C=0 k=0

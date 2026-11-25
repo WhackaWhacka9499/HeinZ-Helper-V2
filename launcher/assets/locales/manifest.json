@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "default": "en",
+  "languages": [
+    {
+      "code": "en",
+      "game_id": 14,
+      "native_name": "English",
+      "english_name": "English",
+      "rtl": false,
+      "translate_code": "en"
+    },
+    {
+      "code": "zh-CN",
+      "game_id": 8,
+      "native_name": "简体中文",
+      "english_name": "Chinese Simplified",
+      "rtl": false,
+      "translate_code": "zh-CN"
+    },
+    {
+      "code": "zh-TW",
+      "game_id": 9,
+      "native_name": "繁體中文",
+      "english_name": "Chinese Traditional",
+      "rtl": false,
+      "translate_code": "zh-TW"
+    },
+    {
+      "code": "fr",
+      "game_id": 18,
+      "native_name": "Français",
+      "english_name": "French",
+      "rtl": false,
+      "translate_code": "fr"
+    },
+    {
+      "code": "de",
+      "game_id": 20,
+      "native_name": "Deutsch",
+      "english_name": "German",
+      "rtl": false,
+      "translate_code": "de"
+    },
+    {
+      "code": "es",
+      "game_id": 45,
+      "native_name": "Español",
+      "english_name": "Spanish",
+      "rtl": false,
+      "translate_code": "es"
+    },
+    {
+      "code": "pt",
+      "game_id": 37,
+      "native_name": "Português",
+      "english_name": "Portuguese",
+      "rtl": false,
+      "translate_code": "pt"
+    },
+    {
+      "code": "it",
+      "game_id": 26,
+      "native_name": "Italiano",
+      "english_name": "Italian",
+      "rtl": false,
+      "translate_code": "it"
+    },
+    {
+      "code": "ru",
+      "game_id": 39,
+      "native_name": "Русский",
+      "english_name": "Russian",
+      "rtl": false,
+      "translate_code": "ru"
+    },
+    {
+      "code": "ko",
+      "game_id": 28,
+      "native_name": "한국어",
+      "english_name": "Korean",
+      "rtl": false,
+      "translate_code": "ko"
+    },
+    {
+      "code": "ja",
+      "game_id": 27,
+      "native_name": "日本語",
+      "english_name": "Japanese",
+      "rtl": false,
+      "translate_code": "ja"
+    },
+    {
+      "code": "th",
+      "game_id": 47,
+      "native_name": "ไทย",
+      "english_name": "Thai",
+      "rtl": false,
+      "translate_code": "th"
+    },
+    {
+      "code": "tr",
+      "game_id": 48,
+      "native_name": "Türkçe",
+      "english_name": "Turkish",
+      "rtl": false,
+      "translate_code": "tr"
+    },
+    {
+      "code": "id",
+      "game_id": 25,
+      "native_name": "Bahasa Indonesia",
+      "english_name": "Indonesian",
+      "rtl": false,
+      "translate_code": "id"
+    },
+    {
+      "code": "vi",
+      "game_id": 50,
+      "native_name": "Tiếng Việt",
+      "english_name": "Vietnamese",
+      "rtl": false,
+      "translate_code": "vi"
+    },
+    {
+      "code": "ar",
+      "game_id": 3,
+      "native_name": "العربية",
+      "english_name": "Arabic",
+      "rtl": true,
+      "translate_code": "ar"
+    },
+    {
+      "code": "pl",
+      "game_id": 35,
+      "native_name": "Polski",
+      "english_name": "Polish",
+      "rtl": false,
+      "translate_code": "pl"
+    },
+    {
+      "code": "nl",
+      "game_id": 13,
+      "native_name": "Nederlands",
+      "english_name": "Dutch",
+      "rtl": false,
+      "translate_code": "nl"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"xml":"aps_prologue_bridge","table_keys":["TableName.PrologueBridge"],"columns":["id","bridge_id","scale","pos","model","rotation","bubble_noviceboot","preid"],"row_count":3,"rows":{"3":["3","3","1","-4,0","PveShowModelSKnew","1","50010406","2"],"1":["1","1","1","-10,0","PveShowModelSKnew","1","300012",""],"2":["2","2","1","-7,0","PveShowModelSKnew","1","300023","1"]}}

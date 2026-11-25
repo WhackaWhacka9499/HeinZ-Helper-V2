@@ -1,0 +1,284 @@
+{
+  "index": {
+    "res_type": {
+      "1": 2,
+      "2": "number"
+    },
+    "banner": {
+      "1": 19,
+      "2": "string"
+    },
+    "lod_mine": {
+      "1": 12,
+      "2": "string"
+    },
+    "lod_none": {
+      "1": 11,
+      "2": "string"
+    },
+    "order": {
+      "1": 4,
+      "2": "number"
+    },
+    "time_points": {
+      "1": 6,
+      "2": "number"
+    },
+    "type": {
+      "1": 3,
+      "2": "number"
+    },
+    "model": {
+      "1": 18,
+      "2": "string"
+    },
+    "name": {
+      "1": 8,
+      "2": "number"
+    },
+    "alliance_point": {
+      "1": 16,
+      "2": "number"
+    },
+    "effect": {
+      "1": 20,
+      "2": "string"
+    },
+    "lod_ally": {
+      "1": 13,
+      "2": "string"
+    },
+    "size": {
+      "1": 5,
+      "2": "number"
+    },
+    "group_pic": {
+      "1": 17,
+      "2": "string"
+    },
+    "complete_points": {
+      "1": 7,
+      "2": "number"
+    },
+    "desc": {
+      "1": 9,
+      "2": "number"
+    },
+    "pic": {
+      "1": 10,
+      "2": "string"
+    },
+    "lod_camp": {
+      "1": 14,
+      "2": "string"
+    },
+    "id": {
+      "1": 1,
+      "2": "number"
+    },
+    "lod_enemy": {
+      "1": 15,
+      "2": "string"
+    }
+  },
+  "data": {
+    "709": {
+      "19": "dsj_img_vacano_zengyi1",
+      "12": "c_vocano_world_icon_f_02",
+      "11": "c_vocano_world_icon_f_04",
+      "14": "c_vocano_world_icon_f_05",
+      "13": "c_vocano_world_icon_f_01",
+      "17": "lianmeng_bg_vocano05",
+      "18": "Mat_World_HSJZ_01",
+      "15": "c_vocano_world_icon_f_03",
+      "16": 80,
+      "20": "30802;10",
+      "9": 917119,
+      "6": 60,
+      "7": 0,
+      "8": 916744,
+      "5": 5,
+      "10": "c_vocano_world_icon_illustrate_09",
+      "3": 7,
+      "4": 2,
+      "1": 709,
+      "2": 2
+    },
+    "712": {
+      "19": "dsj_img_vacano_02",
+      "12": "c_vocano_world_icon_d_02",
+      "11": "c_vocano_world_icon_d_04",
+      "14": "c_vocano_world_icon_d_05",
+      "13": "c_vocano_world_icon_d_01",
+      "17": "lianmeng_bg_vocano02",
+      "18": "WorldS4_huoshanyan_huoshanchi",
+      "15": "c_vocano_world_icon_d_03",
+      "16": 60,
+      "20": "",
+      "9": 915089,
+      "6": 40,
+      "7": 0,
+      "8": 915084,
+      "5": 3,
+      "10": "c_vocano_world_icon_illustrate_04",
+      "3": 10,
+      "4": 5,
+      "1": 712,
+      "2": 2
+    },
+    "708": {
+      "19": "dsj_img_vacano_01",
+      "12": "c_vocano_world_icon_e_02",
+      "11": "c_vocano_world_icon_e_04",
+      "14": "c_vocano_world_icon_e_05",
+      "13": "c_vocano_world_icon_e_01",
+      "17": "lianmeng_bg_vocano01",
+      "18": "WorldS4_huoshanyan_huoshan",
+      "15": "c_vocano_world_icon_e_03",
+      "16": 150,
+      "20": "",
+      "9": 915088,
+      "6": 100,
+      "7": 0,
+      "8": 915083,
+      "5": 9,
+      "10": "c_vocano_world_icon_illustrate_05",
+      "3": 6,
+      "4": 1,
+      "1": 708,
+      "2": 2
+    },
+    "703": {
+      "19": "",
+      "12": "c_vocano_world_icon_c_02",
+      "11": "c_vocano_world_icon_c_04",
+      "14": "c_vocano_world_icon_c_05",
+      "13": "c_vocano_world_icon_c_01",
+      "17": "",
+      "18": "",
+      "15": "c_vocano_world_icon_c_03",
+      "16": "",
+      "20": "",
+      "9": 915090,
+      "6": 20,
+      "7": 400,
+      "8": 915085,
+      "5": 1,
+      "10": "c_vocano_world_icon_illustrate_03",
+      "3": 3,
+      "4": 6,
+      "1": 703,
+      "2": 1
+    },
+    "713": {
+      "19": "",
+      "12": "",
+      "11": "",
+      "14": "",
+      "13": "",
+      "17": "",
+      "18": "",
+      "15": "",
+      "16": "",
+      "20": "",
+      "9": 916892,
+      "6": 120,
+      "7": 0,
+      "8": 478131,
+      "5": 1,
+      "10": "c_vocano_world_icon_illustrate_08",
+      "3": 11,
+      "4": 9,
+      "1": 713,
+      "2": 1
+    },
+    "711": {
+      "19": "dsj_img_vacano_zengyi3",
+      "12": "c_vocano_world_icon_h_02",
+      "11": "c_vocano_world_icon_h_04",
+      "14": "c_vocano_world_icon_h_05",
+      "13": "c_vocano_world_icon_h_01",
+      "17": "lianmeng_bg_vocano03",
+      "18": "Mat_World_HSJZ_03",
+      "15": "c_vocano_world_icon_h_03",
+      "16": 80,
+      "20": "30801;50",
+      "9": 917121,
+      "6": 60,
+      "7": 0,
+      "8": 916746,
+      "5": 5,
+      "10": "c_vocano_world_icon_illustrate_11",
+      "3": 9,
+      "4": 4,
+      "1": 711,
+      "2": 2
+    },
+    "710": {
+      "19": "dsj_img_vacano_zengyi2",
+      "12": "c_vocano_world_icon_g_02",
+      "11": "c_vocano_world_icon_g_04",
+      "14": "c_vocano_world_icon_g_05",
+      "13": "c_vocano_world_icon_g_01",
+      "17": "lianmeng_bg_vocano04",
+      "18": "Mat_World_HSJZ_02",
+      "15": "c_vocano_world_icon_g_03",
+      "16": 80,
+      "20": "30805;20",
+      "9": 917120,
+      "6": 60,
+      "7": 0,
+      "8": 916745,
+      "5": 5,
+      "10": "c_vocano_world_icon_illustrate_10",
+      "3": 8,
+      "4": 3,
+      "1": 710,
+      "2": 2
+    },
+    "705": {
+      "19": "",
+      "12": "c_vocano_world_icon_a_02",
+      "11": "c_vocano_world_icon_a_04",
+      "14": "c_vocano_world_icon_a_05",
+      "13": "c_vocano_world_icon_a_01",
+      "17": "",
+      "18": "",
+      "15": "c_vocano_world_icon_a_03",
+      "16": "",
+      "20": "",
+      "9": 915092,
+      "6": 5,
+      "7": 100,
+      "8": 915087,
+      "5": 1,
+      "10": "c_vocano_world_icon_illustrate_01",
+      "3": 3,
+      "4": 8,
+      "1": 705,
+      "2": 1
+    },
+    "704": {
+      "19": "",
+      "12": "c_vocano_world_icon_b_02",
+      "11": "c_vocano_world_icon_b_04",
+      "14": "c_vocano_world_icon_b_05",
+      "13": "c_vocano_world_icon_b_01",
+      "17": "",
+      "18": "",
+      "15": "c_vocano_world_icon_b_03",
+      "16": "",
+      "20": "",
+      "9": 915091,
+      "6": 10,
+      "7": 200,
+      "8": 915086,
+      "5": 1,
+      "10": "c_vocano_world_icon_illustrate_02",
+      "3": 3,
+      "4": 7,
+      "1": 704,
+      "2": 1
+    }
+  }
+}

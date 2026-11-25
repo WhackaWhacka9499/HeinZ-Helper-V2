@@ -1,0 +1,74 @@
+{
+  "ok": true,
+  "is_live": false,
+  "account_name": "Commander",
+  "totalTroops": 1850000,
+  "totalPower": 74200000,
+  "formationCapacity": 192000,
+  "hospitalCapacity": 220000,
+  "typeCounts": {
+    "vehicle": 820000,
+    "infantry": 580000,
+    "rider": 450000
+  },
+  "tierCounts": {
+    "T10": 1150000,
+    "T9": 520000,
+    "T8": 180000
+  },
+  "armies": [
+    {
+      "id": "3010",
+      "name": "Apocalypse Tank (T10)",
+      "category": "vehicle",
+      "tier": 10,
+      "count": 520000,
+      "power": 26000000
+    },
+    {
+      "id": "2010",
+      "name": "Heavy Destroyer (T10)",
+      "category": "infantry",
+      "tier": 10,
+      "count": 380000,
+      "power": 19000000
+    },
+    {
+      "id": "1010",
+      "name": "Phantom Raider (T10)",
+      "category": "rider",
+      "tier": 10,
+      "count": 250000,
+      "power": 12500000
+    },
+    {
+      "id": "3009",
+      "name": "Battle Cruiser (T9)",
+      "category": "vehicle",
+      "tier": 9,
+      "count": 300000,
+      "power": 12000000
+    },
+    {
+      "id": "2009",
+      "name": "Elite Vanguard (T9)",
+      "category": "infantry",
+      "tier": 9,
+      "count": 200000,
+      "power": 8000000
+    },
+    {
+      "id": "1009",
+      "name": "Predator Bike (T9)",
+      "category": "rider",
+      "tier": 9,
+      "count": 200000,
+      "power": 8000000
+    }
+  ],
+  "woundedTotal": 0,
+  "wounded": [],
+  "estHealSec": 0,
+  "estHealHours": 0.0,
+  "status_msg": "Game client offline \u2022 Showing cached drill ground & hospital records."
+}

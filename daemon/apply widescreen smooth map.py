@@ -1,0 +1,2968 @@
+import argparse
+import importlib.util
+import os
+import sys
+import time
+import json
+
+if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+MASTER_LUA_CODE = r"""
+-- Last Z master engine overhaul v8.1 (Spatial 50x50 grid, cached reflection/materials, R3 read-only preload)
+
+local function IsNull(o)
+    if o == nil then return true end
+    if type(o) == "userdata" then
+        return o:Equals(nil)
+    end
+    return false
+end
+
+local function SafeTableCount(t)
+    if type(t) ~= "table" then return 0 end
+    local c = 0
+    for _ in pairs(t) do c = c + 1 end
+    return c
+end
+if type(table.count) ~= "function" then
+    table.count = SafeTableCount
+end
+
+local _cachedRjson = nil
+local function GetRapidJson()
+    if _cachedRjson ~= nil then
+        return _cachedRjson or nil
+    end
+    local loaded = package and package.loaded and package.loaded.rapidjson
+    if loaded then
+        _cachedRjson = loaded
+        return loaded
+    end
+    local ok, mod = pcall(require, "rapidjson")
+    if ok and mod then
+        _cachedRjson = mod
+        return mod
+    end
+    _cachedRjson = false
+    return nil
+end
+
+local function GetActiveWorldServerId(mgr)
+    mgr = mgr or (DataCenter and DataCenter.WorldPointManager)
+    if mgr then
+        local aoiSid = tonumber(mgr.aoiServerId or 0) or 0
+        if aoiSid > 0 then return aoiSid end
+    end
+    local p = LuaEntry and LuaEntry.Player
+    if p and p.GetSelfServerId then
+        local ok, sid = pcall(p.GetSelfServerId, p)
+        local numSid = ok and tonumber(sid) or nil
+        if numSid and numSid > 0 then
+            return numSid
+        end
+    end
+    return 0
+end
+
+local function ResolveCacheServerId(serverId, mgr)
+    local sid = tonumber(serverId)
+    if not sid or sid <= 0 then
+        sid = tonumber(GetActiveWorldServerId(mgr)) or 0
+    end
+    if sid < 0 then sid = 0 end
+    return sid
+end
+
+_G._PersistentWorldPointCacheByServer = _G._PersistentWorldPointCacheByServer or {}
+_G._PersistentDesertCacheByServer = _G._PersistentDesertCacheByServer or {}
+_G._MonsterIdSet = _G._MonsterIdSet or {}
+_G._DynamicBuildIdSet = _G._DynamicBuildIdSet or {}
+_G._WorldCacheDirtyCount = _G._WorldCacheDirtyCount or {}
+_G._WorldCacheLastSaveTs = _G._WorldCacheLastSaveTs or {}
+_G._FullMapLoadState = _G._FullMapLoadState or {
+    active = false,
+    done = 0,
+    total = 0,
+    serverId = 0,
+    lastCompletedAt = 0,
+}
+
+local BUCKET_SIZE = 50
+_G._MasterSpatialGrid = _G._MasterSpatialGrid or {}
+_G._MasterDirtyBuckets = _G._MasterDirtyBuckets or {}
+_G._MasterViewPointCount = _G._MasterViewPointCount or 0
+_G._MasterGridTableRef = _G._MasterGridTableRef or nil
+
+local _DEFAULT_CACHE_DIR = "./data/cache"
+_G._WorldCacheLoadedOk = _G._WorldCacheLoadedOk or {}
+
+local function GetCacheDir()
+    local ov = _G._MasterCacheDirOverride
+    if type(ov) == "string" and ov ~= "" then
+        return (ov:gsub("\\", "/"):gsub("/+$", ""))
+    end
+    local envDir = os and os.getenv and os.getenv("HEINZ_DATA_DIR")
+    if type(envDir) == "string" and envDir ~= "" then
+        return (envDir:gsub("\\", "/"):gsub("/+$", "")) .. "/cache"
+    end
+    return _DEFAULT_CACHE_DIR
+end
+
+local function GetServerCacheTables(serverId, mgr)
+    local sid = ResolveCacheServerId(serverId, mgr)
+    _G._PersistentWorldPointCacheByServer[sid] = _G._PersistentWorldPointCacheByServer[sid] or {}
+    _G._PersistentDesertCacheByServer[sid] = _G._PersistentDesertCacheByServer[sid] or {}
+    _G._PersistentWorldPointCache = _G._PersistentWorldPointCacheByServer[sid]
+    _G._PersistentDesertCache = _G._PersistentDesertCacheByServer[sid]
+    return _G._PersistentWorldPointCacheByServer[sid], _G._PersistentDesertCacheByServer[sid], sid
+end
+
+local function GetCacheFilePath(serverId, mgr)
+    local dir = GetCacheDir()
+    local sid = ResolveCacheServerId(serverId, mgr)
+    if sid > 0 then
+        return dir .. "/world_map_cache_s" .. tostring(sid) .. ".json"
+    end
+    return dir .. "/world_map_cache.json"
+end
+
+local function MarkWorldCacheDirty(serverId, delta)
+    local sid = ResolveCacheServerId(serverId)
+    _G._WorldCacheDirtyCount[sid] = (_G._WorldCacheDirtyCount[sid] or 0) + (delta or 1)
+end
+
+local _DISK_SAVE_MIN_INTERVAL_SEC = 20
+
+function _G.SaveWorldCacheToDisk(serverId, forceSave)
+    pcall(function()
+        local cache, _, sid = GetServerCacheTables(serverId)
+        if not cache or not next(cache) then return end
+        local dirty = _G._WorldCacheDirtyCount[sid] or 0
+        local lastSave = _G._WorldCacheLastSaveTs[sid] or 0
+        local now = os.time()
+        if not forceSave then
+            if dirty <= 0 then return end
+            if (now - lastSave) < _DISK_SAVE_MIN_INTERVAL_SEC then
+                return
+            end
+        elseif dirty <= 0 and lastSave > 0 then
+            return
+        end
+        local rjson = GetRapidJson()
+        if not rjson then return end
+        local exportObj = {}
+        for k, v in pairs(cache) do
+            exportObj[tostring(k)] = v
+        end
+        local encoded = rjson.encode(exportObj)
+        if type(encoded) ~= "string" or #encoded < 5 then return end
+        local filePath = GetCacheFilePath(sid)
+        local hasExisting = false
+        local existingSize = 0
+        local ef = io.open(filePath, "rb")
+        if ef then
+            hasExisting = true
+            existingSize = ef:seek("end") or 0
+            ef:close()
+        end
+        if existingSize > 0 and (not _G._WorldCacheLoadedOk[sid]) and #encoded < existingSize then
+            return
+        end
+        if existingSize >= 4096 and #encoded < math.floor(existingSize * 0.25) then
+            return
+        end
+        local randTag = tostring(now) .. "_" .. tostring(math.random(100000, 999999))
+        local tmpPath = filePath .. "." .. randTag .. ".tmp"
+        local bakPath = filePath .. "." .. randTag .. ".bak"
+        local f = io.open(tmpPath, "wb")
+        if not f then return end
+        local okW = f:write(encoded)
+        local okFlush = false
+        if okW then
+            okFlush = (f:flush() ~= nil)
+        end
+        local okClose = f:close()
+        if not okW or not okFlush or not okClose then
+            pcall(os.remove, tmpPath)
+            return
+        end
+        local movedToBak = false
+        if hasExisting then
+            local okBakCall, bakRes = pcall(os.rename, filePath, bakPath)
+            if not (okBakCall and bakRes) then
+                pcall(os.remove, tmpPath)
+                return
+            end
+            movedToBak = true
+        end
+        local okCall, renRes = pcall(function() return os.rename(tmpPath, filePath) end)
+        if okCall and renRes then
+            if movedToBak then
+                pcall(os.remove, bakPath)
+            end
+            _G._WorldCacheDirtyCount[sid] = 0
+            _G._WorldCacheLastSaveTs[sid] = now
+            _G._WorldCacheLoadedOk[sid] = true
+        else
+            if movedToBak then
+                pcall(os.rename, bakPath, filePath)
+            end
+            pcall(os.remove, tmpPath)
+        end
+    end)
+end
+
+function _G.LoadWorldCacheFromDisk(serverId)
+    pcall(function()
+        local cache, _, sid = GetServerCacheTables(serverId)
+        local rjson = GetRapidJson()
+        if not rjson then return end
+        local filePath = GetCacheFilePath(sid)
+        local f = io.open(filePath, "rb")
+        if not f then return end
+        local content = f:read("*a")
+        f:close()
+        if not content or #content < 5 then return end
+        local decoded = rjson.decode(content)
+        if type(decoded) == "table" and next(decoded) ~= nil then
+            for kStr, v in pairs(decoded) do
+                local kNum = tonumber(kStr)
+                if kNum then
+                    cache[kNum] = v
+                end
+            end
+            _G._WorldCacheDirtyCount[sid] = 0
+            _G._WorldCacheLastSaveTs[sid] = os.time()
+            _G._WorldCacheLoadedOk[sid] = true
+        end
+    end)
+end
+
+do
+    local initCache, _, initSid = GetServerCacheTables()
+    if next(initCache) == nil then
+        _G.LoadWorldCacheFromDisk(initSid)
+    end
+end
+
+local function FastIndexToXY(pointIndex)
+    local tw = TileCountX or 1000
+    local z = pointIndex - 1
+    local py = math.floor(z / tw)
+    return z - py * tw, py
+end
+
+local function IndexViewPoint(mgr, pointIndex, entry, markDirty)
+    if not pointIndex or type(entry) ~= "table" then return end
+    local px = entry._px
+    local py = entry._py
+    if px == nil or py == nil then
+        px, py = FastIndexToXY(pointIndex)
+        entry._px = px
+        entry._py = py
+    end
+    local bx = math.floor(px / BUCKET_SIZE)
+    local by = math.floor(py / BUCKET_SIZE)
+    local bKey = by * 4096 + bx
+    local grid = _G._MasterSpatialGrid
+    local bucket = grid[bKey]
+    if not bucket then
+        bucket = {}
+        grid[bKey] = bucket
+    end
+    if bucket[pointIndex] == nil then
+        _G._MasterViewPointCount = (_G._MasterViewPointCount or 0) + 1
+    end
+    bucket[pointIndex] = entry
+    if markDirty then
+        _G._MasterDirtyBuckets[bKey] = true
+    end
+end
+
+local function UnindexViewPoint(pointIndex, entry)
+    if not pointIndex then return end
+    local px = type(entry) == "table" and entry._px or nil
+    local py = type(entry) == "table" and entry._py or nil
+    if px == nil or py == nil then
+        px, py = FastIndexToXY(pointIndex)
+    end
+    local bx = math.floor(px / BUCKET_SIZE)
+    local by = math.floor(py / BUCKET_SIZE)
+    local bKey = by * 4096 + bx
+    local bucket = _G._MasterSpatialGrid and _G._MasterSpatialGrid[bKey]
+    if bucket and bucket[pointIndex] ~= nil then
+        bucket[pointIndex] = nil
+        _G._MasterViewPointCount = math.max(0, (_G._MasterViewPointCount or 1) - 1)
+    end
+end
+
+local function RebuildSpatialGrid(mgr)
+    local grid = {}
+    local count = 0
+    if mgr and type(mgr.allViewPoints) == "table" then
+        for k, entry in pairs(mgr.allViewPoints) do
+            if type(entry) == "table" then
+                local px = entry._px
+                local py = entry._py
+                if px == nil or py == nil then
+                    px, py = FastIndexToXY(k)
+                    entry._px = px
+                    entry._py = py
+                end
+                local bx = math.floor(px / BUCKET_SIZE)
+                local by = math.floor(py / BUCKET_SIZE)
+                local bKey = by * 4096 + bx
+                local bucket = grid[bKey]
+                if not bucket then
+                    bucket = {}
+                    grid[bKey] = bucket
+                end
+                bucket[k] = entry
+                count = count + 1
+            end
+        end
+    end
+    _G._MasterSpatialGrid = grid
+    _G._MasterDirtyBuckets = {}
+    _G._MasterViewPointCount = count
+    _G._MasterGridTableRef = mgr and mgr.allViewPoints or nil
+    _G._MasterStreamReset = true
+end
+
+local function SyncSpatialGridIfReplaced(mgr)
+    if not mgr then return end
+    local vp = mgr.allViewPoints
+    if type(vp) ~= "table" then
+        if (_G._MasterViewPointCount or 0) > 0 or _G._MasterGridTableRef ~= nil then
+            RebuildSpatialGrid(mgr)
+        end
+        return
+    end
+    if _G._MasterGridTableRef ~= vp or ((_G._MasterViewPointCount or 0) > 0 and next(vp) == nil) then
+        RebuildSpatialGrid(mgr)
+    end
+end
+
+function _G.RestoreWorldMapCache(serverId)
+    local mgr = DataCenter and DataCenter.WorldPointManager
+    if not mgr then return end
+    local sid = ResolveCacheServerId(serverId, mgr)
+    local ptCache, desertCache = GetServerCacheTables(sid, mgr)
+    if next(ptCache) == nil then
+        _G.LoadWorldCacheFromDisk(sid)
+    end
+    mgr.allViewPoints = mgr.allViewPoints or {}
+    SyncSpatialGridIfReplaced(mgr)
+    local v2 = CS and CS.UnityEngine and CS.UnityEngine.Vector2
+    for k, pi in pairs(ptCache or {}) do
+        local entry = mgr.allViewPoints[k]
+        local pType = (type(pi) == "table" and (pi.pointType or pi.PointType)) or 0
+        local px, py = FastIndexToXY(k)
+        local mv2 = v2 and v2(px, py) or nil
+        if not entry then
+            entry = {
+                pointIndex = k,
+                mainIndex = (type(pi) == "table" and (pi.mainIndex or pi.id)) or k,
+                mainIndexV2 = mv2,
+                pointType = pType,
+                pointInfo = pi,
+                _px = px,
+                _py = py,
+            }
+            mgr.allViewPoints[k] = entry
+        else
+            entry.pointInfo = pi
+            entry._px = px
+            entry._py = py
+            if entry.pointType == nil or entry.pointType == 0 then entry.pointType = pType end
+            if entry.mainIndex == nil then entry.mainIndex = k end
+            if entry.mainIndexV2 == nil and mv2 then entry.mainIndexV2 = mv2 end
+        end
+        IndexViewPoint(mgr, k, entry, true)
+    end
+    for k, di in pairs(desertCache or {}) do
+        local entry = mgr.allViewPoints[k]
+        local px, py = FastIndexToXY(k)
+        local mv2 = v2 and v2(px, py) or nil
+        if not entry then
+            entry = {
+                pointIndex = k,
+                mainIndex = k,
+                mainIndexV2 = mv2,
+                desertInfo = di,
+                _px = px,
+                _py = py,
+            }
+            mgr.allViewPoints[k] = entry
+        else
+            entry.desertInfo = di
+            entry._px = px
+            entry._py = py
+            if entry.mainIndexV2 == nil and mv2 then entry.mainIndexV2 = mv2 end
+        end
+        IndexViewPoint(mgr, k, entry, true)
+    end
+end
+
+_G._MasterToggles = _G._MasterToggles or {
+    masterEnabled = true,  -- [F1] Master World Map Overhaul ON/OFF
+    showZombies   = true,  -- [F2] Show/Hide Wandering Zombies (mi.type <= 2)
+    showResources = true,  -- [F3] Show/Hide Resource Nodes (pType == 7)
+    showBoomers   = true,  -- [F4] Show/Hide Boomers & Bosses (mi.type >= 3)
+    showHQs       = true,  -- [F5] Show/Hide Player HQs & Buildings (pType == 6)
+    showOverlay   = true,  -- [Home] Show/Hide Top-Center HUD Overlay
+}
+
+local function GetMonsterCategory(entry)
+    if type(entry) ~= "table" then return "ZOMBIE" end
+    local cat = entry._monsterCat
+    if cat then return cat end
+    local pi = entry.pointInfo
+    if not pi then return "ZOMBIE" end
+    local mi = pi.monsterInfo or pi._parsedExtra or entry._parsedExtra
+    if not mi and pi.extraInfo and PBController and PBController.ParsePbFromBytes then
+        local ok, parsed = pcall(PBController.ParsePbFromBytes, pi.extraInfo, "protobuf.WorldPointMonster")
+        if ok and parsed then
+            mi = parsed
+            pi._parsedExtra = parsed
+            entry._parsedExtra = parsed
+        end
+    end
+    if mi and mi.type then
+        if mi.type == 3 then
+            cat = "BOOMER"
+        elseif mi.type > 3 then
+            cat = "BOSS"
+        else
+            cat = "ZOMBIE"
+        end
+        entry._monsterCat = cat
+        return cat
+    end
+    return "ZOMBIE"
+end
+
+local function _overlayBadge(val)
+    return val and "<color=#4ADE80>ON</color>" or "<color=#F87171>OFF</color>"
+end
+
+function _G.RefreshMasterOverlayUI()
+    local um = UIManager and UIManager:GetInstance()
+    if not um or not um.m_topCanvas or IsNull(um.m_topCanvas) then return end
+    local parentRect = um.m_topCanvas
+    local uiLayer = parentRect.gameObject and parentRect.gameObject.layer or 5
+
+    local barGo = _G._MasterOverlayBarGo
+    local tmp = _G._MasterOverlayTmp
+    if not barGo or IsNull(barGo) or not tmp or IsNull(tmp) then
+        local existing = parentRect:Find("LastZMasterOverlayBar")
+        if existing and not IsNull(existing) then
+            CS.UnityEngine.Object.Destroy(existing.gameObject)
+        end
+
+        barGo = CS.UnityEngine.GameObject("LastZMasterOverlayBar")
+        barGo.layer = uiLayer
+        barGo.transform:SetParent(parentRect, false)
+        local barRect = barGo:AddComponent(typeof(CS.UnityEngine.RectTransform))
+        barRect.anchorMin = CS.UnityEngine.Vector2(0.5, 1.0)
+        barRect.anchorMax = CS.UnityEngine.Vector2(0.5, 1.0)
+        barRect.pivot = CS.UnityEngine.Vector2(0.5, 1.0)
+        barRect.anchoredPosition = CS.UnityEngine.Vector2(0, -6)
+        barRect.sizeDelta = CS.UnityEngine.Vector2(1060, 32)
+
+        local bgImg = barGo:AddComponent(typeof(CS.UnityEngine.UI.Image))
+        bgImg.color = CS.UnityEngine.Color(0.05, 0.07, 0.11, 0.86)
+        bgImg.raycastTarget = false
+
+        local txtGo = CS.UnityEngine.GameObject("OverlayText")
+        txtGo.layer = uiLayer
+        txtGo.transform:SetParent(barGo.transform, false)
+        local txtRect = txtGo:AddComponent(typeof(CS.UnityEngine.RectTransform))
+        txtRect.anchorMin = CS.UnityEngine.Vector2.zero
+        txtRect.anchorMax = CS.UnityEngine.Vector2.one
+        txtRect.offsetMin = CS.UnityEngine.Vector2(10, 0)
+        txtRect.offsetMax = CS.UnityEngine.Vector2(-10, 0)
+
+        tmp = txtGo:AddComponent(typeof(CS.TMPro.TextMeshProUGUI))
+        local tmps = um.container and um.container:GetComponentsInChildren(typeof(CS.TMPro.TextMeshProUGUI), true)
+        if tmps and tmps.Length > 0 and tmps[0].font then
+            tmp.font = tmps[0].font
+        end
+        tmp.fontSize = 14.5
+        tmp.alignment = CS.TMPro.TextAlignmentOptions.Center
+        tmp.raycastTarget = false
+        tmp.enableWordWrapping = false
+
+        _G._MasterOverlayBarGo = barGo
+        _G._MasterOverlayTmp = tmp
+        _G._MasterLastOverlayText = nil
+    end
+
+    local t = _G._MasterToggles
+    local showBar = (t.showOverlay ~= false)
+    if barGo.activeSelf ~= showBar then
+        barGo:SetActive(showBar)
+    end
+    if not showBar then return end
+
+    barGo.transform:SetAsLastSibling()
+    local fls = _G._FullMapLoadState or {}
+    local mgr = DataCenter and DataCenter.WorldPointManager
+    if mgr then
+        SyncSpatialGridIfReplaced(mgr)
+    end
+    local ptCount = _G._MasterViewPointCount or 0
+    local objCount = (mgr and mgr.allObj and SafeTableCount(mgr.allObj)) or 0
+    local loadBadge
+    if fls.active and (fls.total or 0) > 0 then
+        local pct = math.min(100, math.floor(((fls.done or 0) * 100) / fls.total))
+        loadBadge = string.format("<color=#FBBF24>%d%% (%d/%d)</color>", pct, fls.done or 0, fls.total)
+    elseif ptCount > 0 then
+        loadBadge = string.format("<color=#4ADE80>%.1fk pts / %d obj</color>", ptCount / 1000.0, objCount)
+    else
+        loadBadge = "<color=#94A3B8>Idle</color>"
+    end
+    local barRect = barGo:GetComponent(typeof(CS.UnityEngine.RectTransform))
+    if barRect and not IsNull(barRect) and barRect.sizeDelta.x < 1040 then
+        barRect.sizeDelta = CS.UnityEngine.Vector2(1060, 32)
+    end
+    local newText = string.format(
+        "<b><color=#38BDF8>LAST Z PC</color></b>  |  <b>[F1] Map:</b> %s  |  <b>[F2] Zom:</b> %s  |  <b>[F3] Res:</b> %s  |  <b>[F4] Boom:</b> %s  |  <b>[F5] HQs:</b> %s  |  <b>[F6] Full Load:</b> %s  |  <color=#94A3B8>[Home]</color>",
+        _overlayBadge(t.masterEnabled),
+        _overlayBadge(t.showZombies),
+        _overlayBadge(t.showResources),
+        _overlayBadge(t.showBoomers),
+        _overlayBadge(t.showHQs),
+        loadBadge
+    )
+    if _G._MasterLastOverlayText ~= newText then
+        tmp.text = newText
+        _G._MasterLastOverlayText = newText
+    end
+end
+
+-- Shared spatial visibility & toggle filter (used by ApplyLastZWorldMaster, ApplyToggleChangeImmediate, and runCameraStreamer)
+function _G.ShouldBuildPointNow(selfMgr, pointIndex, entry, camX, camY, isEvictCheck)
+    if type(entry) ~= "table" then return false end
+    local toggles = _G._MasterToggles
+    local px = entry._px
+    local py = entry._py
+    if px == nil or py == nil then
+        px, py = FastIndexToXY(pointIndex)
+        entry._px = px
+        entry._py = py
+    end
+    local dist = math.max(math.abs(px - camX), math.abs(py - camY))
+
+    if toggles and toggles.masterEnabled == false then
+        return dist <= (isEvictCheck and 48 or 38)
+    end
+
+    local pi = entry.pointInfo
+    if not pi then
+        return dist <= (isEvictCheck and 110 or 80)
+    end
+
+    local pType = entry.pointType or pi.PointType or pi.pointType or -1
+    if pType == 4 then
+        local mCat = GetMonsterCategory(entry)
+        if mCat == "BOOMER" or mCat == "BOSS" then
+            if toggles and toggles.showBoomers == false then return false end
+            if mCat == "BOSS" then return true end
+            return dist <= (isEvictCheck and 340 or 260)
+        else
+            if toggles and toggles.showZombies == false then return false end
+            return dist <= (isEvictCheck and 250 or 180)
+        end
+    elseif pType == 7 then
+        if toggles and toggles.showResources == false then return false end
+        return true
+    elseif pType == 6 then
+        if toggles and toggles.showHQs == false then return false end
+        local isSmall = entry._isSmallBuild
+        if isSmall == nil then
+            local bid = selfMgr and selfMgr._GetBuildIdForFactory and selfMgr:_GetBuildIdForFactory(entry)
+            isSmall = (bid ~= nil and selfMgr.IsSmallBuild and selfMgr:IsSmallBuild(bid)) and true or false
+            entry._isSmallBuild = isSmall
+        end
+        if isSmall then
+            return dist <= (isEvictCheck and 260 or 190)
+        else
+            return dist <= (isEvictCheck and 560 or 420)
+        end
+    end
+
+    -- All other point types (Radar 22, Cities 11, Alliance 15, Treasures, Ice Caves): globally visible
+    return true
+end
+
+local HYSTERESIS_COOLDOWN = 0.35
+_G._lastStableBand = _G._lastStableBand or "NEAR"
+_G._lastBandSwitchTime = _G._lastBandSwitchTime or 0
+
+local function GetHysteresisLod(rawLod)
+    local now = CS.UnityEngine.Time.unscaledTime
+    local curBand = _G._lastStableBand
+    if curBand == "NEAR" then
+        if rawLod >= 4 or (rawLod == 3 and (now - _G._lastBandSwitchTime) >= HYSTERESIS_COOLDOWN) then
+            _G._lastStableBand = "FAR"
+            _G._lastBandSwitchTime = now
+            return math.max(3, rawLod)
+        else
+            return math.min(2, rawLod)
+        end
+    else
+        if rawLod <= 1 or (rawLod == 2 and (now - _G._lastBandSwitchTime) >= HYSTERESIS_COOLDOWN) then
+            _G._lastStableBand = "NEAR"
+            _G._lastBandSwitchTime = now
+            return math.min(2, rawLod)
+        else
+            return math.max(3, rawLod)
+        end
+    end
+end
+
+local function GetActualCameraTilePos(mgr, ws)
+    local csWorld = CS.SceneManager and CS.SceneManager.World
+    if csWorld and not IsNull(csWorld) and SceneUtils and SceneUtils.WorldToTileXZ and ForceChangeScene then
+        local ok, wx, wy, wz = pcall(csWorld.GetCurTarget, csWorld)
+        if ok and wx and wz and (wx > 0 or wz > 0) then
+            if mgr and mgr.curCameraTarget and mgr.curCameraTarget.Set then
+                mgr.curCameraTarget:Set(wx, wy, wz)
+            end
+            local tx, ty = SceneUtils.WorldToTileXZ(wx, wz, ForceChangeScene.World)
+            if tx and ty and tx >= 0 and ty >= 0 then
+                _G._lastValidCamX = tx
+                _G._lastValidCamY = ty
+                return tx, ty
+            end
+        end
+    end
+    local mainCam = CS and CS.UnityEngine and CS.UnityEngine.Camera and CS.UnityEngine.Camera.main
+    if not IsNull(mainCam) and SceneUtils and SceneUtils.WorldToTileXZ and ForceChangeScene then
+        local pos = mainCam.transform.position
+        local fwd = mainCam.transform.forward
+        if fwd.y ~= 0 then
+            local t = -pos.y / fwd.y
+            local gx = pos.x + fwd.x * t
+            local gz = pos.z + fwd.z * t
+            local tx, ty = SceneUtils.WorldToTileXZ(gx, gz, ForceChangeScene.World)
+            if tx and ty and tx >= 0 and ty >= 0 then
+                _G._lastValidCamX = tx
+                _G._lastValidCamY = ty
+                return tx, ty
+            end
+        end
+    end
+    if mgr and mgr.curCameraTarget and (mgr.curCameraTarget.x > 0 or mgr.curCameraTarget.z > 0) and SceneUtils and SceneUtils.WorldToTileXZ and ForceChangeScene then
+        local tx, ty = SceneUtils.WorldToTileXZ(mgr.curCameraTarget.x, mgr.curCameraTarget.z, ForceChangeScene.World)
+        if tx and ty and tx > 0 and ty > 0 then
+            _G._lastValidCamX = tx
+            _G._lastValidCamY = ty
+            return tx, ty
+        end
+    end
+    if _G._lastValidCamX and _G._lastValidCamY then
+        return _G._lastValidCamX, _G._lastValidCamY
+    end
+    if mgr and mgr.reqPos and mgr.reqPos.x and mgr.reqPos.x > 0 then
+        return mgr.reqPos.x, mgr.reqPos.y
+    end
+    return 500, 500
+end
+
+local function GetMasterRefCache()
+    local rc = _G._MasterReflectionCache
+    if rc then return rc end
+    local flags = CS.System.Reflection.BindingFlags
+    local toInt = CS.System.Convert.ToInt32
+    local allFlags = toInt(flags.Public) + toInt(flags.NonPublic) + toInt(flags.Instance)
+    local boxedInts = {}
+    for idx = 1, 12 do
+        boxedInts[idx] = toInt(idx)
+    end
+    rc = {
+        allFlags = allFlags,
+        toInt = toInt,
+        boxedInts = boxedInts,
+        boxed2048 = toInt(2048),
+        shadowField = nil,
+        shadowVal2048 = nil,
+        zoomParamsField = nil,
+        adjSettingsField = nil,
+        adjTargetsField = nil,
+        adjShowLodsField = nil,
+        typeAnimator = typeof(CS.UnityEngine.Animator),
+        typeParticle = typeof(CS.UnityEngine.ParticleSystem),
+        typeRenderer = typeof(CS.UnityEngine.Renderer),
+        typeAutoAdjustLod = typeof(CS.AutoAdjustLod),
+        cullTransform = CS.UnityEngine.AnimatorCullingMode.CullUpdateTransforms,
+        particlePause = CS.UnityEngine.ParticleSystemCullingMode.Pause,
+        shadowOff = CS.UnityEngine.Rendering.ShadowCastingMode.Off,
+        vecScale25 = CS.UnityEngine.Vector3(2.5, 2.5, 2.5),
+        vecOne = CS.UnityEngine.Vector3.one,
+    }
+    _G._MasterReflectionCache = rc
+    return rc
+end
+
+function _G.ApplyLastZWorldMaster()
+    local app = CS.UnityEngine.Application
+    local qs = CS.UnityEngine.QualitySettings
+    local mgr = DataCenter and DataCenter.WorldPointManager
+    local ws = SceneManager and SceneManager.World
+    local rc = GetMasterRefCache()
+
+    -- Hardware graphics (180 fps, 2x msaa, 120m shadow distance)
+    if app then
+        if app.targetFrameRate ~= 180 then app.targetFrameRate = 180 end
+    end
+    if qs then
+        if qs.vSyncCount ~= 0 then qs.vSyncCount = 0 end
+        qs.anisotropicFiltering = CS.UnityEngine.AnisotropicFiltering.ForceEnable
+        if qs.antiAliasing ~= 2 then qs.antiAliasing = 2 end
+        qs.shadows = CS.UnityEngine.ShadowQuality.All
+        if qs.shadowCascades ~= 2 then qs.shadowCascades = 2 end
+        if qs.shadowDistance ~= 120.0 then qs.shadowDistance = 120.0 end
+        if qs.shadowNearPlaneOffset ~= 0.8 then qs.shadowNearPlaneOffset = 0.8 end
+        qs.shadowResolution = CS.UnityEngine.ShadowResolution.High
+        if qs.asyncUploadTimeSlice ~= 16 then qs.asyncUploadTimeSlice = 16 end
+        if qs.asyncUploadBufferSize ~= 256 then qs.asyncUploadBufferSize = 256 end
+        if qs.asyncUploadPersistentBuffer ~= true then qs.asyncUploadPersistentBuffer = true end
+        if qs.lodBias ~= 2.5 then qs.lodBias = 2.5 end
+        if qs.maximumLODLevel ~= 0 then qs.maximumLODLevel = 0 end
+    end
+    _G._MasterPerfDirty = false
+
+    local gs = CS.UnityEngine.Rendering and CS.UnityEngine.Rendering.GraphicsSettings
+    local rp = gs and (gs.currentRenderPipeline or gs.renderPipelineAsset)
+    if not IsNull(rp) then
+        rp.shadowDistance = 120.0
+        rp.shadowCascadeCount = 2
+        rp.shadowDepthBias = 1.2
+        rp.shadowNormalBias = 1.2
+        rp.msaaSampleCount = 2
+        if rc.shadowField == nil then
+            local fRes = rp:GetType():GetField("m_MainLightShadowmapResolution", rc.allFlags)
+            rc.shadowField = fRes or false
+            if fRes then
+                rc.shadowVal2048 = CS.System.Enum.ToObject(fRes.FieldType, rc.boxed2048)
+            end
+        end
+        if rc.shadowField and rc.shadowVal2048 then
+            rc.shadowField:SetValue(rp, rc.shadowVal2048)
+        end
+    end
+
+    local ok_qsu, qsu = pcall(require, "Util.QualitySettingUtil")
+    if ok_qsu and qsu then
+        qsu.OnLowFps = function() end
+        if qsu._origSetGraphicQuality == nil and type(qsu.SetGraphicQuality) == "function" then
+            qsu._origSetGraphicQuality = qsu.SetGraphicQuality
+        end
+        local origSetGraphicQuality = qsu._origSetGraphicQuality
+        qsu.SetGraphicQuality = function(...)
+            if origSetGraphicQuality then pcall(origSetGraphicQuality, ...) end
+            if app and app.targetFrameRate ~= 180 then app.targetFrameRate = 180 end
+            if qs and qs.vSyncCount ~= 0 then qs.vSyncCount = 0 end
+            _G._MasterPerfDirty = true
+        end
+    end
+
+    pcall(collectgarbage, "setpause", 200)
+    pcall(collectgarbage, "setstepmul", 200)
+
+    if not mgr then
+        return "WAITING_FOR_WORLD_POINT_MANAGER"
+    end
+
+    -- Camera setup (far 12000, near 20)
+    if ws and ws.Camera then
+        ws.Camera.ReCalcFarPlane = function(self, camDist)
+            if self.camera and not IsNull(self.camera) then
+                self.camera.farClipPlane = 12000.0
+                self.camera.nearClipPlane = 20.0
+            end
+        end
+        if ws.Camera.camera and not IsNull(ws.Camera.camera) then
+            ws.Camera.camera.farClipPlane = 12000.0
+            ws.Camera.camera.nearClipPlane = 20.0
+        end
+    end
+    local mainCam = CS.UnityEngine.Camera.main
+    if not IsNull(mainCam) then
+        mainCam.farClipPlane = 12000.0
+        mainCam.nearClipPlane = 20.0
+    end
+
+    -- Scrolling and panning overhaul
+    if ws and ws.Camera and ws.Camera.touchCamera and not IsNull(ws.Camera.touchCamera) then
+        local tc = ws.Camera.touchCamera
+        pcall(function() tc.AutoScrollVelocityMax = 1600.0 end)
+        pcall(function() tc.AutoScrollDamp = 700.0 end)
+        pcall(function() tc.zoomTime = 0.06 end)
+        pcall(function() tc.CamFollowFactor = 45.0 end)
+
+        if tc.AutoScrollDamps then
+            tc.AutoScrollDamps:Clear()
+            local smoothDamps = { 200, 250, 300, 350, 400, 500, 600, 750, 900, 1000 }
+            for i = 1, #smoothDamps do tc.AutoScrollDamps:Add(smoothDamps[i]) end
+        end
+
+        if rc.zoomParamsField == nil then
+            rc.zoomParamsField = tc:GetType():GetField("zoomParams", rc.allFlags) or false
+        end
+        local zparams = rc.zoomParamsField and rc.zoomParamsField:GetValue(tc)
+        if zparams and zparams.Count >= 3 then
+            pcall(function() zparams[0].sensitivity = 150.0 end)
+            pcall(function() zparams[1].sensitivity = 200.0 end)
+            pcall(function() zparams[2].sensitivity = 400.0 end)
+        end
+    end
+
+    if ws and ws.Camera then
+        ws.Camera.SetScrollDamps = function(self) end
+        if ws.Camera.AfterUpdateAction then
+            ws.Camera.AfterUpdateAction["KeyboardWASDPanning"] = nil
+        end
+    end
+
+    -- Smart adjuster expander (cached FieldInfo & boxed Int32)
+    local function ensureAdjusterReflection(adj)
+        if rc.adjSettingsField ~= nil then return rc.adjSettingsField end
+        local adjType = (adj and adj:GetType()) or rc.typeAutoAdjustLod
+        if not adjType then return false end
+        local f = adjType:GetField("settings", rc.allFlags) or false
+        rc.adjSettingsField = f
+        if f and adj then
+            local arr = f:GetValue(adj)
+            if arr and arr.GetType then
+                local settingType = arr:GetType():GetElementType()
+                if settingType then
+                    rc.adjTargetsField = settingType:GetField("targets", rc.allFlags) or false
+                    rc.adjShowLodsField = settingType:GetField("showLods", rc.allFlags) or false
+                end
+            end
+        end
+        return f
+    end
+    pcall(ensureAdjusterReflection, nil)
+
+    local function expandAdjuster(adj)
+        if not adj or IsNull(adj) then return false end
+        local f = rc.adjSettingsField or ensureAdjusterReflection(adj)
+        if not f then return false end
+        local arr = f:GetValue(adj)
+        if not arr or arr.Length == 0 then return false end
+        local tF = rc.adjTargetsField
+        local lF = rc.adjShowLodsField
+        if tF == nil or lF == nil then
+            local settingType = arr:GetType():GetElementType()
+            tF = settingType:GetField("targets", rc.allFlags) or false
+            lF = settingType:GetField("showLods", rc.allFlags) or false
+            rc.adjTargetsField = tF
+            rc.adjShowLodsField = lF
+        end
+        local boxedInts = rc.boxedInts
+
+        for i = 0, arr.Length - 1 do
+            local s = arr[i]
+            local targets = tF and tF:GetValue(s)
+            local llist = lF and lF:GetValue(s)
+            if targets and llist then
+                for t = 0, targets.Length - 1 do
+                    local tObj = targets[t]
+                    if not IsNull(tObj) then
+                        local tname = tObj.name
+                        if tname == "ModelGo" or tname == "Model" or tname == "ModelInstance" then
+                            llist:Clear()
+                            llist:Add(boxedInts[1])
+                            llist:Add(boxedInts[2])
+                        elseif tname == "Icon" or tname == "IconHouse" or tname == "IconNormal" or tname == "FarIcon" or tname == "lodSetObj" then
+                            llist:Clear()
+                            for l = 3, 12 do llist:Add(boxedInts[l]) end
+                        elseif tname == "NameLabel" or tname == "LevelLabel" or string.find(tname, "Near") or string.find(tname, "ModelHead") or tname == "ModelLabel" or string.find(tname, "Far") or string.find(tname, "IconHead") or tname == "IconLabel" then
+                            llist:Clear()
+                            for l = 1, 12 do llist:Add(boxedInts[l]) end
+                        end
+                    end
+                end
+            end
+        end
+
+        local curLod = GetHysteresisLod((mgr and mgr.lodLv) or 1)
+        pcall(adj.UpdateLod, adj, curLod)
+        return true
+    end
+
+    if WorldPointObject and not WorldPointObject.__masterAdjusterHooked then
+        local old_SetAutoAdjustLod = WorldPointObject.SetAutoAdjustLod
+        WorldPointObject.SetAutoAdjustLod = function(self)
+            if old_SetAutoAdjustLod then old_SetAutoAdjustLod(self) end
+            if self.adjuster and not IsNull(self.adjuster) then
+                expandAdjuster(self.adjuster)
+            end
+        end
+        WorldPointObject.__masterAdjusterHooked = true
+    end
+
+    _G._MasterSeenMaterialIds = _G._MasterSeenMaterialIds or {}
+    _G._MasterSeenMatCount = _G._MasterSeenMatCount or 0
+    local function optimizeInstance(inst)
+        if IsNull(inst) then return end
+        local animators = inst:GetComponentsInChildren(rc.typeAnimator, true)
+        if animators then
+            local cullMode = rc.cullTransform
+            for i = 0, animators.Length - 1 do
+                if animators[i].cullingMode ~= cullMode then
+                    animators[i].cullingMode = cullMode
+                end
+            end
+        end
+        local particles = inst:GetComponentsInChildren(rc.typeParticle, true)
+        if particles then
+            local pPause = rc.particlePause
+            for i = 0, particles.Length - 1 do
+                if particles[i].cullingMode ~= pPause then
+                    particles[i].cullingMode = pPause
+                end
+            end
+        end
+        local renderers = inst:GetComponentsInChildren(rc.typeRenderer, true)
+        if renderers then
+            local seenMats = _G._MasterSeenMaterialIds
+            for i = 0, renderers.Length - 1 do
+                local sm = renderers[i].sharedMaterial
+                if not IsNull(sm) then
+                    local matId = sm.GetInstanceID and sm:GetInstanceID() or nil
+                    if matId == nil or not seenMats[matId] then
+                        if matId ~= nil then
+                            if (_G._MasterSeenMatCount or 0) >= 4096 then
+                                seenMats = {}
+                                _G._MasterSeenMaterialIds = seenMats
+                                _G._MasterSeenMatCount = 0
+                            end
+                            seenMats[matId] = true
+                            _G._MasterSeenMatCount = (_G._MasterSeenMatCount or 0) + 1
+                        end
+                        if not IsNull(sm.shader) then
+                            local sName = sm.shader.name or ""
+                            if string.find(sName, "Instanc") or string.find(sName, "Standard") or string.find(sName, "Universal") or string.find(sName, "URP") then
+                                if sm.enableInstancing ~= true then
+                                    sm.enableInstancing = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Resource nodes overhaul
+    local RESOURCE_LOD_ICON = {
+        [1] = "Assets/Main/Sprites/LodIcon/mine_lod_metal.png",
+        [2] = "Assets/Main/Sprites/LodIcon/mine_lod_wood.png",
+        [12] = "Assets/Main/Sprites/LodIcon/mine_lod_electricity.png",
+        [14] = "Assets/Main/Sprites/LodIcon/mine_lod_money.png",
+        [15] = "Assets/Main/Sprites/LodIcon/gold_select.png"
+    }
+    local DEFAULT_RESOURCE_LOD_ICON = "Assets/Main/Sprites/LodIcon/mine_lod_money.png"
+    local RESOURCE_ICON_CFG = {
+        offset = CS.UnityEngine.Vector3(0, 2, 0),
+        scale = CS.UnityEngine.Vector3(2.7, 2.7, 1.0)
+    }
+
+    local ok_wroi, wroi = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldResObjectInstanced")
+    if ok_wroi and wroi then
+        wroi._IsResourceLodVisible = function(self) return true end
+        wroi._ShouldShowInstancedLabel = function(self, info)
+            if (self.lodLv or 1) > 2 or not self.pointIndex then return false end
+            local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+            local px, py = FastIndexToXY(self.pointIndex)
+            return math.abs(px - camX) <= 85 and math.abs(py - camY) <= 85
+        end
+
+        wroi._GetFarIconPath = function(self, info)
+            local bi = info and info.resourceInfo
+            if nil == bi then return DEFAULT_RESOURCE_LOD_ICON end
+            local rt = GetTableData(TableName.GatherResource, bi.resourceId, "resource_type")
+            return RESOURCE_LOD_ICON[rt] or DEFAULT_RESOURCE_LOD_ICON
+        end
+
+        wroi._GetFarIconConfig = function(self, info)
+            return RESOURCE_ICON_CFG
+        end
+
+        wroi.RefreshInstancedFarIcon = function(self, info, forceAll)
+            local path = self:_GetFarIconPath(info)
+            local cfg = self:_GetFarIconConfig(info)
+            if nil == path or "" == path then path = DEFAULT_RESOURCE_LOD_ICON end
+            if nil == self.cachedWorldPos then
+                self.cachedWorldPos = SceneUtils.TileIndexToWorld(self.pointIndex, ForceChangeScene.World)
+            end
+            if nil == self.cachedWorldPos then return end
+
+            local iconRenderer = mgr and mgr:GetIconRenderer()
+            if not iconRenderer then return end
+
+            if nil == self.iconHandle then
+                self.iconHandle = iconRenderer:AddIcon(self.cachedWorldPos, path, cfg)
+                self.iconPath = path
+            elseif forceAll or self.iconPath ~= path then
+                self.iconHandle = iconRenderer:UpdateIcon(self.iconHandle, self.cachedWorldPos, path, cfg)
+                self.iconPath = path
+            end
+        end
+    end
+
+    local function applySmartInstancedLodState(self, info, forceAll)
+        local toggles = _G._MasterToggles
+        if toggles and (toggles.masterEnabled == false or toggles.showResources == false) then
+            if self.RemoveInstancedModel then self:RemoveInstancedModel() end
+            if self.DestroyInstancedFarIcon then self:DestroyInstancedFarIcon() end
+            if self.RemoveInstancedLabel then self:RemoveInstancedLabel() end
+            return
+        end
+        local rawLod = self.lodLv or 0
+        local useNear3D = false
+        if rawLod <= 2 and self.pointIndex then
+            local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+            local px, py = FastIndexToXY(self.pointIndex)
+            if math.abs(px - camX) <= 85 and math.abs(py - camY) <= 85 then
+                useNear3D = true
+            end
+        end
+        if useNear3D then
+            self:RefreshInstancedModel(info, forceAll)
+            if self.DestroyInstancedFarIcon then self:DestroyInstancedFarIcon() end
+        else
+            self:RemoveInstancedModel()
+            self:RefreshInstancedFarIcon(info, forceAll)
+        end
+        self:RefreshInstancedLabel(info)
+    end
+
+    local function fastInstancedLodChange(self, lod)
+        local oldLod = self.lodLv or 0
+        if oldLod == lod then return end
+        self.lodLv = lod
+        if lod >= 3 and oldLod >= 3 then return end
+
+        local px = self._cachedTileX
+        local py = self._cachedTileY
+        if not px or not py then
+            px, py = FastIndexToXY(self.pointIndex)
+            self._cachedTileX = px
+            self._cachedTileY = py
+        end
+        local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+        local wasNear = oldLod <= 2 and math.abs(px - camX) <= 85 and math.abs(py - camY) <= 85
+        local isNear = lod <= 2 and math.abs(px - camX) <= 85 and math.abs(py - camY) <= 85
+        if wasNear == isNear and oldLod >= 3 and lod >= 3 then return end
+
+        local info = mgr and mgr:GetPointInfo(self.pointIndex)
+        if info then self:_ApplyInstancedLodState(info) end
+    end
+
+    local ok_wir, wir = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldInstancedRepresentation")
+    if ok_wir and wir then
+        wir.RefreshInstancedFarIcon = function(self, info, forceAll)
+            local path = self:_GetFarIconPath(info)
+            local cfg = self:_GetFarIconConfig(info)
+            if nil == path or "" == path then return end
+            if nil == self.cachedWorldPos then
+                self.cachedWorldPos = SceneUtils.TileIndexToWorld(self.pointIndex, ForceChangeScene.World)
+            end
+            if nil == self.cachedWorldPos then return end
+
+            local iconRenderer = mgr and mgr:GetIconRenderer()
+            if not iconRenderer then return end
+
+            if nil == self.iconHandle then
+                self.iconHandle = iconRenderer:AddIcon(self.cachedWorldPos, path, cfg)
+                self.iconPath = path
+            elseif forceAll or self.iconPath ~= path then
+                self.iconHandle = iconRenderer:UpdateIcon(self.iconHandle, self.cachedWorldPos, path, cfg)
+                self.iconPath = path
+            end
+        end
+
+        wir._ApplyInstancedLodState = applySmartInstancedLodState
+        wir._InstancedOnLodChanged = fastInstancedLodChange
+    end
+    if ok_wroi and wroi then
+        wroi._ApplyInstancedLodState = applySmartInstancedLodState
+        wroi._InstancedOnLodChanged = fastInstancedLodChange
+        local wroiMt = getmetatable(wroi)
+        if wroiMt and type(wroiMt.__index) == "table" then
+            wroiMt.__index._ApplyInstancedLodState = applySmartInstancedLodState
+            wroiMt.__index._InstancedOnLodChanged = fastInstancedLodChange
+            wroiMt.__index.RefreshInstancedFarIcon = wroi.RefreshInstancedFarIcon
+            wroiMt.__index._ShouldShowInstancedLabel = wroi._ShouldShowInstancedLabel
+            wroiMt.__index._IsResourceLodVisible = wroi._IsResourceLodVisible
+        end
+    end
+
+    -- Seasonal buildings
+    local ok_wboil, wboil = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldBuildObjectInstancedLod")
+    if ok_wboil and wboil then
+        wboil.CreateGameObject = function(self)
+            local baseCls = WorldPointObject
+            if baseCls and baseCls.CreateGameObject then baseCls.CreateGameObject(self) end
+
+            self.lodLv = CS.SceneManager.World ~= nil and CS.SceneManager.World:GetLodLevel() or 0
+            local info = mgr and mgr:GetPointInfo(self.pointIndex)
+            if nil == info then return end
+            if self:_RefreshData(info) == false then return end
+
+            self.cachedWorldPos = SceneUtils.TileIndexToWorld(self.pointIndex, ForceChangeScene.World)
+            if (self.lodLv or 0) <= 2 then
+                self:CreateModelInstance(info)
+                self:CreateLabel(info)
+            else
+                self:CreateFarIcon(info)
+                if self.DestroyLabel then self:DestroyLabel() end
+            end
+            self:_CheckOverlays(info)
+        end
+
+        wboil.OnLodChanged = function(self, lod)
+            if self.lodLv == lod then return end
+            local oldLod = self.lodLv or 0
+            self.lodLv = lod
+            local oldNear = oldLod <= 2
+            local newNear = lod <= 2
+            if oldNear ~= newNear then
+                local info = mgr and mgr:GetPointInfo(self.pointIndex)
+                if nil ~= info then self:_RefreshData(info) end
+                if newNear then
+                    if self.DestroyFarIcon then self:DestroyFarIcon() end
+                    if info then
+                        self:CreateModelInstance(info)
+                        self:CreateLabel(info)
+                    end
+                else
+                    if self.DestroyModelInstance then self:DestroyModelInstance() end
+                    if self.DestroyLabel then self:DestroyLabel() end
+                    if info then
+                        self:CreateFarIcon(info)
+                    end
+                end
+            end
+            self:_OnLodSwitched()
+            self:UpdateTargetAnchor()
+        end
+    end
+
+    -- Player bases
+    local ok_wbo, wbo = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldBuildObject")
+    if ok_wbo and wbo then
+        if not wbo.__masterHooked then
+            wbo.__masterHooked = true
+            local origSetAutoAdjustLod = wbo.SetAutoAdjustLod
+            wbo.SetAutoAdjustLod = function(self, info)
+                if origSetAutoAdjustLod then pcall(origSetAutoAdjustLod, self, info) end
+                if not self.adjuster and self.gameObject and not IsNull(self.gameObject) then
+                    self.adjuster = self.gameObject:GetComponent(rc.typeAutoAdjustLod)
+                end
+                if self.adjuster and not IsNull(self.adjuster) then
+                    expandAdjuster(self.adjuster)
+                    self.adjuster:UpdateLod((mgr and mgr.lodLv) or 1)
+                end
+                if info then pcall(self.SetBuildIconColor, self, info) end
+            end
+
+            local origOnMainModelLoaded = wbo.OnMainModelLoaded
+            wbo.OnMainModelLoaded = function(self, ...)
+                if origOnMainModelLoaded then pcall(origOnMainModelLoaded, self, ...) end
+                optimizeInstance(self.instance)
+            end
+
+            wbo.CheckIdleShowAnim = function(self) end
+            wbo.OnRandomNextIdleAnim = function(self) end
+            wbo.RandomNextPlayIdleTime = function(self) return 999999 end
+
+            local origSetProtectRenderVisible = wbo.SetProtectRenderVisible
+            wbo.SetProtectRenderVisible = function(self, isVisible)
+                local info = mgr and mgr:GetPointInfo(self.pointIndex)
+                local bi = info and info.buildInfo
+                local protectEnd = bi and bi.protectEndTime
+                local hasShield = (protectEnd ~= nil and protectEnd > 0) and (protectEnd > os.time())
+
+                if hasShield then
+                    if origSetProtectRenderVisible then pcall(origSetProtectRenderVisible, self, true) end
+                    if self.protectRender and not IsNull(self.protectRender) then
+                        if self.cachedWorldPos and self.protectRender.transform then
+                            self.protectRender.transform.position = self.cachedWorldPos
+                            local curLod = (mgr and mgr.lodLv) or 1
+                            if curLod >= 4 then
+                                self.protectRender.transform.localScale = rc.vecScale25
+                            else
+                                self.protectRender.transform.localScale = rc.vecOne
+                            end
+                        end
+                        if self._cachedProtectRendererTarget ~= self.protectRender or self._cachedProtectRenderer == nil then
+                            self._cachedProtectRendererTarget = self.protectRender
+                            self._cachedProtectRenderer = self.protectRender:GetComponent(rc.typeRenderer) or false
+                        end
+                        local prMesh = self._cachedProtectRenderer
+                        if prMesh and not IsNull(prMesh) then
+                            if prMesh.shadowCastingMode ~= rc.shadowOff then
+                                prMesh.shadowCastingMode = rc.shadowOff
+                            end
+                            if prMesh.receiveShadows ~= false then
+                                prMesh.receiveShadows = false
+                            end
+                        end
+                        if self.protectRender.enabled == false then self.protectRender.enabled = true end
+                        if self.protectRender.gameObject and not self.protectRender.gameObject.activeSelf then
+                            self.protectRender.gameObject:SetActive(true)
+                        end
+                    end
+                else
+                    if origSetProtectRenderVisible then pcall(origSetProtectRenderVisible, self, isVisible) end
+                end
+            end
+
+            local function fastBuildLodChange(self, lod)
+                local oldLod = self.lodLv or 0
+                if oldLod == lod then return end
+                self.lodLv = lod
+                if lod >= 3 and oldLod >= 3 then return end
+
+                local px = self._cachedTileX
+                local py = self._cachedTileY
+                if not px or not py then
+                    px, py = FastIndexToXY(self.pointIndex)
+                    self._cachedTileX = px
+                    self._cachedTileY = py
+                end
+                local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+                local wasNear = oldLod <= 2 and math.abs(px - camX) <= 110 and math.abs(py - camY) <= 110
+                local isNear = lod <= 2 and math.abs(px - camX) <= 110 and math.abs(py - camY) <= 110
+                if wasNear == isNear and oldLod >= 3 and lod >= 3 then return end
+
+                if not self.adjuster and self.gameObject and not IsNull(self.gameObject) then
+                    self.adjuster = self.gameObject:GetComponent(typeof(CS.AutoAdjustLod))
+                end
+                if self.adjuster and not IsNull(self.adjuster) then
+                    self.adjuster:UpdateLod(lod)
+                end
+
+                local info = mgr and mgr:GetPointInfo(self.pointIndex)
+                if info and self.CheckShowEffect then
+                    pcall(self.CheckShowEffect, self, info, lod)
+                end
+                if lod <= 2 and not self.instance and self.CreateMain then
+                    pcall(self.CreateMain, self, info)
+                end
+            end
+            wbo.LodChange = fastBuildLodChange
+            local wboMt = getmetatable(wbo)
+            if wboMt and type(wboMt.__index) == "table" then
+                wboMt.__index.LodChange = fastBuildLodChange
+            end
+        end
+    end
+
+    -- Player HQ Labels & Depth Occlusion Fix
+    local ok_uiwl, uiwl = pcall(require, "SlgEngine.DataCenter.WorldPointManager.UIWorldLabel")
+    if ok_uiwl and uiwl and not uiwl.__masterLabelHooked then
+        uiwl.__masterLabelHooked = true
+        local function fixNameDepthAndPosition(self)
+            if self.nameObj and not IsNull(self.nameObj) then
+                self.nameObj.transform.localPosition = CS.UnityEngine.Vector3(0, -0.42, -0.60)
+                local sr = self.nameObj:GetComponent(typeof(CS.UnityEngine.SpriteRenderer))
+                if sr and not IsNull(sr) then
+                    sr.sortingOrder = 50
+                    if not sr.enabled then sr.enabled = true end
+                end
+                if self.nameTxt and not IsNull(self.nameTxt) then
+                    local mr = self.nameTxt:GetComponent(typeof(CS.UnityEngine.MeshRenderer))
+                    if mr and not IsNull(mr) then
+                        mr.sortingOrder = 51
+                        if not mr.enabled then mr.enabled = true end
+                        if mr.material then
+                            mr.material:SetFloat("_ZTest", 8)
+                        end
+                    end
+                end
+            end
+        end
+
+        local origSetName = uiwl.SetName
+        uiwl.SetName = function(self, name, color, needFitLevel, needFitCountry)
+            if origSetName then pcall(origSetName, self, name, color, needFitLevel, needFitCountry) end
+            fixNameDepthAndPosition(self)
+        end
+
+        local origSetNameAutoFit = uiwl.SetNameAutoFit
+        uiwl.SetNameAutoFit = function(self, ...)
+            if origSetNameAutoFit then pcall(origSetNameAutoFit, self, ...) end
+            fixNameDepthAndPosition(self)
+        end
+    end
+
+    -- Zombies and monsters overhaul
+    local ok_wmo, wmo = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+    if ok_wmo and wmo and not wmo.__masterMonsterHooked then
+        wmo.__masterMonsterHooked = true
+
+        -- Always show Zombie 2D FarIcon & Level Label at LOD 3..12 without needing the Monster filter tab selected!
+        wmo.RefreshLodType = function(self)
+            if self.lodSetObj and not IsNull(self.lodSetObj) and self.lodSetObj.gameObject then
+                self.lodSetObj.gameObject:SetActive(true)
+            end
+            if self.lodSetObj_2 and not IsNull(self.lodSetObj_2) and self.lodSetObj_2.gameObject then
+                self.lodSetObj_2.gameObject:SetActive(true)
+            end
+            if self.lodSetObj_3 and not IsNull(self.lodSetObj_3) and self.lodSetObj_3.gameObject then
+                self.lodSetObj_3.gameObject:SetActive(true)
+            end
+        end
+
+        -- Skip expensive 3D skeletal animations on Zombies when zoomed out to 2D icons (lodLv >= 3)
+        local origPlayAnim = wmo.PlayAnim
+        if origPlayAnim then
+            wmo.PlayAnim = function(self, animName, ...)
+                local curLod = (mgr and mgr.lodLv) or 1
+                if curLod >= 3 and animName == "idle" then
+                    return
+                end
+                return origPlayAnim(self, animName, ...)
+            end
+        end
+    end
+
+    -- Tiered streaming and persistent cache (uses shared _G.ShouldBuildPointNow)
+    local ShouldBuildPointNow = _G.ShouldBuildPointNow
+
+    mgr.aoiOptimizeEnabled = true
+    mgr.aoiReconcileEnabled = false
+    mgr.outOfViewOffX = 100000
+
+    -- Patch upvalues across ALL WorldPointManager inheritance levels (instance, WorldPointManager_SLG, AND superclass _vtbl!)
+    local function patchFnUpvalues(fn)
+        if type(fn) ~= "function" or not debug or not debug.getupvalue or not debug.setupvalue then return 0 end
+        local patched = 0
+        for uIdx = 1, 30 do
+            local uName, uVal = debug.getupvalue(fn, uIdx)
+            if not uName then break end
+            if uName == "OtherPointLod" or uName == "SelfPointLod" or uName == "OtherPlayerLod" or uName == "NightSacrificeLod" or uName == "DesertPointLod" then
+                debug.setupvalue(fn, uIdx, 20)
+                patched = patched + 1
+            elseif (uName == "ViewLevelRange" or uName == "ViewLevelRangeLandscape" or uName == "ViewLevelRange_Old" or uName == "LodRequestRange" or uName == "LodRequestRangeLandscape") and type(uVal) == "table" then
+                for k, v in pairs(uVal) do
+                    if type(v) == "table" then
+                        v.x = 100000
+                        v.y = 100000
+                    end
+                end
+                for lodIdx = 1, 12 do
+                    if type(uVal[lodIdx]) ~= "table" then
+                        uVal[lodIdx] = { x = 100000, y = 100000 }
+                    else
+                        uVal[lodIdx].x = 100000
+                        uVal[lodIdx].y = 100000
+                    end
+                end
+                patched = patched + 1
+            end
+        end
+        return patched
+    end
+
+    local function patchWpmTableUpvalues(tbl)
+        if type(tbl) ~= "table" then return 0 end
+        local total = 0
+        for _, fn in pairs(tbl) do
+            if type(fn) == "function" then
+                total = total + patchFnUpvalues(fn)
+            end
+        end
+        return total
+    end
+
+    local vtblPatchedCount = 0
+    vtblPatchedCount = vtblPatchedCount + patchWpmTableUpvalues(mgr)
+    -- Direct method lookups (reaches superclass BaseClass _vtbl methods immediately)
+    for _, keyName in ipairs({"BuildAsync", "GetViewLevelRange", "GetLodRequestRange", "Update", "UpdateViewRequest", "DoSendViewRequest", "SendViewRequest"}) do
+        if type(mgr[keyName]) == "function" then
+            vtblPatchedCount = vtblPatchedCount + patchFnUpvalues(mgr[keyName])
+        end
+    end
+    -- Walk metatable & BaseClass _class[super] _vtbl chain so every inherited function is unlocked
+    local curTbl = mgr
+    local visited = {}
+    for _ = 1, 6 do
+        if not curTbl or visited[curTbl] then break end
+        visited[curTbl] = true
+        local mt = getmetatable(curTbl)
+        local idx = mt and mt.__index
+        if type(idx) == "table" then
+            vtblPatchedCount = vtblPatchedCount + patchWpmTableUpvalues(idx)
+            curTbl = idx
+        elseif type(idx) == "function" and debug and debug.getupvalue then
+            local clsMap, sup = nil, nil
+            for u = 1, 8 do
+                local un, uv = debug.getupvalue(idx, u)
+                if not un then break end
+                if un == "_class" and type(uv) == "table" then clsMap = uv end
+                if un == "super" and type(uv) == "table" then sup = uv end
+            end
+            while clsMap and sup and not visited[sup] do
+                visited[sup] = true
+                local vtbl = clsMap[sup]
+                if type(vtbl) == "table" then
+                    vtblPatchedCount = vtblPatchedCount + patchWpmTableUpvalues(vtbl)
+                end
+                sup = sup.super
+            end
+            break
+        else
+            break
+        end
+    end
+    _G._MasterVtblPatchedCount = vtblPatchedCount
+
+    local _HUGE_VIEW_RANGE = { x = 100000, y = 100000 }
+    if not mgr._origGetViewLevelRange and mgr.GetViewLevelRange then mgr._origGetViewLevelRange = mgr.GetViewLevelRange end
+    if not mgr._origGetLodRequestRange and mgr.GetLodRequestRange then mgr._origGetLodRequestRange = mgr.GetLodRequestRange end
+    mgr.GetViewLevelRange = function(self, ...)
+        if _G._MasterToggles and _G._MasterToggles.masterEnabled == false and self._origGetViewLevelRange then
+            return self:_origGetViewLevelRange(...)
+        end
+        return _HUGE_VIEW_RANGE
+    end
+    mgr.GetLodRequestRange = function(self, ...)
+        if _G._MasterToggles and _G._MasterToggles.masterEnabled == false and self._origGetLodRequestRange then
+            return self:_origGetLodRequestRange(...)
+        end
+        return _HUGE_VIEW_RANGE
+    end
+
+    mgr.GetViewBounds = function(self, padX, padY)
+        return -100000, 100000, -100000, 100000
+    end
+    mgr.IsOutOfRange = function(self, ...)
+        return false
+    end
+    mgr.IsOutOfRange2 = function(self, x, y, minX, maxX, minY, maxY)
+        if x and y then
+            local tw = TileCountX or 1000
+            local pIdx = y * tw + x + 1
+            local entry = self.allViewPoints and self.allViewPoints[pIdx]
+            if entry then
+                local camX, camY = GetActualCameraTilePos(self, SceneManager and SceneManager.World)
+                return not ShouldBuildPointNow(self, pIdx, entry, camX, camY, false)
+            end
+        end
+        return false
+    end
+
+    -- Always request svLod = 0 (Full Detail: Resources, Zombies, Bases, Events) from server
+    mgr.GetServerLod = function(self, lod)
+        return 0
+    end
+
+    -- Never skip unbuilt points/deserts during continuous AOI version checks
+    mgr.SkipWorldPointForContinuesAoiVersion = function(self, pointId)
+        if not self.aoiOptimizeEnabled then return false end
+        local pi = self:GetPointInfo(pointId)
+        local obj = self:GetObjectByPoint(pointId)
+        if pi ~= nil and obj ~= nil then
+            return true
+        end
+        return false
+    end
+    mgr.SkipDesertForContinuesAoiVersion = function(self, pointId)
+        if not self.aoiOptimizeEnabled then return false end
+        local entry = self.allViewPoints and self.allViewPoints[pointId]
+        local obj = self:GetObjectByPoint(pointId)
+        if entry and entry.desertInfo ~= nil and obj ~= nil then
+            return true
+        end
+        return false
+    end
+
+    -- Smooth, zero-stutter frame budgets for DoParse (35/frame) and BuildAsync (12/frame)
+    local _parseFrame = -1
+    local _parseCount = 0
+    mgr.IsBusy = function(self)
+        local f = CS.UnityEngine.Time.frameCount
+        if f ~= _parseFrame then
+            _parseFrame = f
+            _parseCount = 0
+        end
+        _parseCount = _parseCount + 1
+        return _parseCount > 35
+    end
+
+    local _buildFrame = -1
+    local _buildCount = 0
+    mgr.IsSyncBusy = function(self)
+        local f = CS.UnityEngine.Time.frameCount
+        if f ~= _buildFrame then
+            _buildFrame = f
+            _buildCount = 0
+        end
+        _buildCount = _buildCount + 1
+        local qLen = (self.toBuildList and #self.toBuildList) or 0
+        local limit = (qLen > 50) and 100 or 30
+        return _buildCount > limit
+    end
+
+    mgr.ReconcileAoiPoints = function(self, newIdSet, newCount)
+        if not self.aoiPointIdSet then self.aoiPointIdSet = newIdSet or {}
+        else for k in pairs(newIdSet or {}) do self.aoiPointIdSet[k] = true end end
+    end
+    mgr.ReconcileAoiDeserts = function(self, newIdSet, newCount)
+        if not self.aoiDesertIdSet then self.aoiDesertIdSet = newIdSet or {}
+        else for k in pairs(newIdSet or {}) do self.aoiDesertIdSet[k] = true end end
+    end
+
+    -- Persistent Cache Lifecycle Hooks (Per-server cache; never wipe viewpoints across scene switches)
+    local mt = getmetatable(mgr)
+    local proto = (mt and type(mt.__index) == "table") and mt.__index or mgr
+    if proto and not proto._masterCacheLifecycleHookedV81 then
+        proto._masterCacheLifecycleHookedV81 = true
+        proto._masterCacheLifecycleHookedV8 = true
+        proto._masterCacheLifecycleHooked = true
+
+        local origClose = proto._origCloseV8 or proto.Close
+        proto._origCloseV8 = origClose
+        proto.Close = function(self, ...)
+            local sid = ResolveCacheServerId(nil, self)
+            local ptCache, desertCache = GetServerCacheTables(sid, self)
+            if self.allViewPoints then
+                for k, v in pairs(self.allViewPoints) do
+                    if type(v) == "table" then
+                        if v.pointInfo ~= nil and ptCache[k] ~= v.pointInfo then
+                            ptCache[k] = v.pointInfo
+                            MarkWorldCacheDirty(sid, 1)
+                        end
+                        if v.desertInfo ~= nil and desertCache[k] ~= v.desertInfo then
+                            desertCache[k] = v.desertInfo
+                            MarkWorldCacheDirty(sid, 1)
+                        end
+                    end
+                end
+            end
+            _G.SaveWorldCacheToDisk(sid, true)
+            local ret = nil
+            if origClose then
+                ret = origClose(self, ...)
+            end
+            _G._MasterSpatialGrid = {}
+            _G._MasterDirtyBuckets = {}
+            _G._MasterViewPointCount = 0
+            _G._MasterGridTableRef = nil
+            _G._MasterStreamReset = true
+            return ret
+        end
+
+        local origStartUp = proto._origStartUpV8 or proto.StartUp
+        proto._origStartUpV8 = origStartUp
+        proto.StartUp = function(self, ...)
+            local res = origStartUp and origStartUp(self, ...) or nil
+            SyncSpatialGridIfReplaced(self)
+            pcall(_G.RestoreWorldMapCache, ResolveCacheServerId(nil, self))
+            _G._ForceStreamRescan = true
+            return res
+        end
+
+        local origAddPointInfo = proto._origAddPointInfoV8 or proto.AddPointInfo
+        proto._origAddPointInfoV8 = origAddPointInfo
+        if origAddPointInfo then
+            proto.AddPointInfo = function(self, pointIndex, info, ...)
+                local sid = ResolveCacheServerId(nil, self)
+                if pointIndex and info then
+                    local ptCache = GetServerCacheTables(sid, self)
+                    ptCache[pointIndex] = info
+                    if self.allViewPoints and not self.allViewPoints[pointIndex] then
+                        self.allViewPoints[pointIndex] = { pointIndex = pointIndex, pointInfo = info }
+                    end
+                    MarkWorldCacheDirty(sid, 1)
+                end
+                local ret = origAddPointInfo(self, pointIndex, info, ...)
+                if pointIndex and self.allViewPoints and self.allViewPoints[pointIndex] then
+                    IndexViewPoint(self, pointIndex, self.allViewPoints[pointIndex], true)
+                end
+                return ret
+            end
+        end
+
+        local origAddDesertInfo = proto._origAddDesertInfoV8 or proto.AddDesertInfo
+        proto._origAddDesertInfoV8 = origAddDesertInfo
+        if origAddDesertInfo then
+            proto.AddDesertInfo = function(self, pointIndex, info, ...)
+                local sid = ResolveCacheServerId(nil, self)
+                if pointIndex and info then
+                    local _, desertCache = GetServerCacheTables(sid, self)
+                    desertCache[pointIndex] = info
+                    if self.allViewPoints and not self.allViewPoints[pointIndex] then
+                        self.allViewPoints[pointIndex] = { pointIndex = pointIndex, desertInfo = info }
+                    end
+                    MarkWorldCacheDirty(sid, 1)
+                end
+                local ret = origAddDesertInfo(self, pointIndex, info, ...)
+                if pointIndex and self.allViewPoints and self.allViewPoints[pointIndex] then
+                    IndexViewPoint(self, pointIndex, self.allViewPoints[pointIndex], true)
+                end
+                return ret
+            end
+        end
+    end
+
+    -- Full Map Preloader: Disable out-of-view zone and object purging so the entire map stays loaded
+    if not mgr._origAddToDeleteList and mgr.AddToDeleteList then mgr._origAddToDeleteList = mgr.AddToDeleteList end
+    if not mgr._origDeleteOutOfView and mgr.DeleteOutOfView then mgr._origDeleteOutOfView = mgr.DeleteOutOfView end
+    if not mgr._origCalcOutOfViewZones and mgr.CalcOutOfViewZones then mgr._origCalcOutOfViewZones = mgr.CalcOutOfViewZones end
+    if not mgr._origForceDeletePoint and mgr.ForceDeletePoint then mgr._origForceDeletePoint = mgr.ForceDeletePoint end
+    if not mgr._origRemovePointInfo and mgr.RemovePointInfo then mgr._origRemovePointInfo = mgr.RemovePointInfo end
+
+    -- Keep all offscreen objects loaded across the entire world map
+    mgr.AddToDeleteList = function(self, index) end
+    mgr.DeleteOutOfView = function(self) end
+    mgr.CalcOutOfViewZones = function(self) end
+
+    -- Only allow real server removals (when an entity actually dies or despawns, not out-of-view culling)
+    local origRemovePointInfo = mgr._origRemovePointInfo
+    if origRemovePointInfo then
+        mgr.RemovePointInfo = function(self, pointIndex, forceRemove, isOutOfView)
+            if forceRemove == true and isOutOfView ~= true then
+                local prevEntry = self.allViewPoints and self.allViewPoints[pointIndex]
+                local ret = origRemovePointInfo(self, pointIndex, true, false)
+                UnindexViewPoint(pointIndex, prevEntry)
+                local sid = ResolveCacheServerId(nil, self)
+                local ptCache, desertCache = GetServerCacheTables(sid, self)
+                if pointIndex ~= nil then
+                    if ptCache then ptCache[pointIndex] = nil end
+                    if desertCache then desertCache[pointIndex] = nil end
+                    local numKey = tonumber(pointIndex)
+                    if numKey ~= nil then
+                        if ptCache then ptCache[numKey] = nil end
+                        if desertCache then desertCache[numKey] = nil end
+                    end
+                end
+                MarkWorldCacheDirty(sid, 1)
+                return ret
+            end
+        end
+    end
+
+    -- Sanitize mgr.lodLv to integer
+    if type(mgr.lodLv) ~= "number" then
+        mgr.lodLv = 4
+    end
+
+    -- Polyfill SceneManager.World fallbacks so City/World transitions never throw nil method errors
+    local curWs = SceneManager and SceneManager.World
+    if curWs then
+        if not curWs.GetLodLevel then
+            curWs.GetLodLevel = function(self)
+                return (type(mgr.lodLv) == "number" and mgr.lodLv) or 4
+            end
+        end
+        if not curWs.GetStaticMgr then
+            local dummy = { AddOccupyPoints2Queued = function() end }
+            curWs.GetStaticMgr = function(self) return dummy end
+        end
+    end
+
+    -- Safe guard mgr.AddOccupyPoints2Queued against uninitialized World static manager
+    if mgr and mgr.AddOccupyPoints2Queued and not mgr._masterAddOccupyGuarded then
+        mgr._masterAddOccupyGuarded = true
+        local origAddOccupy = mgr.AddOccupyPoints2Queued
+        mgr.AddOccupyPoints2Queued = function(self, tilePos, radius, points, iscity)
+            local wScene = SceneManager and SceneManager.World
+            if wScene and wScene.GetStaticMgr then
+                local ok, smObj = pcall(wScene.GetStaticMgr, wScene)
+                if ok and smObj and smObj.AddOccupyPoints2Queued then
+                    return pcall(smObj.AddOccupyPoints2Queued, smObj, tilePos, radius, points, iscity)
+                end
+            end
+        end
+    end
+
+    -- Ensure on_LodChanged is registered on ChangeCameraLod without wiping existing game listeners
+    if EventManager and EventId and EventId.ChangeCameraLod and mgr.on_LodChanged then
+        local em = EventManager:GetInstance()
+        if em then
+            pcall(em.AddListener, em, EventId.ChangeCameraLod, mgr.on_LodChanged, mgr)
+        end
+    end
+
+    -- Restore all cached viewpoints from persistent memory/disk and sync spatial buckets
+    pcall(_G.RestoreWorldMapCache)
+    SyncSpatialGridIfReplaced(mgr)
+
+    -- Preload and stream nearby spatial buckets synchronously on world entry
+    local initCamX, initCamY = GetActualCameraTilePos(mgr, ws)
+    if mgr.isInit == true and mgr.allViewPoints and mgr.AddToBuildList then
+        local grid = _G._MasterSpatialGrid
+        local minBx = math.floor((initCamX - 250) / BUCKET_SIZE)
+        local maxBx = math.floor((initCamX + 250) / BUCKET_SIZE)
+        local minBy = math.floor((initCamY - 250) / BUCKET_SIZE)
+        local maxBy = math.floor((initCamY + 250) / BUCKET_SIZE)
+        for bx = minBx, maxBx do
+            for by = minBy, maxBy do
+                local bucket = grid and grid[by * 4096 + bx]
+                if bucket then
+                    for k, v in pairs(bucket) do
+                        if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                            if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
+                                if ShouldBuildPointNow(mgr, k, v, initCamX, initCamY, false) then
+                                    mgr:AddToBuildList(k)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if not (mgr and mgr.isInit == true) then
+        mgr._masterAppliedForThisWorldSession = false
+        return "HOOKS_READY_WAITING_FOR_WORLD_VIEW"
+    end
+
+    -- Clean any dead GameObjects that might have been left over in allObj
+    if mgr.allObj then
+        for k, obj in pairs(mgr.allObj) do
+            if not obj or not obj.gameObject or IsNull(obj.gameObject) then
+                mgr.allObj[k] = nil
+            end
+        end
+    end
+
+    -- Camera streamer: remove any legacy per-frame AfterUpdate hook that caused frame lag or moved transforms
+    if ws and ws.Camera then
+        local afterTbl = ws.Camera.AfterUpdate or ws.Camera.AfterUpdateAction
+        if type(afterTbl) == "table" then
+            afterTbl["Proximity3DGate"] = nil
+        end
+    end
+
+    _G.ApplyToggleChangeImmediate = function()
+        pcall(function()
+            local curMgr = DataCenter and DataCenter.WorldPointManager
+            local curWs = SceneManager and SceneManager.World
+            if curMgr and curMgr.isInit == true and curMgr.allObj then
+                local camX, camY = GetActualCameraTilePos(curMgr, curWs)
+                for k, obj in pairs(curMgr.allObj) do
+                    local vp = curMgr.allViewPoints and curMgr.allViewPoints[k]
+                    local shouldShow = (vp ~= nil) and _G.ShouldBuildPointNow(curMgr, k, vp, camX, camY, false) or true
+                    local cname = (obj._class_type and obj._class_type.__cname) or ""
+                    if cname == "WorldResObjectInstanced" and obj._ApplyInstancedLodState then
+                        local info = curMgr:GetPointInfo(obj.pointIndex)
+                        if info then pcall(obj._ApplyInstancedLodState, obj, info, false) end
+                    elseif obj.gameObject and not IsNull(obj.gameObject) then
+                        if obj.gameObject.activeSelf ~= shouldShow then
+                            obj.gameObject:SetActive(shouldShow)
+                        end
+                    end
+                end
+            end
+            _G._ForceStreamRescan = true
+        end)
+        pcall(_G.RefreshMasterOverlayUI)
+    end
+
+    -- Refresh existing objects
+    local now = os.time()
+    for k, obj in pairs(mgr.allObj or {}) do
+        if obj.adjuster and not IsNull(obj.adjuster) then
+            expandAdjuster(obj.adjuster)
+        end
+        local cname = (obj._class_type and obj._class_type.__cname) or ""
+        local info = mgr:GetPointInfo(obj.pointIndex)
+        if cname == "WorldBuildObject" and info then
+            pcall(obj.SetBuildIconColor, obj, info)
+            local bi = info.buildInfo
+            if bi and bi.protectEndTime and (bi.protectEndTime > now) then
+                pcall(obj.SetProtectRenderVisible, obj, true)
+            end
+        elseif cname == "WorldMonsterObject" then
+            pcall(obj.RefreshLodType, obj)
+        elseif cname == "WorldResObjectInstanced" and info then
+            obj._ApplyInstancedLodState = applySmartInstancedLodState
+            pcall(obj._ApplyInstancedLodState, obj, info, false)
+        end
+    end
+
+    -- Ensure background preloader is continuously sweeping and parsing world data
+    if _G.StartBackgroundWorldPreloader then
+        pcall(_G.StartBackgroundWorldPreloader, false)
+    end
+
+    mgr._masterAppliedForThisWorldSession = true
+    _G._ForceStreamRescan = true
+    pcall(_G.RefreshMasterOverlayUI)
+
+    local totalPts = _G._MasterViewPointCount or 0
+    local totalObjs = 0
+    if mgr.allObj then for _ in pairs(mgr.allObj) do totalObjs = totalObjs + 1 end end
+
+    return string.format(
+        "SUCCESS_MASTER_V8_0_FULL_MAP_LOAD (server=%d, vtblPatched=%d, cachedPoints=%d, activeObj=%d)",
+        GetActiveWorldServerId(mgr),
+        tonumber(_G._MasterVtblPatchedCount or 0) or 0,
+        totalPts,
+        totalObjs
+    )
+end
+
+
+function _G.StartBackgroundWorldPreloader(forceRestart)
+    local mgr = DataCenter and DataCenter.WorldPointManager
+    if not mgr or not TimerManager or not LuaEntry or not LuaEntry.Player then return false end
+    local serverId = GetActiveWorldServerId(mgr)
+    if not serverId or serverId <= 0 then return false end
+
+    if mgr._bgSweepActive and not forceRestart and mgr._bgSweepServerId == serverId then
+        return true
+    end
+    mgr._bgSweepActive = true
+    mgr._bgSweepServerId = serverId
+
+    local tmManager = TimerManager:GetInstance()
+    local maxTileX = (TileCountX or 1000) - 30
+    local maxTileY = (TileCountY or 1000) - 30
+    local startX, startY = 500, 500
+
+    local curWsInit = SceneManager and SceneManager.World
+    if curWsInit and curWsInit.Camera and mgr.isInit == true then
+        startX, startY = GetActualCameraTilePos(mgr, curWsInit)
+    else
+        local p = LuaEntry.Player
+        local bm = DataCenter.BuildManager
+        local myHqIndex = (p and p.cityPointIndex) or (bm and bm.CityPointIndex) or 500500
+        if SceneUtils and SceneUtils.IndexToTileXY then
+            local hx, hy = SceneUtils.IndexToTileXY(myHqIndex)
+            if hx and hy and hx > 0 and hy > 0 then startX, startY = hx, hy end
+        end
+    end
+
+    local gridStepX = 70
+    local gridStepY = 60
+    local allSectors = {}
+    for gx = 30, maxTileX, gridStepX do
+        for gy = 30, maxTileY, gridStepY do
+            local dist = math.max(math.abs(gx - startX), math.abs(gy - startY))
+            table.insert(allSectors, { x = gx, y = gy, d = dist })
+        end
+    end
+    table.sort(allSectors, function(a, b) return a.d < b.d end)
+
+    local sweepToken = (mgr._bgSweepToken or 0) + 1
+    mgr._bgSweepToken = sweepToken
+    local sIdx = 1
+    local dirtyTicks = 0
+    local fastStepDelay = forceRestart and 0.18 or 0.28
+
+    _G._FullMapLoadState = {
+        active = true,
+        done = 0,
+        total = #allSectors,
+        serverId = serverId,
+        lastCompletedAt = (_G._FullMapLoadState and _G._FullMapLoadState.lastCompletedAt) or 0,
+    }
+    pcall(_G.RefreshMasterOverlayUI)
+
+    local function sStep()
+        if mgr._bgSweepToken ~= sweepToken then return end
+        if _G._MasterToggles and _G._MasterToggles.masterEnabled == false then
+            _G._FullMapLoadState.active = false
+            tmManager:DelayInvoke(sStep, 1.0)
+            return
+        end
+
+        local liveSid = GetActiveWorldServerId(mgr)
+        if liveSid > 0 and liveSid ~= serverId then
+            -- User switched to another state (e.g. VS Duel cross-state visit); restart sweep on the live server!
+            mgr._bgSweepActive = false
+            _G.StartBackgroundWorldPreloader(true)
+            return
+        end
+
+        local curWs = SceneManager and SceneManager.World
+        local realCamX, realCamY = nil, nil
+        if curWs and curWs.Camera and mgr.isInit == true then
+            realCamX, realCamY = GetActualCameraTilePos(mgr, curWs)
+        end
+
+        if sIdx <= #allSectors then
+            local sec = allSectors[sIdx]
+            sIdx = sIdx + 1
+            mgr.waitingForReply = false
+            mgr:DoSendViewRequest(sec.x, sec.y, 0, serverId)
+
+            if realCamX and realCamY and mgr.reqPos and mgr.reqPos.Set then
+                mgr.reqPos:Set(realCamX, realCamY)
+            end
+
+            _G._FullMapLoadState.active = true
+            _G._FullMapLoadState.done = sIdx - 1
+            _G._FullMapLoadState.total = #allSectors
+            _G._FullMapLoadState.serverId = serverId
+
+            dirtyTicks = dirtyTicks + 1
+            if (dirtyTicks % 8) == 0 then
+                pcall(_G.RefreshMasterOverlayUI)
+            end
+            if dirtyTicks >= 40 then
+                dirtyTicks = 0
+                _G.SaveWorldCacheToDisk(serverId, false)
+            end
+            tmManager:DelayInvoke(sStep, fastStepDelay)
+        else
+            -- Completed full 1000x1000 world map sweep. Flush disk cache, rest for 60s, then repeat for live changes
+            _G.SaveWorldCacheToDisk(serverId, true)
+            _G._FullMapLoadState.active = false
+            _G._FullMapLoadState.done = #allSectors
+            _G._FullMapLoadState.lastCompletedAt = os.time()
+            _G._ForceStreamRescan = true
+            pcall(_G.RefreshMasterOverlayUI)
+            sIdx = 1
+            fastStepDelay = 0.28
+            tmManager:DelayInvoke(sStep, 60.0)
+        end
+    end
+    sStep()
+
+    -- Continuous parser pump so incoming packets are decoded even while in City view
+    local pumpToken = (mgr._bgPumpToken or 0) + 1
+    mgr._bgPumpToken = pumpToken
+    local function sPump()
+        if mgr._bgPumpToken ~= pumpToken then return end
+        pcall(function()
+            if mgr.ParseServerDataAsync then
+                mgr:ParseServerDataAsync()
+            end
+        end)
+        tmManager:DelayInvoke(sPump, 0.08)
+    end
+    sPump()
+    return true
+end
+
+function _G.TriggerFullMapLoad(forceRestart)
+    if _G._MasterToggles then
+        _G._MasterToggles.masterEnabled = true
+    end
+    local mgr = DataCenter and DataCenter.WorldPointManager
+    local status = "NO_WORLD_POINT_MANAGER"
+    if _G.ApplyLastZWorldMaster then
+        local ok, res = pcall(_G.ApplyLastZWorldMaster)
+        status = tostring(ok) .. ": " .. tostring(res)
+        _G._LastMasterStatus = status
+    end
+    if mgr then
+        local sid = GetActiveWorldServerId(mgr)
+        pcall(_G.RestoreWorldMapCache, sid)
+        SyncSpatialGridIfReplaced(mgr)
+        _G.StartBackgroundWorldPreloader(forceRestart ~= false)
+        _G._ForceStreamRescan = true
+        -- Immediately queue an initial burst of unbuilt points in nearby spatial buckets if in World view
+        if mgr.isInit == true and mgr.allViewPoints and mgr.AddToBuildList then
+            local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+            local burst = 0
+            local grid = _G._MasterSpatialGrid
+            local minBx = math.floor((camX - 430) / BUCKET_SIZE)
+            local maxBx = math.floor((camX + 430) / BUCKET_SIZE)
+            local minBy = math.floor((camY - 430) / BUCKET_SIZE)
+            local maxBy = math.floor((camY + 430) / BUCKET_SIZE)
+            for bx = minBx, maxBx do
+                for by = minBy, maxBy do
+                    local bucket = grid and grid[by * 4096 + bx]
+                    if bucket then
+                        for k, v in pairs(bucket) do
+                            if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                                if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
+                                    if _G.ShouldBuildPointNow(mgr, k, v, camX, camY, false) then
+                                        mgr:AddToBuildList(k)
+                                        burst = burst + 1
+                                        if burst >= 400 then break end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if burst >= 400 then break end
+                end
+                if burst >= 400 then break end
+            end
+        end
+    end
+    pcall(_G.RefreshMasterOverlayUI)
+    local ptCnt = _G._MasterViewPointCount or 0
+    local objCnt = (mgr and mgr.allObj and SafeTableCount(mgr.allObj)) or 0
+    return string.format(
+        "FULL_MAP_LOAD_TRIGGERED (server=%d, inWorld=%s, points=%d, built=%d, vtblPatched=%d)",
+        GetActiveWorldServerId(mgr),
+        tostring(mgr and mgr.isInit == true),
+        ptCnt,
+        objCnt,
+        tonumber(_G._MasterVtblPatchedCount or 0) or 0
+    )
+end
+
+-- Scene transitions, hotkey poller and heartbeat
+if not DataCenter or not SceneManager or not TimerManager then
+    return "BOOTING_WAIT"
+end
+
+local sm = SceneManager
+if sm and not sm._masterAutoWorldHooked then
+    sm._masterAutoWorldHooked = true
+    local oldChangeToWorld = sm.ChangeToWorld
+    sm.ChangeToWorld = function(self, ...)
+        pcall(_G.RestoreWorldMapCache)
+        local res = oldChangeToWorld(self, ...)
+        if TimerManager then
+            TimerManager:GetInstance():DelayInvoke(function()
+                if _G.ApplyLastZWorldMaster then pcall(_G.ApplyLastZWorldMaster) end
+            end, 0.05)
+            TimerManager:GetInstance():DelayInvoke(function()
+                if _G.ApplyLastZWorldMaster then pcall(_G.ApplyLastZWorldMaster) end
+            end, 0.5)
+            TimerManager:GetInstance():DelayInvoke(function()
+                if _G.ApplyLastZWorldMaster then pcall(_G.ApplyLastZWorldMaster) end
+            end, 1.5)
+        end
+        return res
+    end
+end
+
+if TimerManager then
+    local tmManager = TimerManager:GetInstance()
+
+    -- Throttled 20Hz (0.05s) Hotkey Poller for F1..F6 and Home
+    local hkToken = (_G._masterHotkeyToken or 0) + 1
+    _G._masterHotkeyToken = hkToken
+    _G._keyPrevState = _G._keyPrevState or {}
+
+    local kc = CS.UnityEngine.KeyCode
+    local inp = CS.UnityEngine.Input
+    local KEY_BINDINGS = {
+        { code = kc.F1,   field = "masterEnabled", isWorldToggle = true },
+        { code = kc.F2,   field = "showZombies",   isWorldToggle = true },
+        { code = kc.F3,   field = "showResources", isWorldToggle = true },
+        { code = kc.F4,   field = "showBoomers",   isWorldToggle = true },
+        { code = kc.F5,   field = "showHQs",       isWorldToggle = true },
+        { code = kc.F6,   field = "__fullMapLoad", isFullLoad = true },
+        { code = kc.Home, field = "showOverlay",   isWorldToggle = false },
+    }
+
+    local function pollHotkeys()
+        if _G._masterHotkeyToken ~= hkToken then return end
+        pcall(function()
+            if not inp or not _G._MasterToggles then return end
+            local prev = _G._keyPrevState
+            for i = 1, #KEY_BINDINGS do
+                local b = KEY_BINDINGS[i]
+                local isDown = inp.GetKey(b.code) or inp.GetKeyDown(b.code)
+                if isDown and not prev[b.field] then
+                    prev[b.field] = true
+                    if b.isFullLoad then
+                        if _G.TriggerFullMapLoad then
+                            pcall(_G.TriggerFullMapLoad, true)
+                        end
+                    else
+                        _G._MasterToggles[b.field] = not _G._MasterToggles[b.field]
+                        if b.isWorldToggle and _G.ApplyToggleChangeImmediate then
+                            _G.ApplyToggleChangeImmediate()
+                        else
+                            pcall(_G.RefreshMasterOverlayUI)
+                        end
+                    end
+                elseif not isDown and prev[b.field] then
+                    prev[b.field] = false
+                end
+            end
+        end)
+        tmManager:DelayInvoke(pollHotkeys, 0.05)
+    end
+    tmManager:DelayInvoke(pollHotkeys, 0.05)
+
+    local hbToken = (_G._masterHeartbeatToken or 0) + 1
+    _G._masterHeartbeatToken = hbToken
+    local _hbApp = CS.UnityEngine.Application
+    local _hbQs = CS.UnityEngine.QualitySettings
+    local _hbTp = CS.UnityEngine.ThreadPriority
+    local _hbLastScene = nil
+
+    local function _hbWork()
+        pcall(_G.RefreshMasterOverlayUI)
+        local curScene = SceneManager and SceneManager.CurrSceneID
+        if curScene ~= _hbLastScene then
+            _hbLastScene = curScene
+            _G._MasterPerfDirty = true
+        end
+        if _hbApp then
+            if _hbApp.targetFrameRate ~= 180 then _hbApp.targetFrameRate = 180 end
+            if _hbTp and _hbApp.backgroundLoadingPriority ~= _hbTp.High then _hbApp.backgroundLoadingPriority = _hbTp.High end
+        end
+        if _hbQs and (_G._MasterPerfDirty or _hbQs.shadowDistance ~= 120.0 or _hbQs.vSyncCount ~= 0) then
+            if _hbQs.vSyncCount ~= 0 then _hbQs.vSyncCount = 0 end
+            if _hbQs.maxQueuedFrames ~= 2 then _hbQs.maxQueuedFrames = 2 end
+            if _hbQs.shadowDistance ~= 120.0 then _hbQs.shadowDistance = 120.0 end
+            if _hbQs.asyncUploadTimeSlice ~= 16 then _hbQs.asyncUploadTimeSlice = 16 end
+            if _hbQs.asyncUploadBufferSize ~= 256 then _hbQs.asyncUploadBufferSize = 256 end
+            if _hbQs.realtimeReflectionProbes ~= false then _hbQs.realtimeReflectionProbes = false end
+            if _hbQs.antiAliasing ~= 2 then _hbQs.antiAliasing = 2 end
+            _G._MasterPerfDirty = false
+        end
+
+        local curWs = SceneManager and SceneManager.World
+        if curWs and curWs.Camera and curWs.Camera.camera and not IsNull(curWs.Camera.camera) then
+            local cam = curWs.Camera.camera
+            if cam.farClipPlane ~= 12000.0 then cam.farClipPlane = 12000.0 end
+            if cam.nearClipPlane ~= 20.0 then cam.nearClipPlane = 20.0 end
+        end
+
+        -- Auto-detect World View session
+        local curMgr = DataCenter and DataCenter.WorldPointManager
+        local isNowInWorld = (curMgr and curMgr.isInit == true)
+        if isNowInWorld then
+            if not curMgr._masterAppliedForThisWorldSession or curMgr:GetServerLod(6) ~= 0 then
+                if _G.ApplyLastZWorldMaster then
+                    local ok, res = pcall(_G.ApplyLastZWorldMaster)
+                    _G._LastMasterStatus = tostring(ok) .. ": " .. tostring(res)
+                end
+            end
+        elseif curMgr then
+            curMgr._masterAppliedForThisWorldSession = false
+        end
+    end
+
+    local function _hbHeliWork()
+        local ahm = DataCenter and DataCenter.AllianceHelpDataManager
+        if ahm and ahm.GetHelpNum and ahm:GetHelpNum() > 0 then
+            ahm:OnHelpAll()
+        end
+    end
+
+    local function hb()
+        if _G._masterHeartbeatToken ~= hbToken then return end
+        pcall(_hbWork)
+        pcall(_hbHeliWork)
+        collectgarbage("step", 60)
+        tmManager:DelayInvoke(hb, 1.5)
+    end
+    tmManager:DelayInvoke(hb, 0.05)
+
+    -- Dynamic Spatial Viewport Streamer: 50x50 Spatial Bucketing (O(local + dirty) instead of O(73k))
+    local streamToken = (_G._masterStreamToken or 0) + 1
+    _G._masterStreamToken = streamToken
+    local lastStreamCamX, lastStreamCamY = -9999, -9999
+    local streamHasMoreWork = true
+    local STREAM_MAX_RADIUS = 430
+    local _pendingBucketKeys = {}
+    local _pendingBucketIdx = 1
+    local _pendingBucketSeen = {}
+
+    local function _enqueueStreamBucket(bKey)
+        if not _pendingBucketSeen[bKey] and _G._MasterSpatialGrid and _G._MasterSpatialGrid[bKey] then
+            _pendingBucketSeen[bKey] = true
+            _pendingBucketKeys[#_pendingBucketKeys + 1] = bKey
+        end
+    end
+
+    local function _streamWork()
+        local curMgr = DataCenter and DataCenter.WorldPointManager
+        local curWs = SceneManager and SceneManager.World
+        if not (curMgr and curMgr.isInit == true) then
+            streamHasMoreWork = true
+            return
+        end
+
+        SyncSpatialGridIfReplaced(curMgr)
+        if _G._MasterStreamReset then
+            _G._MasterStreamReset = false
+            _pendingBucketKeys = {}
+            _pendingBucketIdx = 1
+            _pendingBucketSeen = {}
+            lastStreamCamX, lastStreamCamY = -9999, -9999
+            streamHasMoreWork = false
+        end
+        local camX, camY = GetActualCameraTilePos(curMgr, curWs)
+        local moved = (math.abs(camX - lastStreamCamX) >= 6 or math.abs(camY - lastStreamCamY) >= 6)
+        local forced = (_G._ForceStreamRescan == true)
+        local dirtyBuckets = _G._MasterDirtyBuckets
+        local hasDirty = (dirtyBuckets ~= nil and next(dirtyBuckets) ~= nil)
+        local hasPending = (_pendingBucketIdx <= #_pendingBucketKeys)
+        if not moved and not forced and not hasDirty and not hasPending then
+            streamHasMoreWork = false
+            return
+        end
+
+        if forced then
+            _pendingBucketKeys = {}
+            _pendingBucketIdx = 1
+            _pendingBucketSeen = {}
+            _G._ForceStreamRescan = false
+            if dirtyBuckets then
+                for dk in pairs(dirtyBuckets) do dirtyBuckets[dk] = nil end
+            end
+            for bKey in pairs(_G._MasterSpatialGrid or {}) do
+                _enqueueStreamBucket(bKey)
+            end
+            lastStreamCamX = camX
+            lastStreamCamY = camY
+        else
+            if moved then
+                local minBx = math.floor((camX - STREAM_MAX_RADIUS) / BUCKET_SIZE)
+                local maxBx = math.floor((camX + STREAM_MAX_RADIUS) / BUCKET_SIZE)
+                local minBy = math.floor((camY - STREAM_MAX_RADIUS) / BUCKET_SIZE)
+                local maxBy = math.floor((camY + STREAM_MAX_RADIUS) / BUCKET_SIZE)
+                for bx = minBx, maxBx do
+                    for by = minBy, maxBy do
+                        _enqueueStreamBucket(by * 4096 + bx)
+                    end
+                end
+                lastStreamCamX = camX
+                lastStreamCamY = camY
+            end
+            if hasDirty then
+                for dk in pairs(dirtyBuckets) do
+                    dirtyBuckets[dk] = nil
+                    _enqueueStreamBucket(dk)
+                end
+            end
+        end
+
+        local queuedThisTick = 0
+        local hitCap = false
+        local grid = _G._MasterSpatialGrid
+        if grid and curMgr.AddToBuildList then
+            while _pendingBucketIdx <= #_pendingBucketKeys do
+                local bKey = _pendingBucketKeys[_pendingBucketIdx]
+                local bucket = grid[bKey]
+                if bucket then
+                    for k, v in pairs(bucket) do
+                        if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                            if not (curMgr.allObj and curMgr.allObj[k]) and not (curMgr.toBuildSet and curMgr.toBuildSet[k]) then
+                                if _G.ShouldBuildPointNow(curMgr, k, v, camX, camY, false) then
+                                    curMgr:AddToBuildList(k)
+                                    queuedThisTick = queuedThisTick + 1
+                                    if queuedThisTick >= 250 then
+                                        hitCap = true
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if hitCap then
+                    break
+                end
+                _pendingBucketSeen[bKey] = nil
+                _pendingBucketIdx = _pendingBucketIdx + 1
+            end
+        end
+        if _pendingBucketIdx > #_pendingBucketKeys then
+            _pendingBucketKeys = {}
+            _pendingBucketIdx = 1
+            _pendingBucketSeen = {}
+            streamHasMoreWork = false
+        else
+            streamHasMoreWork = true
+        end
+    end
+
+    local function runCameraStreamer()
+        if _G._masterStreamToken ~= streamToken then return end
+        pcall(_streamWork)
+        tmManager:DelayInvoke(runCameraStreamer, 0.20)
+    end
+    tmManager:DelayInvoke(runCameraStreamer, 0.20)
+end
+
+-- R3 Safe Strictly Read-Only Pre-Loading (Staggered post-login warm-up, zero SFS/UI/Guide mutation)
+_G._hzPreloadDone = _G._hzPreloadDone or {}
+_G._WarmupState = _G._WarmupState or {
+    started = false,
+    done = false,
+    role = "main",
+    uid = "",
+    tablesWarmed = 0,
+    managersWarmed = 0,
+    shadersStarted = false,
+    assetsWarmed = 0,
+    skippedReason = "",
+    errors = {},
+}
+
+local function _checkPreloadReadiness()
+    if not LuaEntry or LuaEntry.m_isStartGame ~= true or LuaEntry.isInitDB ~= true then
+        return false, "not_started_or_db_uninit"
+    end
+    if not LuaEntry.Player then
+        return false, "no_player"
+    end
+    local uid = tostring(LuaEntry.Player.uid or "")
+    if uid == "" or uid == "0" or uid == "nil" then
+        return false, "invalid_uid"
+    end
+    if not DataCenter or not LocalController or not LocalController.instance or not TimerManager then
+        return false, "core_singletons_missing"
+    end
+    if not SceneManager or (SceneManager.CurrSceneID ~= 1 and SceneManager.CurrSceneID ~= 2) then
+        return false, "unsupported_scene"
+    end
+    local um = UIManager and UIManager.GetInstance and UIManager:GetInstance()
+    if not um or um.__cProjectStateReady ~= true then
+        return false, "ui_not_ready"
+    end
+    if DataCenter.GuideManager and DataCenter.GuideManager.InGuide and DataCenter.GuideManager:InGuide() then
+        return false, "in_guide"
+    end
+    if DataCenter.MemoryPolicyManager and DataCenter.MemoryPolicyManager._needReleaseCache == true then
+        return false, "low_memory_policy"
+    end
+    return true, uid
+end
+
+local function _roleRank(r)
+    if r == "main" or r == true then return 2 end
+    if r == "farm" then return 1 end
+    return 0
+end
+
+local function _warmXmlTable(lc, tblName, st)
+    if not tblName or tblName == "" then return end
+    local inMem = false
+    if lc.HasTableInMem then
+        local okMem, memVal = pcall(lc.HasTableInMem, lc, tblName)
+        if not okMem then
+            st.errors[#st.errors + 1] = tostring(tblName) .. ".HasTableInMem:" .. tostring(memVal)
+            return
+        end
+        inMem = (memVal == true)
+    end
+    if not inMem and lc.isTableLoaded then
+        local okLoaded, loadedVal = pcall(lc.isTableLoaded, lc, tblName)
+        if not okLoaded then
+            st.errors[#st.errors + 1] = tostring(tblName) .. ".isTableLoaded:" .. tostring(loadedVal)
+            return
+        end
+        inMem = (loadedVal == true)
+    end
+    if not inMem and lc.getTable then
+        local ok, res = pcall(lc.getTable, lc, tblName)
+        if ok then
+            local loadedNow = (res ~= nil)
+            if not loadedNow and lc.HasTableInMem then
+                local okAfter, afterVal = pcall(lc.HasTableInMem, lc, tblName)
+                loadedNow = okAfter and (afterVal == true)
+            end
+            if not loadedNow and lc.isTableLoaded then
+                local okAfterL, afterLVal = pcall(lc.isTableLoaded, lc, tblName)
+                loadedNow = okAfterL and (afterLVal == true)
+            end
+            if loadedNow then
+                st.tablesWarmed = (st.tablesWarmed or 0) + 1
+            else
+                st.errors[#st.errors + 1] = tostring(tblName) .. ":getTable_returned_nil"
+            end
+        else
+            st.errors[#st.errors + 1] = tostring(tblName) .. ":" .. tostring(res)
+        end
+    end
+end
+
+local function _warmManagerMethod(mgr, methodName, st)
+    if mgr and type(mgr[methodName]) == "function" then
+        local ok, err = pcall(mgr[methodName], mgr)
+        if ok then
+            return true
+        end
+        st.errors[#st.errors + 1] = methodName .. ":" .. tostring(err)
+    end
+    return false
+end
+
+function _G.WarmReadOnlyEngineCaches(opts)
+    opts = type(opts) == "table" and opts or {}
+    local rawRole = opts.role or (_G._FarmEcoMode and "farm" or "main")
+    local role = (tostring(rawRole):lower() == "farm") and "farm" or "main"
+    local force = opts.force == true
+    local st = _G._WarmupState
+    st.errors = st.errors or {}
+
+    local ready, uidOrReason = _checkPreloadReadiness()
+    if not ready then
+        st.skippedReason = uidOrReason
+        return "SKIPPED:" .. tostring(uidOrReason)
+    end
+    local uid = uidOrReason
+
+    local doneVal = _G._hzPreloadDone[uid]
+    if _roleRank(doneVal) >= _roleRank(role) and not force then
+        if st.started and st.uid ~= uid then
+            _G._hzWarmupToken = (_G._hzWarmupToken or 0) + 1
+            st.started = false
+        end
+        st.uid = uid
+        st.role = (doneVal == true) and "main" or doneVal
+        st.done = true
+        st.skippedReason = "already_warmed"
+        return "ALREADY_DONE"
+    end
+    if st.started and st.uid == uid and _roleRank(role) <= _roleRank(st.role) and not force then
+        return "IN_PROGRESS"
+    end
+
+    local okLc, lc = pcall(LocalController.instance)
+    if not okLc or not lc then
+        st.skippedReason = "no_local_controller"
+        return "SKIPPED:no_local_controller"
+    end
+
+    st.role = role
+    st.uid = uid
+    st.started = true
+    st.done = false
+    st.skippedReason = ""
+    st.tablesWarmed = 0
+    st.managersWarmed = 0
+    st.shadersStarted = false
+    st.assetsWarmed = 0
+    st.errors = {}
+
+    local tasks = {}
+    local tn = (type(TableName) == "table" and TableName) or {}
+
+    -- Tier 1 Core Tables (Main + Farm): string key lists prevent Lua nil-hole truncation
+    local coreEnumKeys = {
+        "GoodsTab", "Resource", "DailyQuest", "BuildingDes", "LevelUp",
+        "ScienceNew", "APSScienceTab", "ArmsTab", "LwDispatchSetting",
+        "LwDispatchTask", "NewHeroesLevelUp", "HeroMilitaryRank", "Equip",
+        "EquipAttribute", "NewHeroesB", "Vip", "Affect_Num", "CollectResource",
+    }
+    local coreExtraKeys = {
+        {"Building", "building"}, {"DetectEvent", "detect_event"},
+        {"GatherResource", "aps_gather_resource"}, {"VipTemp", "vip_temp"},
+        {"EffectNumDesc", "effect_num_des"}, {"NewHeroes", "aps_new_heroes"},
+        {"SkillTab", "skill"},
+    }
+    for _, key in ipairs(coreEnumKeys) do
+        local t = tn[key]
+        if t ~= nil and t ~= "" then
+            tasks[#tasks + 1] = function() _warmXmlTable(lc, t, st) end
+        end
+    end
+    for _, pair in ipairs(coreExtraKeys) do
+        local t = tn[pair[1]] or pair[2]
+        if t ~= nil and t ~= "" then
+            tasks[#tasks + 1] = function() _warmXmlTable(lc, t, st) end
+        end
+    end
+
+    if role == "main" then
+        -- Tier 1 Main-only UI/map tables
+        local mainEnumKeys = {
+            "Monster", "WorldCity", "CarCompon", "CarMicrochip",
+            "CarMicrochipAttribute", "Decoration", "Government",
+            "WorldLod", "TroopAction", "SidebarType",
+        }
+        local mainExtraKeys = {
+            {"CarMicrochipGrading", "car_microchip_grading"},
+            {"NationConf", "aps_country"},
+        }
+        for _, key in ipairs(mainEnumKeys) do
+            local t = tn[key]
+            if t ~= nil and t ~= "" then
+                tasks[#tasks + 1] = function() _warmXmlTable(lc, t, st) end
+            end
+        end
+        for _, pair in ipairs(mainExtraKeys) do
+            local t = tn[pair[1]] or pair[2]
+            if t ~= nil and t ~= "" then
+                tasks[#tasks + 1] = function() _warmXmlTable(lc, t, st) end
+            end
+        end
+
+        -- Tier 2 Read-Only DataCenter.*TemplateManager singletons (msgs=0, events=0)
+        local tmSpecs = {
+            { "ScienceTemplateManager", function(m)
+                if not m.initFinish or (type(m.scienceTemplateDic) == "table" and not next(m.scienceTemplateDic)) then
+                    local ok = _warmManagerMethod(m, "TryInitAllTab", st)
+                    if _warmManagerMethod(m, "TryInitAllScience", st) then ok = true end
+                    if not ok then ok = _warmManagerMethod(m, "InitAllTemplate", st) end
+                    if ok then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "HeroTemplateManager", function(m)
+                if type(m.templateIds) ~= "table" or #m.templateIds == 0 then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "HeroLevelUpTemplateManager", function(m)
+                if m.isInit ~= true and (type(m.templateDic) ~= "table" or not next(m.templateDic)) then
+                    if _warmManagerMethod(m, "TransAllTemplates", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "HeroEquipTemplateManager", function(m)
+                if m.isInit ~= true and (type(m.allTemplate) ~= "table" or not next(m.allTemplate)) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "CarChipTemplateManager", function(m)
+                local warmed = false
+                if type(m.allCarChipTemplate) ~= "table" or not next(m.allCarChipTemplate) then
+                    if _warmManagerMethod(m, "InitCarChipTemplate", st) then warmed = true end
+                end
+                if type(m.allCarChipAttributeTemplate) ~= "table" or not next(m.allCarChipAttributeTemplate) then
+                    if _warmManagerMethod(m, "InitCarChipAttributeTemplate", st) then warmed = true end
+                end
+                if type(m.allCarChipGradingTemplate) ~= "table" or not next(m.allCarChipGradingTemplate) then
+                    if _warmManagerMethod(m, "InitCarChipGradingTemplate", st) then warmed = true end
+                end
+                if type(m.allCarChipPromoteTemplate) ~= "table" or not next(m.allCarChipPromoteTemplate) then
+                    if _warmManagerMethod(m, "InitCarChipPromoteTemplate", st) then warmed = true end
+                end
+                if warmed then st.managersWarmed = st.managersWarmed + 1 end
+            end },
+            { "ItemTemplateManager", function(m)
+                if type(m.itemDic) ~= "table" or not next(m.itemDic) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "VIPTemplateManager", function(m)
+                if type(m.vipDataIds) ~= "table" or #m.vipDataIds == 0 then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "DetectEventTemplateManager", function(m)
+                if type(m.detectEventTemplateDic) ~= "table" or not next(m.detectEventTemplateDic) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "DecorationTemplateManager", function(m)
+                if type(m.templateDic) ~= "table" or not next(m.templateDic) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "NationTemplateManager", function(m)
+                if type(m.nationsDic) ~= "table" or not next(m.nationsDic) then
+                    if _warmManagerMethod(m, "InitNationDic", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "GovernmentTemplateManager", function(m)
+                if m.isInit ~= true and (type(m.templateDic) ~= "table" or not next(m.templateDic)) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "MailGroupTemplateManager", function(m)
+                if type(m.templateDict) ~= "table" or not next(m.templateDict) then
+                    if _warmManagerMethod(m, "InitTemplateDict", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "MailShowTemplateManager", function(m)
+                if type(m.templateDict) ~= "table" or not next(m.templateDict) then
+                    if _warmManagerMethod(m, "InitTemplateDict", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "TroopActionTemplateManager", function(m)
+                if type(m.tempDict) ~= "table" or not next(m.tempDict) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "SUSidebarTemplateManager", function(m)
+                if m.isInit ~= true and (type(m.allTemplate) ~= "table" or not next(m.allTemplate)) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+            { "SUSidebarTypeTemplateManager", function(m)
+                if m.isInit ~= true and (type(m.allTemplate) ~= "table" or not next(m.allTemplate)) then
+                    if _warmManagerMethod(m, "InitAllTemplate", st) then st.managersWarmed = st.managersWarmed + 1 end
+                end
+            end },
+        }
+        for i = 1, #tmSpecs do
+            local spec = tmSpecs[i]
+            tasks[#tasks + 1] = function()
+                local mgrObj = DataCenter and DataCenter[spec[1]]
+                if mgrObj then spec[2](mgrObj) end
+            end
+        end
+
+        -- Tier 3 Strictly Read-Only Engine Caches, Shaders & Local Assets (Main only)
+        tasks[#tasks + 1] = function()
+            local okSem, errSem = pcall(function()
+                local sem = DataCenter and DataCenter.ShaderEffectManager
+                if sem and type(sem.Startup) == "function" and (type(sem.material) ~= "table" or not next(sem.material)) then
+                    sem:Startup()
+                end
+            end)
+            if not okSem then
+                st.errors[#st.errors + 1] = "ShaderEffectManager.Startup:" .. tostring(errSem)
+            end
+        end
+
+        tasks[#tasks + 1] = function()
+            local okFind, smgr = pcall(function()
+                local s = CS and CS.GameEntry and CS.GameEntry.Shader
+                if s and not IsNull(s) then return s end
+                local smCls = CS and CS.ShaderManager
+                if not smCls then return nil end
+                local okInst, inst = pcall(function() return smCls.Instance end)
+                if okInst and inst and not IsNull(inst) then return inst end
+                local okGet, g = pcall(function()
+                    return smCls.GetInstance and smCls:GetInstance() or nil
+                end)
+                if okGet and g and not IsNull(g) then return g end
+                return smCls
+            end)
+            if not okFind then
+                st.errors[#st.errors + 1] = "ShaderManager.resolve:" .. tostring(smgr)
+                return
+            end
+            if not smgr or IsNull(smgr) then return end
+            local okInit, initDone = pcall(function()
+                return smgr.IsInitDone and smgr:IsInitDone() == true
+            end)
+            if not okInit then
+                st.errors[#st.errors + 1] = "ShaderManager.IsInitDone:" .. tostring(initDone)
+                return
+            end
+            if not initDone then return end
+            local okCheck, needWarm = pcall(function()
+                return smgr.IsWarmUpDone and (not smgr:IsWarmUpDone())
+                    and smgr.GetCurWarmUpQueueCount and (smgr:GetCurWarmUpQueueCount() > 0)
+            end)
+            if not okCheck then
+                st.errors[#st.errors + 1] = "ShaderManager.check:" .. tostring(needWarm)
+                return
+            end
+            if needWarm then
+                local okStart, errStart = pcall(function()
+                    if smgr.StartWarmupByFrame then
+                        smgr:StartWarmupByFrame()
+                        return true
+                    end
+                    return false
+                end)
+                if okStart and errStart == true then
+                    st.shadersStarted = true
+                elseif not okStart then
+                    st.errors[#st.errors + 1] = "ShaderManager.StartWarmupByFrame:" .. tostring(errStart)
+                end
+            end
+        end
+
+        tasks[#tasks + 1] = function()
+            local okRm, rm = pcall(function()
+                local r = CS and CS.GameEntry and CS.GameEntry.Resource
+                if r and not IsNull(r) then return r end
+                local rmCls = CS and CS.ResourceManager
+                if not rmCls then return nil end
+                local okInst, inst = pcall(function() return rmCls.Instance end)
+                if okInst and inst and not IsNull(inst) then return inst end
+                local okGet, g = pcall(function()
+                    return rmCls.GetInstance and rmCls:GetInstance() or nil
+                end)
+                if okGet and g and not IsNull(g) then return g end
+                return rmCls
+            end)
+            if not okRm then
+                st.errors[#st.errors + 1] = "ResourceManager.resolve:" .. tostring(rm)
+                return
+            end
+            if not rm or IsNull(rm) then return end
+
+            local okPt, pType = pcall(function()
+                return CS and CS.ResourceManager and CS.ResourceManager.PreloadType and CS.ResourceManager.PreloadType.Cache
+            end)
+            if not okPt then
+                st.errors[#st.errors + 1] = "ResourceManager.PreloadType:" .. tostring(pType)
+                pType = nil
+            end
+
+            if pType ~= nil then
+                local localIcons = {
+                    "Assets/Main/Sprites/LodIcon/mine_lod_metal.png",
+                    "Assets/Main/Sprites/LodIcon/mine_lod_wood.png",
+                    "Assets/Main/Sprites/LodIcon/mine_lod_electricity.png",
+                    "Assets/Main/Sprites/LodIcon/mine_lod_money.png",
+                    "Assets/Main/Sprites/LodIcon/gold_select.png",
+                }
+                for _, path in ipairs(localIcons) do
+                    local okPre, warmed = pcall(function()
+                        if rm.IsAssetDownloaded and rm.HasAsset and rm.PreloadAsset
+                            and rm:IsAssetDownloaded(path) == true and rm:HasAsset(path) == true then
+                            rm:PreloadAsset(path, pType, nil)
+                            return true
+                        end
+                        return false
+                    end)
+                    if okPre and warmed == true then
+                        st.assetsWarmed = st.assetsWarmed + 1
+                    elseif not okPre then
+                        st.errors[#st.errors + 1] = tostring(path) .. ":" .. tostring(warmed)
+                    end
+                end
+            end
+
+            local okPtm, ptm = pcall(function()
+                return CS and CS.GameEntry and CS.GameEntry.ParticleTemplate
+            end)
+            if not okPtm then
+                st.errors[#st.errors + 1] = "ParticleTemplate.resolve:" .. tostring(ptm)
+                return
+            end
+            if ptm and not IsNull(ptm) and type(_G._hzLocalParticlePaths) == "table" then
+                for _, pPath in ipairs(_G._hzLocalParticlePaths) do
+                    if type(pPath) == "string" and pPath ~= "" then
+                        local okWarm, warmed = pcall(function()
+                            if ptm.IsWarmed and ptm.Warm and rm.IsAssetDownloaded and rm.HasAsset
+                                and rm:IsAssetDownloaded(pPath) == true and rm:HasAsset(pPath) == true
+                                and not ptm:IsWarmed(pPath) then
+                                ptm:Warm(pPath)
+                                return true
+                            end
+                            return false
+                        end)
+                        if okWarm and warmed == true then
+                            st.assetsWarmed = st.assetsWarmed + 1
+                        elseif not okWarm then
+                            st.errors[#st.errors + 1] = tostring(pPath) .. ":" .. tostring(warmed)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local tm = TimerManager:GetInstance()
+    local warmToken = (_G._hzWarmupToken or 0) + 1
+    _G._hzWarmupToken = warmToken
+    local idx = 1
+
+    local function runSlice()
+        if _G._hzWarmupToken ~= warmToken then return end
+        local okReady, reason = _checkPreloadReadiness()
+        if not okReady then
+            st.started = false
+            st.skippedReason = reason
+            return
+        end
+        if reason ~= uid then
+            st.started = false
+            st.skippedReason = "uid_changed"
+            return
+        end
+        local endIdx = math.min(#tasks, idx + 1)
+        while idx <= endIdx do
+            local fn = tasks[idx]
+            idx = idx + 1
+            if fn then
+                local okTask, errTask = pcall(fn)
+                if not okTask then
+                    st.errors[#st.errors + 1] = "slice:" .. tostring(errTask)
+                end
+            end
+        end
+        if idx > #tasks then
+            st.started = false
+            st.done = true
+            st.skippedReason = ""
+            _G._hzPreloadDone[uid] = role
+            return
+        end
+        tm:DelayInvoke(runSlice, 0.06)
+    end
+
+    tm:DelayInvoke(runSlice, 0.06)
+    return "WARMUP_SCHEDULED:" .. tostring(#tasks)
+end
+
+-- Schedule execution on Unity's native main-thread tick (10ms) outside Frida's NativeFunction SEH frame
+local _FORCE_FULL_LOAD = __FORCE_FULL_LOAD_FLAG__
+TimerManager:GetInstance():DelayInvoke(function()
+    if _FORCE_FULL_LOAD and _G.TriggerFullMapLoad then
+        local ok, res = pcall(_G.TriggerFullMapLoad, true)
+        _G._LastMasterStatus = tostring(ok) .. ": " .. tostring(res)
+    else
+        if _G.StartBackgroundWorldPreloader then pcall(_G.StartBackgroundWorldPreloader, false) end
+        local ok, res = pcall(_G.ApplyLastZWorldMaster)
+        _G._LastMasterStatus = tostring(ok) .. ": " .. tostring(res)
+    end
+end, 0.01)
+
+-- Post-login automatic R3 read-only preload trigger (staggered retries if UI/login is still completing)
+do
+    local tmPre = TimerManager:GetInstance()
+    local autoTries = 0
+    local autoToken = (_G._hzAutoPreloadToken or 0) + 1
+    _G._hzAutoPreloadToken = autoToken
+    local function tryAutoPreload()
+        if _G._hzAutoPreloadToken ~= autoToken then return end
+        local ok, res = pcall(_G.WarmReadOnlyEngineCaches, { role = "main" })
+        if ok and res == "ALREADY_DONE" then
+            return
+        end
+        if not ok or res ~= "IN_PROGRESS" then
+            autoTries = autoTries + 1
+        end
+        if autoTries < 15 then
+            tmPre:DelayInvoke(tryAutoPreload, 2.5)
+        end
+    end
+    tmPre:DelayInvoke(tryAutoPreload, 1.0)
+end
+
+return _FORCE_FULL_LOAD and "SUCCESS_FULL_MAP_LOAD_SCHEDULED_V8" or "SUCCESS_SCHEDULED_MAIN_THREAD_V8"
+"""
+
+PRELOAD_TRIGGER_LUA = r"""
+if _G.WarmReadOnlyEngineCaches then
+    return _G.WarmReadOnlyEngineCaches({ role = "__ROLE__" })
+end
+if _G._FarmEcoMode then
+    return "SKIPPED:farm_eco_mode"
+end
+return "PRELOAD_HOOK_NOT_INSTALLED"
+"""
+
+def _build_frida_js(force_full_map_load=False):
+    payload = MASTER_LUA_CODE.replace("__FORCE_FULL_LOAD_FLAG__", "true" if force_full_map_load else "false")
+    return r"""
+const mod = Process.getModuleByName('xlua.dll');
+const nf = (name, ret, args) => new NativeFunction(mod.getExportByName(name), ret, args);
+const top = nf('lua_gettop', 'int', ['pointer']);
+const settop = nf('lua_settop', 'void', ['pointer', 'int']);
+const loadstring = nf('luaL_loadstring', 'int', ['pointer', 'pointer']);
+const pcall = nf('lua_pcall', 'int', ['pointer', 'int', 'int', 'int']);
+const str = nf('lua_tolstring', 'pointer', ['pointer', 'int', 'pointer']);
+const length = Memory.alloc(8);
+
+function getString(L, index) {
+    const p = str(L, index, length);
+    const sz = Number(length.readU64());
+    return sz === 0 ? '' : p.readUtf8String(sz);
+}
+
+const luaPayload = %s;
+
+let done = false;
+Interceptor.attach(mod.getExportByName('lua_pcallk'), {
+    onEnter(args) {
+        if (done) return;
+        done = true;
+        const L = args[0];
+        const saved = top(L);
+        try {
+            const s = Memory.allocUtf8String(luaPayload);
+            const loadErr = loadstring(L, s);
+            if (loadErr === 0) {
+                if (pcall(L, 0, 1, 0) === 0) {
+                    const ret = getString(L, -1);
+                    send({ type: 'result', data: ret });
+                } else {
+                    const err = getString(L, -1);
+                    send({ type: 'error', data: err });
+                }
+            } else {
+                const syntaxErr = getString(L, -1);
+                send({ type: 'error', data: 'Syntax error: ' + syntaxErr });
+            }
+        } catch(e) {
+            send({ type: 'error', data: e.toString() });
+        } finally {
+            settop(L, saved);
+        }
+    }
+});
+""" % json.dumps(payload)
+
+FRIDA_JS = _build_frida_js(False)
+
+_CLIENT_DISCOVERY_MOD = None
+
+def _load_client_discovery():
+    global _CLIENT_DISCOVERY_MOD
+    if _CLIENT_DISCOVERY_MOD is not None:
+        return _CLIENT_DISCOVERY_MOD
+    disc = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tools", "client discovery.py")
+    if os.path.exists(disc):
+        spec = importlib.util.spec_from_file_location("client_discovery", disc)
+        if spec is not None and spec.loader is not None:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            _CLIENT_DISCOVERY_MOD = mod
+            return mod
+    return None
+
+def _resolve_target(explicit_pid=None):
+    if explicit_pid is not None:
+        return int(explicit_pid)
+    env_pid = os.environ.get("LASTZ_TARGET_PID", "").strip()
+    if env_pid.isdigit():
+        return int(env_pid)
+    try:
+        mod = _load_client_discovery()
+        if mod is not None:
+            resolved = mod.resolve_target_pid()
+            if resolved:
+                return resolved
+    except Exception:
+        pass
+    return None
+
+
+def main(pid=None, full_map_load=False):
+    target_pid = _resolve_target(pid)
+    if not target_pid:
+        print("[-] No running Last Z client found")
+        return False
+    try:
+        env_data_dir = os.environ.get("HEINZ_DATA_DIR", "").strip()
+        cache_dir = (
+            os.path.join(env_data_dir, "cache")
+            if env_data_dir
+            else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "cache")
+        )
+        os.makedirs(cache_dir, exist_ok=True)
+    except Exception:
+        pass
+
+    try:
+        import psutil
+        psutil.Process(target_pid).nice(psutil.HIGH_PRIORITY_CLASS)
+    except Exception:
+        pass
+
+    cd = _load_client_discovery()
+    if cd is None:
+        print("[-] Could not load client discovery module")
+        return False
+    if hasattr(cd, "_xlua_loaded") and not cd._xlua_loaded(int(target_pid)):
+        print("[-] Target client is still booting (xlua.dll not loaded)")
+        return False
+
+    payload = MASTER_LUA_CODE.replace("__FORCE_FULL_LOAD_FLAG__", "true" if full_map_load else "false")
+    ok, res = cd.frida_eval_lua(int(target_pid), payload, timeout=10.0, retries=2)
+    if ok:
+        print(f"[+] Result: {res}")
+        return True
+    print(f"[-] Error: {res}")
+    return False
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Apply hardware FPS and world map optimizations to a Last Z client.")
+    parser.add_argument("--pid", type=int, default=None, help="Target process PID")
+    parser.add_argument("--full-map-load", action="store_true", help="Force-trigger an immediate full 1000x1000 world map sweep & build")
+    args = parser.parse_args()
+    ok = main(pid=args.pid, full_map_load=args.full_map_load)
+    sys.exit(0 if ok else 1)

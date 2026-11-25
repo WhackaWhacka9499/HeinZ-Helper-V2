@@ -1,0 +1,1753 @@
+
+==================== WMO.SetIsBattle (L598-632) ====================
+  Locals: ['R0:self(pc 0..116)', 'R1:value(pc 0..116)', 'R2:marchType(pc 18..59)', 'R3:marchType(pc 62..103)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'monsterInfo'", 'K1:None', "K2:'gameObject'", "K3:'isInBattle'", 'K4:True', "K5:'type'", "K6:'NewMarchType'", "K7:'ACT_BOSS'", "K8:'PUZZLE_BOSS'", "K9:'EventManager'", "K10:'GetInstance'", "K11:'Broadcast'", "K12:'EventId'", "K13:'ShowActBossHeadInBattle'", "K14:'uuid'", "K15:'ALLIANCE_BOSS'", "K16:'ShowAllianceBossHeadInBattle'", "K17:'ShowMonsterHeadInBattle'", "K18:'HideActBossHead'", "K19:'HideAllianceBossHead'", "K20:'HideMonsterHead'", "K21:'detectEventInst'", "K22:'SetActive'"]
+  000 GETFIELD   R2 := R0.K0('monsterInfo')
+  001 EQK        A=2 B=1 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN0    A=2 B=1 C=0 k=0
+  004 GETFIELD   R2 := R0.K2('gameObject')
+  005 EQK        A=2 B=1 C=0 k=0
+  006 JMP        goto 9
+  007 LOADNIL    A=2 B=0 C=0 k=0
+  008 RETURN1    A=2 B=2 C=0 k=0
+  009 GETFIELD   R2 := R0.K3('isInBattle')
+  010 EQ         A=2 B=1 C=0 k=1
+  011 JMP        goto 103
+  012 SETFIELD   R0.K3('isInBattle') := R1
+  013 GETFIELD   R2 := R0.K3('isInBattle')
+  014 EQK        A=2 B=4 C=0 k=0
+  015 JMP        goto 60
+  016 GETFIELD   R2 := R0.K0('monsterInfo')
+  017 GETFIELD   R2 := R2.K5('type')
+  018 GETTABUP   R3 := U0[K6('NewMarchType')]
+  019 GETFIELD   R3 := R3.K7('ACT_BOSS')
+  020 EQ         A=2 B=3 C=0 k=1
+  021 JMP        goto 26
+  022 GETTABUP   R3 := U0[K6('NewMarchType')]
+  023 GETFIELD   R3 := R3.K8('PUZZLE_BOSS')
+  024 EQ         A=2 B=3 C=0 k=0
+  025 JMP        goto 36
+  026 GETTABUP   R3 := U0[K9('EventManager')]
+  027 SELF       R4 := R3; R3 := R3:K10('GetInstance')
+  028 CALL       R3(nargs=1, nret=1)
+  029 SELF       R4 := R3; R3 := R3:K11('Broadcast')
+  030 GETTABUP   R5 := U0[K12('EventId')]
+  031 GETFIELD   R5 := R5.K13('ShowActBossHeadInBattle')
+  032 GETFIELD   R6 := R0.K0('monsterInfo')
+  033 GETFIELD   R6 := R6.K14('uuid')
+  034 CALL       R3(nargs=3, nret=0)
+  035 JMP        goto 103
+  036 GETTABUP   R3 := U0[K6('NewMarchType')]
+  037 GETFIELD   R3 := R3.K15('ALLIANCE_BOSS')
+  038 EQ         A=2 B=3 C=0 k=0
+  039 JMP        goto 50
+  040 GETTABUP   R3 := U0[K9('EventManager')]
+  041 SELF       R4 := R3; R3 := R3:K10('GetInstance')
+  042 CALL       R3(nargs=1, nret=1)
+  043 SELF       R4 := R3; R3 := R3:K11('Broadcast')
+  044 GETTABUP   R5 := U0[K12('EventId')]
+  045 GETFIELD   R5 := R5.K16('ShowAllianceBossHeadInBattle')
+  046 GETFIELD   R6 := R0.K0('monsterInfo')
+  047 GETFIELD   R6 := R6.K14('uuid')
+  048 CALL       R3(nargs=3, nret=0)
+  049 JMP        goto 103
+  050 GETTABUP   R3 := U0[K9('EventManager')]
+  051 SELF       R4 := R3; R3 := R3:K10('GetInstance')
+  052 CALL       R3(nargs=1, nret=1)
+  053 SELF       R4 := R3; R3 := R3:K11('Broadcast')
+  054 GETTABUP   R5 := U0[K12('EventId')]
+  055 GETFIELD   R5 := R5.K17('ShowMonsterHeadInBattle')
+  056 GETFIELD   R6 := R0.K0('monsterInfo')
+  057 GETFIELD   R6 := R6.K14('uuid')
+  058 CALL       R3(nargs=3, nret=0)
+  059 JMP        goto 103
+  060 GETFIELD   R2 := R0.K0('monsterInfo')
+  061 GETFIELD   R2 := R2.K5('type')
+  062 GETTABUP   R3 := U0[K6('NewMarchType')]
+  063 GETFIELD   R3 := R3.K7('ACT_BOSS')
+  064 EQ         A=2 B=3 C=0 k=1
+  065 JMP        goto 70
+  066 GETTABUP   R3 := U0[K6('NewMarchType')]
+  067 GETFIELD   R3 := R3.K8('PUZZLE_BOSS')
+  068 EQ         A=2 B=3 C=0 k=0
+  069 JMP        goto 80
+  070 GETTABUP   R3 := U0[K9('EventManager')]
+  071 SELF       R4 := R3; R3 := R3:K10('GetInstance')
+  072 CALL       R3(nargs=1, nret=1)
+  073 SELF       R4 := R3; R3 := R3:K11('Broadcast')
+  074 GETTABUP   R5 := U0[K12('EventId')]
+  075 GETFIELD   R5 := R5.K18('HideActBossHead')
+  076 GETFIELD   R6 := R0.K0('monsterInfo')
+  077 GETFIELD   R6 := R6.K14('uuid')
+  078 CALL       R3(nargs=3, nret=0)
+  079 JMP        goto 103
+  080 GETTABUP   R3 := U0[K6('NewMarchType')]
+  081 GETFIELD   R3 := R3.K15('ALLIANCE_BOSS')
+  082 EQ         A=2 B=3 C=0 k=0
+  083 JMP        goto 94
+  084 GETTABUP   R3 := U0[K9('EventManager')]
+  085 SELF       R4 := R3; R3 := R3:K10('GetInstance')
+  086 CALL       R3(nargs=1, nret=1)
+  087 SELF       R4 := R3; R3 := R3:K11('Broadcast')
+  088 GETTABUP   R5 := U0[K12('EventId')]
+  089 GETFIELD   R5 := R5.K19('HideAllianceBossHead')
+  090 GETFIELD   R6 := R0.K0('monsterInfo')
+  091 GETFIELD   R6 := R6.K14('uuid')
+  092 CALL       R3(nargs=3, nret=0)
+  093 JMP        goto 103
+  094 GETTABUP   R3 := U0[K9('EventManager')]
+  095 SELF       R4 := R3; R3 := R3:K10('GetInstance')
+  096 CALL       R3(nargs=1, nret=1)
+  097 SELF       R4 := R3; R3 := R3:K11('Broadcast')
+  098 GETTABUP   R5 := U0[K12('EventId')]
+  099 GETFIELD   R5 := R5.K20('HideMonsterHead')
+  100 GETFIELD   R6 := R0.K0('monsterInfo')
+  101 GETFIELD   R6 := R6.K14('uuid')
+  102 CALL       R3(nargs=3, nret=0)
+  103 GETFIELD   R2 := R0.K21('detectEventInst')
+  104 TEST       A=2 B=0 C=0 k=0
+  105 JMP        goto 115
+  106 GETFIELD   R2 := R0.K21('detectEventInst')
+  107 GETFIELD   R2 := R2.K2('gameObject')
+  108 TEST       A=2 B=0 C=0 k=0
+  109 JMP        goto 115
+  110 GETFIELD   R2 := R0.K21('detectEventInst')
+  111 GETFIELD   R2 := R2.K2('gameObject')
+  112 SELF       R3 := R2; R2 := R2:K22('SetActive')
+  113 NOT        A=4 B=1 C=0 k=0
+  114 CALL       R2(nargs=2, nret=0)
+  115 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.AddPlayNextAniTimer (L660-669) ====================
+  Locals: ['R0:self(pc 0..22)', 'R1:time(pc 0..22)']
+  Upvals: ['U0:_ENV']
+  Consts: ['K0:None', "K1:'nextAniTimer'", "K2:'TimerManager'", "K3:'GetInstance'", "K4:'GetTimer'", "K5:'TimerToPlayNextAni'", "K6:'Start'"]
+  000 EQK        A=1 B=0 C=0 k=0
+  001 JMP        goto 3
+  002 RETURN0    A=2 B=1 C=0 k=0
+  003 GETFIELD   R2 := R0.K1('nextAniTimer')
+  004 EQK        A=2 B=0 C=0 k=0
+  005 JMP        goto 18
+  006 GETTABUP   R2 := U0[K2('TimerManager')]
+  007 SELF       R3 := R2; R2 := R2:K3('GetInstance')
+  008 CALL       R2(nargs=1, nret=1)
+  009 SELF       R3 := R2; R2 := R2:K4('GetTimer')
+  010 MOVE       A=4 B=1 C=0 k=0
+  011 GETFIELD   R5 := R0.K5('TimerToPlayNextAni')
+  012 MOVE       A=6 B=0 C=0 k=0
+  013 LOADFALSE  A=7 B=0 C=0 k=0
+  014 LOADFALSE  A=8 B=0 C=0 k=0
+  015 LOADFALSE  A=9 B=0 C=0 k=0
+  016 CALL       R2(nargs=7, nret=1)
+  017 SETFIELD   R0.K1('nextAniTimer') := R2
+  018 GETFIELD   R2 := R0.K1('nextAniTimer')
+  019 SELF       R3 := R2; R2 := R2:K6('Start')
+  020 CALL       R2(nargs=1, nret=0)
+  021 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.CreateGameObject (L49-80) ====================
+  Locals: ['R0:self(pc 0..45)', 'R1:info(pc 8..45)', 'R2:prefabPath(pc 23..39)']
+  Upvals: ['U0:base', 'U1:_ENV', 'U2:Const']
+  Consts: ["K0:'CreateGameObject'", "K1:'DataCenter'", "K2:'WorldPointManager'", "K3:'GetPointInfo'", "K4:'pointIndex'", 'K5:None', "K6:'monsterInfo'", "K7:'PBController'", "K8:'ParsePbFromBytes'", "K9:'extraInfo'", "K10:'protobuf.WorldPointMonster'", "K11:'instance'", "K12:'GetPrefabPath'", "K13:''", "K14:'CS'", "K15:'GameEntry'", "K16:'Resource'", "K17:'InstantiateAsync'", "K18:'completed'", "K19:'+'", "K20:'AddListener'", "K21:'EventId'", "K22:'WorldPointManagerClose'", "K23:'DestroySelfImmediately'"]
+  000 GETTABUP   R1 := U0[K0('CreateGameObject')]
+  001 MOVE       A=2 B=0 C=0 k=0
+  002 CALL       R1(nargs=1, nret=0)
+  003 GETTABUP   R1 := U1[K1('DataCenter')]
+  004 GETFIELD   R1 := R1.K2('WorldPointManager')
+  005 SELF       R2 := R1; R1 := R1:K3('GetPointInfo')
+  006 GETFIELD   R3 := R0.K4('pointIndex')
+  007 CALL       R1(nargs=2, nret=1)
+  008 EQK        A=1 B=5 C=0 k=1
+  009 JMP        goto 39
+  010 GETTABUP   R2 := U1[K7('PBController')]
+  011 GETFIELD   R2 := R2.K8('ParsePbFromBytes')
+  012 GETFIELD   R3 := R1.K9('extraInfo')
+  013 LOADK      R4 := K10('protobuf.WorldPointMonster')
+  014 CALL       R2(nargs=2, nret=1)
+  015 SETFIELD   R0.K6('monsterInfo') := R2
+  016 GETFIELD   R2 := R0.K11('instance')
+  017 EQK        A=2 B=5 C=0 k=1
+  018 JMP        goto 20
+  019 RETURN     A=2 B=1 C=0 k=1
+  020 SELF       R3 := R0; R2 := R0:K12('GetPrefabPath')
+  021 MOVE       A=4 B=1 C=0 k=0
+  022 CALL       R2(nargs=2, nret=1)
+  023 EQK        A=2 B=5 C=0 k=1
+  024 JMP        goto 39
+  025 EQK        A=2 B=13 C=0 k=1
+  026 JMP        goto 39
+  027 GETTABUP   R3 := U1[K14('CS')]
+  028 GETFIELD   R3 := R3.K15('GameEntry')
+  029 GETFIELD   R3 := R3.K16('Resource')
+  030 SELF       R4 := R3; R3 := R3:K17('InstantiateAsync')
+  031 MOVE       A=5 B=2 C=0 k=0
+  032 CALL       R3(nargs=2, nret=1)
+  033 SETFIELD   R0.K11('instance') := R3
+  034 GETFIELD   R3 := R0.K11('instance')
+  035 SELF       R4 := R3; R3 := R3:K18('completed')
+  036 LOADK      R5 := K19('+')
+  037 CLOSURE    A=6 B=0 C=0 k=0
+  038 CALL       R3(nargs=3, nret=0)
+  039 SELF       R3 := R0; R2 := R0:K20('AddListener')
+  040 GETTABUP   R4 := U1[K21('EventId')]
+  041 GETFIELD   R4 := R4.K22('WorldPointManagerClose')
+  042 GETFIELD   R5 := R0.K23('DestroySelfImmediately')
+  043 CALL       R2(nargs=3, nret=0)
+  044 RETURN     A=2 B=1 C=0 k=1
+
+==================== WMO.TimerToPlayNextAni (L678-727) ====================
+  Locals: ['R0:self(pc 0..124)', 'R1:seasonId(pc 9..124)', 'R2:count(pc 19..47)', 'R3:time(pc 36..47)', 'R4:count(pc 56..77)', 'R5:index(pc 63..77)', 'R6:aniName(pc 65..77)', 'R7:time(pc 68..77)', 'R8:count(pc 95..123)', 'R9:time(pc 112..123)']
+  Upvals: ['U0:_ENV', 'U1:Const']
+  Consts: ["K0:'SeasonUtil'", "K1:'GetSeasonId'", "K2:'SeasonType'", "K3:'WorldSeason'", "K4:'LuaEntry'", "K5:'Player'", "K6:'GetCurServerId'", "K7:'curAniIndex'", 'K8:None', "K9:'table'", "K10:'count'", "K11:'AttackOrSkillAniList'", 'K12:1', "K13:'GetAniTime'", "K14:'PlayAnim'", "K15:'DeletePlayNextAniTimer'", "K16:'AddPlayNextAniTimer'", "K17:'AttackAniListS4'", "K18:'math'", "K19:'random'", "K20:'monsterInfo'", "K21:'type'", "K22:'NewMarchType'", "K23:'MonsterTowerAlBoss'", "K24:'MonsterTowerAlBossAttackAniList'"]
+  000 GETTABUP   R1 := U0[K0('SeasonUtil')]
+  001 GETFIELD   R1 := R1.K1('GetSeasonId')
+  002 GETTABUP   R2 := U0[K2('SeasonType')]
+  003 GETFIELD   R2 := R2.K3('WorldSeason')
+  004 GETTABUP   R3 := U0[K4('LuaEntry')]
+  005 GETFIELD   R3 := R3.K5('Player')
+  006 SELF       R4 := R3; R3 := R3:K6('GetCurServerId')
+  007 CALL       R3(nargs=1, nret=-1)
+  008 CALL       R1(nargs=-1, nret=1)
+  009 EQI        A=1 B=130 C=0 k=0
+  010 JMP        goto 48
+  011 GETFIELD   R2 := R0.K7('curAniIndex')
+  012 EQK        A=2 B=8 C=0 k=0
+  013 JMP        goto 15
+  014 RETURN0    A=2 B=1 C=0 k=0
+  015 GETTABUP   R2 := U0[K9('table')]
+  016 GETFIELD   R2 := R2.K10('count')
+  017 GETTABUP   R3 := U1[K11('AttackOrSkillAniList')]
+  018 CALL       R2(nargs=1, nret=1)
+  019 GETFIELD   R3 := R0.K7('curAniIndex')
+  020 ADDI       A=3 B=3 C=128 k=0
+  021 MMBINI     A=3 B=128 C=6 k=0
+  022 SETFIELD   R0.K7('curAniIndex') := R3
+  023 GETFIELD   R3 := R0.K7('curAniIndex')
+  024 LT         A=2 B=3 C=0 k=0
+  025 JMP        goto 27
+  026 SETFIELD   R0.K7('curAniIndex') := K12(1)
+  027 GETFIELD   R3 := R0.K7('curAniIndex')
+  028 LTI        A=3 B=128 C=0 k=0
+  029 JMP        goto 31
+  030 SETFIELD   R0.K7('curAniIndex') := K12(1)
+  031 SELF       R4 := R0; R3 := R0:K13('GetAniTime')
+  032 GETTABUP   R5 := U1[K11('AttackOrSkillAniList')]
+  033 GETFIELD   R6 := R0.K7('curAniIndex')
+  034 GETTABLE   A=5 B=5 C=6 k=0
+  035 CALL       R3(nargs=2, nret=1)
+  036 SELF       R5 := R0; R4 := R0:K14('PlayAnim')
+  037 GETTABUP   R6 := U1[K11('AttackOrSkillAniList')]
+  038 GETFIELD   R7 := R0.K7('curAniIndex')
+  039 GETTABLE   A=6 B=6 C=7 k=0
+  040 LOADTRUE   A=7 B=0 C=0 k=0
+  041 CALL       R4(nargs=3, nret=0)
+  042 SELF       R5 := R0; R4 := R0:K15('DeletePlayNextAniTimer')
+  043 CALL       R4(nargs=1, nret=0)
+  044 SELF       R5 := R0; R4 := R0:K16('AddPlayNextAniTimer')
+  045 MOVE       A=6 B=3 C=0 k=0
+  046 CALL       R4(nargs=2, nret=0)
+  047 JMP        goto 123
+  048 EQI        A=1 B=131 C=0 k=1
+  049 JMP        goto 52
+  050 EQI        A=1 B=132 C=0 k=0
+  051 JMP        goto 78
+  052 GETTABUP   R2 := U0[K9('table')]
+  053 GETFIELD   R2 := R2.K10('count')
+  054 GETTABUP   R3 := U1[K17('AttackAniListS4')]
+  055 CALL       R2(nargs=1, nret=1)
+  056 GTI        A=2 B=127 C=0 k=0
+  057 JMP        goto 123
+  058 GETTABUP   R3 := U0[K18('math')]
+  059 GETFIELD   R3 := R3.K19('random')
+  060 LOADI      R4 := 1
+  061 MOVE       A=5 B=2 C=0 k=0
+  062 CALL       R3(nargs=2, nret=1)
+  063 GETTABUP   R4 := U1[K17('AttackAniListS4')]
+  064 GETTABLE   A=4 B=4 C=3 k=0
+  065 SELF       R6 := R0; R5 := R0:K13('GetAniTime')
+  066 MOVE       A=7 B=4 C=0 k=0
+  067 CALL       R5(nargs=2, nret=1)
+  068 SELF       R7 := R0; R6 := R0:K14('PlayAnim')
+  069 MOVE       A=8 B=4 C=0 k=0
+  070 LOADTRUE   A=9 B=0 C=0 k=0
+  071 CALL       R6(nargs=3, nret=0)
+  072 SELF       R7 := R0; R6 := R0:K15('DeletePlayNextAniTimer')
+  073 CALL       R6(nargs=1, nret=0)
+  074 SELF       R7 := R0; R6 := R0:K16('AddPlayNextAniTimer')
+  075 MOVE       A=8 B=5 C=0 k=0
+  076 CALL       R6(nargs=2, nret=0)
+  077 JMP        goto 123
+  078 GETFIELD   R2 := R0.K20('monsterInfo')
+  079 TEST       A=2 B=0 C=0 k=0
+  080 JMP        goto 123
+  081 GETFIELD   R2 := R0.K20('monsterInfo')
+  082 GETFIELD   R2 := R2.K21('type')
+  083 GETTABUP   R3 := U0[K22('NewMarchType')]
+  084 GETFIELD   R3 := R3.K23('MonsterTowerAlBoss')
+  085 EQ         A=2 B=3 C=0 k=0
+  086 JMP        goto 123
+  087 GETFIELD   R2 := R0.K7('curAniIndex')
+  088 EQK        A=2 B=8 C=0 k=0
+  089 JMP        goto 91
+  090 RETURN0    A=2 B=1 C=0 k=0
+  091 GETTABUP   R2 := U0[K9('table')]
+  092 GETFIELD   R2 := R2.K10('count')
+  093 GETTABUP   R3 := U1[K24('MonsterTowerAlBossAttackAniList')]
+  094 CALL       R2(nargs=1, nret=1)
+  095 GETFIELD   R3 := R0.K7('curAniIndex')
+  096 ADDI       A=3 B=3 C=128 k=0
+  097 MMBINI     A=3 B=128 C=6 k=0
+  098 SETFIELD   R0.K7('curAniIndex') := R3
+  099 GETFIELD   R3 := R0.K7('curAniIndex')
+  100 LT         A=2 B=3 C=0 k=0
+  101 JMP        goto 103
+  102 SETFIELD   R0.K7('curAniIndex') := K12(1)
+  103 GETFIELD   R3 := R0.K7('curAniIndex')
+  104 LTI        A=3 B=128 C=0 k=0
+  105 JMP        goto 107
+  106 SETFIELD   R0.K7('curAniIndex') := K12(1)
+  107 SELF       R4 := R0; R3 := R0:K13('GetAniTime')
+  108 GETTABUP   R5 := U1[K24('MonsterTowerAlBossAttackAniList')]
+  109 GETFIELD   R6 := R0.K7('curAniIndex')
+  110 GETTABLE   A=5 B=5 C=6 k=0
+  111 CALL       R3(nargs=2, nret=1)
+  112 SELF       R5 := R0; R4 := R0:K14('PlayAnim')
+  113 GETTABUP   R6 := U1[K24('MonsterTowerAlBossAttackAniList')]
+  114 GETFIELD   R7 := R0.K7('curAniIndex')
+  115 GETTABLE   A=6 B=6 C=7 k=0
+  116 LOADTRUE   A=7 B=0 C=0 k=0
+  117 CALL       R4(nargs=3, nret=0)
+  118 SELF       R5 := R0; R4 := R0:K15('DeletePlayNextAniTimer')
+  119 CALL       R4(nargs=1, nret=0)
+  120 SELF       R5 := R0; R4 := R0:K16('AddPlayNextAniTimer')
+  121 MOVE       A=6 B=3 C=0 k=0
+  122 CALL       R4(nargs=2, nret=0)
+  123 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.Destroy (L440-500) ====================
+  Locals: ['R0:self(pc 0..122)', 'R1:marchType(pc 7..57)']
+  Upvals: ['U0:_ENV', 'U1:base']
+  Consts: ["K0:'HideDetectEvent'", "K1:'monsterInfo'", 'K2:None', "K3:'type'", "K4:'NewMarchType'", "K5:'ACT_BOSS'", "K6:'PUZZLE_BOSS'", "K7:'EventManager'", "K8:'GetInstance'", "K9:'Broadcast'", "K10:'EventId'", "K11:'HideActBossHead'", "K12:'uuid'", "K13:'ALLIANCE_BOSS'", "K14:'HideAllianceBossHead'", "K15:'AllianceBossTimeHide'", "K16:'HideMonsterHead'", "K17:'destroyDelay'", "K18:'Stop'", "K19:'deadEffReq'", "K20:'Destroy'", "K21:'deadEffTimer'", "K22:'ClearDelayInvokeMap'", "K23:'DataCenter'", "K24:'WorldPointManager'", "K25:'CheckIsAtMoveOutArr'", "K26:'pointIndex'", "K27:'RemoveAtMoveOutArr'", "K28:'Die'", "K29:'monsterLevel'", 'K30:1', "K31:'model'", "K32:'TimerManager'", "K33:'DelayInvoke'", 'K34:1.3', 'K35:None', "K36:'Destroy'"]
+  000 SELF       R2 := R0; R1 := R0:K0('HideDetectEvent')
+  001 CALL       R1(nargs=1, nret=0)
+  002 GETFIELD   R1 := R0.K1('monsterInfo')
+  003 EQK        A=1 B=2 C=0 k=1
+  004 JMP        goto 57
+  005 GETFIELD   R1 := R0.K1('monsterInfo')
+  006 GETFIELD   R1 := R1.K3('type')
+  007 GETTABUP   R2 := U0[K4('NewMarchType')]
+  008 GETFIELD   R2 := R2.K5('ACT_BOSS')
+  009 EQ         A=1 B=2 C=0 k=1
+  010 JMP        goto 15
+  011 GETTABUP   R2 := U0[K4('NewMarchType')]
+  012 GETFIELD   R2 := R2.K6('PUZZLE_BOSS')
+  013 EQ         A=1 B=2 C=0 k=0
+  014 JMP        goto 25
+  015 GETTABUP   R2 := U0[K7('EventManager')]
+  016 SELF       R3 := R2; R2 := R2:K8('GetInstance')
+  017 CALL       R2(nargs=1, nret=1)
+  018 SELF       R3 := R2; R2 := R2:K9('Broadcast')
+  019 GETTABUP   R4 := U0[K10('EventId')]
+  020 GETFIELD   R4 := R4.K11('HideActBossHead')
+  021 GETFIELD   R5 := R0.K1('monsterInfo')
+  022 GETFIELD   R5 := R5.K12('uuid')
+  023 CALL       R2(nargs=3, nret=0)
+  024 JMP        goto 57
+  025 GETTABUP   R2 := U0[K4('NewMarchType')]
+  026 GETFIELD   R2 := R2.K13('ALLIANCE_BOSS')
+  027 EQ         A=1 B=2 C=0 k=0
+  028 JMP        goto 48
+  029 GETTABUP   R2 := U0[K7('EventManager')]
+  030 SELF       R3 := R2; R2 := R2:K8('GetInstance')
+  031 CALL       R2(nargs=1, nret=1)
+  032 SELF       R3 := R2; R2 := R2:K9('Broadcast')
+  033 GETTABUP   R4 := U0[K10('EventId')]
+  034 GETFIELD   R4 := R4.K14('HideAllianceBossHead')
+  035 GETFIELD   R5 := R0.K1('monsterInfo')
+  036 GETFIELD   R5 := R5.K12('uuid')
+  037 CALL       R2(nargs=3, nret=0)
+  038 GETTABUP   R2 := U0[K7('EventManager')]
+  039 SELF       R3 := R2; R2 := R2:K8('GetInstance')
+  040 CALL       R2(nargs=1, nret=1)
+  041 SELF       R3 := R2; R2 := R2:K9('Broadcast')
+  042 GETTABUP   R4 := U0[K10('EventId')]
+  043 GETFIELD   R4 := R4.K15('AllianceBossTimeHide')
+  044 GETFIELD   R5 := R0.K1('monsterInfo')
+  045 GETFIELD   R5 := R5.K12('uuid')
+  046 CALL       R2(nargs=3, nret=0)
+  047 JMP        goto 57
+  048 GETTABUP   R2 := U0[K7('EventManager')]
+  049 SELF       R3 := R2; R2 := R2:K8('GetInstance')
+  050 CALL       R2(nargs=1, nret=1)
+  051 SELF       R3 := R2; R2 := R2:K9('Broadcast')
+  052 GETTABUP   R4 := U0[K10('EventId')]
+  053 GETFIELD   R4 := R4.K16('HideMonsterHead')
+  054 GETFIELD   R5 := R0.K1('monsterInfo')
+  055 GETFIELD   R5 := R5.K12('uuid')
+  056 CALL       R2(nargs=3, nret=0)
+  057 GETFIELD   R1 := R0.K17('destroyDelay')
+  058 EQK        A=1 B=2 C=0 k=1
+  059 JMP        goto 64
+  060 GETFIELD   R1 := R0.K17('destroyDelay')
+  061 SELF       R2 := R1; R1 := R1:K18('Stop')
+  062 CALL       R1(nargs=1, nret=0)
+  063 SETFIELD   R0.K17('destroyDelay') := K2(None)
+  064 GETFIELD   R1 := R0.K19('deadEffReq')
+  065 TEST       A=1 B=0 C=0 k=0
+  066 JMP        goto 71
+  067 GETFIELD   R1 := R0.K19('deadEffReq')
+  068 SELF       R2 := R1; R1 := R1:K20('Destroy')
+  069 CALL       R1(nargs=1, nret=0)
+  070 SETFIELD   R0.K19('deadEffReq') := K2(None)
+  071 GETFIELD   R1 := R0.K21('deadEffTimer')
+  072 TEST       A=1 B=0 C=0 k=0
+  073 JMP        goto 78
+  074 GETFIELD   R1 := R0.K21('deadEffTimer')
+  075 SELF       R2 := R1; R1 := R1:K18('Stop')
+  076 CALL       R1(nargs=1, nret=0)
+  077 SETFIELD   R0.K21('deadEffTimer') := K2(None)
+  078 GETFIELD   R1 := R0.K22('ClearDelayInvokeMap')
+  079 TEST       A=1 B=0 C=0 k=0
+  080 JMP        goto 83
+  081 SELF       R2 := R0; R1 := R0:K22('ClearDelayInvokeMap')
+  082 CALL       R1(nargs=1, nret=0)
+  083 GETTABUP   R1 := U0[K23('DataCenter')]
+  084 GETFIELD   R1 := R1.K24('WorldPointManager')
+  085 SELF       R2 := R1; R1 := R1:K25('CheckIsAtMoveOutArr')
+  086 GETFIELD   R3 := R0.K26('pointIndex')
+  087 CALL       R1(nargs=2, nret=1)
+  088 TEST       A=1 B=0 C=0 k=0
+  089 JMP        goto 112
+  090 GETTABUP   R1 := U0[K23('DataCenter')]
+  091 GETFIELD   R1 := R1.K24('WorldPointManager')
+  092 SELF       R2 := R1; R1 := R1:K27('RemoveAtMoveOutArr')
+  093 GETFIELD   R3 := R0.K26('pointIndex')
+  094 CALL       R1(nargs=2, nret=0)
+  095 SELF       R2 := R0; R1 := R0:K28('Die')
+  096 CALL       R1(nargs=1, nret=0)
+  097 SETFIELD   R0.K1('monsterInfo') := K2(None)
+  098 SETFIELD   R0.K29('monsterLevel') := K30(1)
+  099 GETFIELD   R1 := R0.K31('model')
+  100 EQK        A=1 B=2 C=0 k=1
+  101 JMP        goto 103
+  102 SETFIELD   R0.K31('model') := K2(None)
+  103 GETTABUP   R1 := U0[K32('TimerManager')]
+  104 SELF       R2 := R1; R1 := R1:K8('GetInstance')
+  105 CALL       R1(nargs=1, nret=1)
+  106 SELF       R2 := R1; R1 := R1:K33('DelayInvoke')
+  107 CLOSURE    A=3 B=0 C=0 k=0
+  108 LOADK      R4 := K34(1.3)
+  109 CALL       R1(nargs=3, nret=1)
+  110 SETFIELD   R0.K17('destroyDelay') := R1
+  111 JMP        goto 121
+  112 SETFIELD   R0.K1('monsterInfo') := K35(None)
+  113 SETFIELD   R0.K29('monsterLevel') := K30(1)
+  114 GETFIELD   R1 := R0.K31('model')
+  115 EQK        A=1 B=35 C=0 k=1
+  116 JMP        goto 118
+  117 SETFIELD   R0.K31('model') := K35(None)
+  118 GETTABUP   R1 := U1[K36('Destroy')]
+  119 MOVE       A=2 B=0 C=0 k=0
+  120 CALL       R1(nargs=1, nret=0)
+  121 RETURN     A=1 B=1 C=0 k=1
+
+==================== WMO.PlaySkill (L535-542) ====================
+  Locals: ['R0:self(pc 0..21)', 'R1:index(pc 0..21)', 'R2:marchType(pc 2..21)']
+  Upvals: ['U0:_ENV', 'U1:Const']
+  Consts: ["K0:'monsterInfo'", "K1:'type'", "K2:'NewMarchType'", "K3:'ACT_BOSS'", "K4:'WorldTroopAnim'", "K5:'Anim_Skill_0'", "K6:'PlayAnim'"]
+  000 GETFIELD   R2 := R0.K0('monsterInfo')
+  001 GETFIELD   R2 := R2.K1('type')
+  002 GETTABUP   R3 := U0[K2('NewMarchType')]
+  003 GETFIELD   R3 := R3.K3('ACT_BOSS')
+  004 EQ         A=2 B=3 C=0 k=0
+  005 JMP        goto 20
+  006 GETTABUP   R3 := U1[K4('WorldTroopAnim')]
+  007 LOADK      R4 := K5('Anim_Skill_0')
+  008 MOVE       A=5 B=1 C=0 k=0
+  009 CONCAT     A=4 B=2 C=0 k=0
+  010 GETTABLE   A=3 B=3 C=4 k=0
+  011 TEST       A=3 B=0 C=0 k=0
+  012 JMP        goto 20
+  013 SELF       R4 := R0; R3 := R0:K6('PlayAnim')
+  014 GETTABUP   R5 := U1[K4('WorldTroopAnim')]
+  015 LOADK      R6 := K5('Anim_Skill_0')
+  016 MOVE       A=7 B=1 C=0 k=0
+  017 CONCAT     A=6 B=2 C=0 k=0
+  018 GETTABLE   A=5 B=5 C=6 k=0
+  019 CALL       R3(nargs=2, nret=0)
+  020 RETURN0    A=3 B=1 C=0 k=0
+
+==================== WMO.DeletePlayNextAniTimer (L671-676) ====================
+  Locals: ['R0:self(pc 0..8)']
+  Upvals: []
+  Consts: ["K0:'nextAniTimer'", 'K1:None', "K2:'Stop'"]
+  000 GETFIELD   R1 := R0.K0('nextAniTimer')
+  001 EQK        A=1 B=1 C=0 k=1
+  002 JMP        goto 7
+  003 GETFIELD   R1 := R0.K0('nextAniTimer')
+  004 SELF       R2 := R1; R1 := R1:K2('Stop')
+  005 CALL       R1(nargs=1, nret=0)
+  006 SETFIELD   R0.K0('nextAniTimer') := K1(None)
+  007 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.GetIsInBattle (L634-636) ====================
+  Locals: ['R0:self(pc 0..3)']
+  Upvals: []
+  Consts: ["K0:'isInBattle'"]
+  000 GETFIELD   R1 := R0.K0('isInBattle')
+  001 RETURN1    A=1 B=2 C=0 k=0
+  002 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.GetMarchCurPos (L592-597) ====================
+  Locals: ['R0:self(pc 0..11)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'gameObject'", 'K1:None', "K2:'Vector3'", "K3:'zero'", "K4:'transform'", "K5:'position'"]
+  000 GETFIELD   R1 := R0.K0('gameObject')
+  001 EQK        A=1 B=1 C=0 k=0
+  002 JMP        goto 6
+  003 GETTABUP   R1 := U0[K2('Vector3')]
+  004 GETFIELD   R1 := R1.K3('zero')
+  005 RETURN1    A=1 B=2 C=0 k=0
+  006 GETFIELD   R1 := R0.K0('gameObject')
+  007 GETFIELD   R1 := R1.K4('transform')
+  008 GETFIELD   R1 := R1.K5('position')
+  009 RETURN1    A=1 B=2 C=0 k=0
+  010 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.SetRotation (L572-584) ====================
+  Locals: ['R0:self(pc 0..22)', 'R1:rotation(pc 0..22)', 'R2:rot(pc 1..22)', 'R3:tempRot(pc 11..22)']
+  Upvals: ['U0:_ENV']
+  Consts: ['K0:None', "K1:'model'", "K2:'transform'", "K3:'rotation'", "K4:'Quaternion'", "K5:'Equals'", 'K6:False']
+  000 MOVE       A=2 B=1 C=0 k=0
+  001 EQK        A=2 B=0 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN0    A=3 B=1 C=0 k=0
+  004 GETFIELD   R3 := R0.K1('model')
+  005 EQK        A=3 B=0 C=0 k=0
+  006 JMP        goto 8
+  007 RETURN0    A=3 B=1 C=0 k=0
+  008 GETFIELD   R3 := R0.K1('model')
+  009 GETFIELD   R3 := R3.K2('transform')
+  010 GETFIELD   R3 := R3.K3('rotation')
+  011 GETTABUP   R4 := U0[K4('Quaternion')]
+  012 GETFIELD   R4 := R4.K5('Equals')
+  013 MOVE       A=5 B=3 C=0 k=0
+  014 MOVE       A=6 B=2 C=0 k=0
+  015 CALL       R4(nargs=2, nret=1)
+  016 EQK        A=4 B=6 C=0 k=0
+  017 JMP        goto 21
+  018 GETFIELD   R4 := R0.K1('model')
+  019 GETFIELD   R4 := R4.K2('transform')
+  020 SETFIELD   R4.K3('rotation') := R2
+  021 RETURN0    A=4 B=1 C=0 k=0
+
+==================== WMO.SetLevelTextScale (L198-206) ====================
+  Locals: ['R0:self(pc 0..21)', 'R1:item(pc 0..21)', 'R2:scale(pc 0..21)', 'R3:levelText(pc 10..21)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'IsNull'", "K1:'transform'", "K2:'Find'", "K3:'LevelLabel/LevelText'", "K4:'IsNotNull'", "K5:'Set_localScale'"]
+  000 GETTABUP   R3 := U0[K0('IsNull')]
+  001 MOVE       A=4 B=1 C=0 k=0
+  002 CALL       R3(nargs=1, nret=1)
+  003 TEST       A=3 B=0 C=0 k=0
+  004 JMP        goto 6
+  005 RETURN0    A=3 B=1 C=0 k=0
+  006 GETFIELD   R3 := R1.K1('transform')
+  007 SELF       R4 := R3; R3 := R3:K2('Find')
+  008 LOADK      R5 := K3('LevelLabel/LevelText')
+  009 CALL       R3(nargs=2, nret=1)
+  010 GETTABUP   R4 := U0[K4('IsNotNull')]
+  011 MOVE       A=5 B=3 C=0 k=0
+  012 CALL       R4(nargs=1, nret=1)
+  013 TEST       A=4 B=0 C=0 k=0
+  014 JMP        goto 20
+  015 SELF       R5 := R3; R4 := R3:K5('Set_localScale')
+  016 MOVE       A=6 B=2 C=0 k=0
+  017 MOVE       A=7 B=2 C=0 k=0
+  018 MOVE       A=8 B=2 C=0 k=0
+  019 CALL       R4(nargs=4, nret=0)
+  020 RETURN0    A=4 B=1 C=0 k=0
+
+==================== WMO.LookAtTarget (L557-570) ====================
+  Locals: ['R0:self(pc 0..37)', 'R1:targetUuid(pc 0..37)', 'R2:targetPos(pc 7..37)', 'R3:normalized(pc 18..37)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'gameObject'", 'K1:None', "K2:'GetTargetPos'", "K3:'Vector3'", "K4:'Normalize'", "K5:'transform'", "K6:'position'", "K7:'x'", "K8:'y'", "K9:'z'", "K10:'SetRotation'", "K11:'Quaternion'", "K12:'LookRotation'", "K13:'up'"]
+  000 GETFIELD   R2 := R0.K0('gameObject')
+  001 EQK        A=2 B=1 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN0    A=2 B=1 C=0 k=0
+  004 SELF       R3 := R0; R2 := R0:K2('GetTargetPos')
+  005 MOVE       A=4 B=1 C=0 k=0
+  006 CALL       R2(nargs=2, nret=1)
+  007 EQK        A=2 B=1 C=0 k=0
+  008 JMP        goto 10
+  009 RETURN0    A=3 B=1 C=0 k=0
+  010 GETTABUP   R3 := U0[K3('Vector3')]
+  011 GETFIELD   R3 := R3.K4('Normalize')
+  012 GETFIELD   R4 := R0.K0('gameObject')
+  013 GETFIELD   R4 := R4.K5('transform')
+  014 GETFIELD   R4 := R4.K6('position')
+  015 SUB        A=4 B=2 C=4 k=0
+  016 MMBIN      A=2 B=4 C=7 k=0
+  017 CALL       R3(nargs=1, nret=1)
+  018 GETFIELD   R4 := R3.K7('x')
+  019 EQI        A=4 B=127 C=0 k=0
+  020 JMP        goto 28
+  021 GETFIELD   R4 := R3.K8('y')
+  022 EQI        A=4 B=127 C=0 k=0
+  023 JMP        goto 28
+  024 GETFIELD   R4 := R3.K9('z')
+  025 EQI        A=4 B=127 C=0 k=0
+  026 JMP        goto 28
+  027 JMP        goto 36
+  028 SELF       R5 := R0; R4 := R0:K10('SetRotation')
+  029 GETTABUP   R6 := U0[K11('Quaternion')]
+  030 GETFIELD   R6 := R6.K12('LookRotation')
+  031 MOVE       A=7 B=3 C=0 k=0
+  032 GETTABUP   R8 := U0[K3('Vector3')]
+  033 GETFIELD   R8 := R8.K13('up')
+  034 CALL       R6(nargs=2, nret=-1)
+  035 CALL       R4(nargs=-1, nret=0)
+  036 RETURN0    A=4 B=1 C=0 k=0
+
+==================== WMO.SetAutoAdjustLod (L182-195) ====================
+  Locals: ['R0:self(pc 0..49)', 'R1:type(pc 9..49)']
+  Upvals: ['U0:base', 'U1:_ENV']
+  Consts: ["K0:'SetAutoAdjustLod'", "K1:'monsterInfo'", 'K2:None', "K3:'type'", "K4:'NewMarchType'", "K5:'ACT_BOSS'", "K6:'PUZZLE_BOSS'", "K7:'CHALLENGE_BOSS'", "K8:'MonsterTowerAlBoss'", "K9:'adjuster'", "K10:'SetNoOptimizeActivate'", "K11:'SetLodType'", "K12:'LodType'", "K13:'WorldBoss'", "K14:'ALLIANCE_BOSS'", "K15:'AllianceBoss'"]
+  000 GETTABUP   R1 := U0[K0('SetAutoAdjustLod')]
+  001 MOVE       A=2 B=0 C=0 k=0
+  002 CALL       R1(nargs=1, nret=0)
+  003 GETFIELD   R1 := R0.K1('monsterInfo')
+  004 EQK        A=1 B=2 C=0 k=0
+  005 JMP        goto 7
+  006 RETURN0    A=1 B=1 C=0 k=0
+  007 GETFIELD   R1 := R0.K1('monsterInfo')
+  008 GETFIELD   R1 := R1.K3('type')
+  009 GETTABUP   R2 := U1[K4('NewMarchType')]
+  010 GETFIELD   R2 := R2.K5('ACT_BOSS')
+  011 EQ         A=1 B=2 C=0 k=1
+  012 JMP        goto 25
+  013 GETTABUP   R2 := U1[K4('NewMarchType')]
+  014 GETFIELD   R2 := R2.K6('PUZZLE_BOSS')
+  015 EQ         A=1 B=2 C=0 k=1
+  016 JMP        goto 25
+  017 GETTABUP   R2 := U1[K4('NewMarchType')]
+  018 GETFIELD   R2 := R2.K7('CHALLENGE_BOSS')
+  019 EQ         A=1 B=2 C=0 k=1
+  020 JMP        goto 25
+  021 GETTABUP   R2 := U1[K4('NewMarchType')]
+  022 GETFIELD   R2 := R2.K8('MonsterTowerAlBoss')
+  023 EQ         A=1 B=2 C=0 k=0
+  024 JMP        goto 35
+  025 GETFIELD   R2 := R0.K9('adjuster')
+  026 SELF       R3 := R2; R2 := R2:K10('SetNoOptimizeActivate')
+  027 LOADFALSE  A=4 B=0 C=0 k=0
+  028 CALL       R2(nargs=2, nret=0)
+  029 GETFIELD   R2 := R0.K9('adjuster')
+  030 SELF       R3 := R2; R2 := R2:K11('SetLodType')
+  031 GETTABUP   R4 := U1[K12('LodType')]
+  032 GETFIELD   R4 := R4.K13('WorldBoss')
+  033 CALL       R2(nargs=2, nret=0)
+  034 JMP        goto 48
+  035 GETTABUP   R2 := U1[K4('NewMarchType')]
+  036 GETFIELD   R2 := R2.K14('ALLIANCE_BOSS')
+  037 EQ         A=1 B=2 C=0 k=0
+  038 JMP        goto 48
+  039 GETFIELD   R2 := R0.K9('adjuster')
+  040 SELF       R3 := R2; R2 := R2:K10('SetNoOptimizeActivate')
+  041 LOADFALSE  A=4 B=0 C=0 k=0
+  042 CALL       R2(nargs=2, nret=0)
+  043 GETFIELD   R2 := R0.K9('adjuster')
+  044 SELF       R3 := R2; R2 := R2:K11('SetLodType')
+  045 GETTABUP   R4 := U1[K12('LodType')]
+  046 GETFIELD   R4 := R4.K15('AllianceBoss')
+  047 CALL       R2(nargs=2, nret=0)
+  048 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.GetAniTime (L381-396) ====================
+  Locals: ['R0:self(pc 0..25)', 'R1:aniName(pc 0..25)', 'R2:aniTime(pc 1..25)', 'R3:(for state)(pc 10..23)', 'R4:(for state)(pc 10..23)', 'R5:(for state)(pc 10..23)', 'R6:i(pc 11..22)', 'R7:item(pc 13..22)', 'R8:result(pc 18..22)']
+  Upvals: []
+  Consts: ["K0:'anims'", 'K1:None', "K2:'Length'", "K3:'GetClipLength'", 'K4:0.1']
+  000 LOADI      R2 := 3
+  001 GETFIELD   R3 := R0.K0('anims')
+  002 EQK        A=3 B=1 C=0 k=1
+  003 JMP        goto 23
+  004 LOADI      R3 := 0
+  005 GETFIELD   R4 := R0.K0('anims')
+  006 GETFIELD   R4 := R4.K2('Length')
+  007 ADDI       A=4 B=4 C=126 k=0
+  008 MMBINI     A=4 B=128 C=7 k=0
+  009 LOADI      R5 := 1
+  010 FORPREP    A=3 B=5 C=0 k=1
+  011 GETFIELD   R7 := R0.K0('anims')
+  012 GETTABLE   A=7 B=7 C=6 k=0
+  013 EQK        A=7 B=1 C=0 k=1
+  014 JMP        goto 22
+  015 SELF       R9 := R7; R8 := R7:K3('GetClipLength')
+  016 MOVE       A=10 B=1 C=0 k=0
+  017 CALL       R8(nargs=2, nret=1)
+  018 LOADK      R9 := K4(0.1)
+  019 LT         A=9 B=8 C=0 k=0
+  020 JMP        goto 22
+  021 MOVE       A=2 B=8 C=0 k=0
+  022 FORLOOP    A=3 B=6 C=0 k=0
+  023 RETURN1    A=2 B=2 C=0 k=0
+  024 RETURN0    A=3 B=1 C=0 k=0
+
+==================== WMO.DestroySelfImmediately (L415-417) ====================
+  Locals: ['R0:self(pc 0..3)']
+  Upvals: []
+  Consts: ["K0:'Destroy'"]
+  000 SELF       R2 := R0; R1 := R0:K0('Destroy')
+  001 CALL       R1(nargs=1, nret=0)
+  002 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.ResetRotation (L160-181) ====================
+  Locals: ['R0:self(pc 0..60)', 'R1:targetPos(pc 0..60)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'OriginalRotation'", 'K1:None', "K2:'Quaternion'", "K3:'Euler'", "K4:'SetRotation'", "K5:'monsterInfo'", "K6:'type'", "K7:'NewMarchType'", "K8:'ACT_BOSS'", "K9:'PUZZLE_BOSS'", "K10:'CHALLENGE_BOSS'", "K11:'MonsterTowerAlBoss'", "K12:'BOSS'", "K13:'CAR_CHIP_TRAIL_BOSS'", "K14:'winTargetPos'"]
+  000 GETFIELD   R2 := R0.K0('OriginalRotation')
+  001 EQK        A=2 B=1 C=0 k=0
+  002 JMP        goto 10
+  003 GETTABUP   R2 := U0[K2('Quaternion')]
+  004 GETFIELD   R2 := R2.K3('Euler')
+  005 LOADI      R3 := 0
+  006 LOADI      R4 := 180
+  007 LOADI      R5 := 0
+  008 CALL       R2(nargs=3, nret=1)
+  009 SETFIELD   R0.K0('OriginalRotation') := R2
+  010 SELF       R3 := R0; R2 := R0:K4('SetRotation')
+  011 GETFIELD   R4 := R0.K0('OriginalRotation')
+  012 CALL       R2(nargs=2, nret=0)
+  013 EQK        A=1 B=1 C=0 k=1
+  014 JMP        goto 59
+  015 GETFIELD   R2 := R0.K5('monsterInfo')
+  016 EQK        A=2 B=1 C=0 k=1
+  017 JMP        goto 59
+  018 GETFIELD   R2 := R0.K5('monsterInfo')
+  019 GETFIELD   R2 := R2.K6('type')
+  020 EQK        A=2 B=1 C=0 k=1
+  021 JMP        goto 59
+  022 GETFIELD   R2 := R0.K5('monsterInfo')
+  023 GETFIELD   R2 := R2.K6('type')
+  024 GETTABUP   R3 := U0[K7('NewMarchType')]
+  025 GETFIELD   R3 := R3.K8('ACT_BOSS')
+  026 EQ         A=2 B=3 C=0 k=1
+  027 JMP        goto 58
+  028 GETFIELD   R2 := R0.K5('monsterInfo')
+  029 GETFIELD   R2 := R2.K6('type')
+  030 GETTABUP   R3 := U0[K7('NewMarchType')]
+  031 GETFIELD   R3 := R3.K9('PUZZLE_BOSS')
+  032 EQ         A=2 B=3 C=0 k=1
+  033 JMP        goto 58
+  034 GETFIELD   R2 := R0.K5('monsterInfo')
+  035 GETFIELD   R2 := R2.K6('type')
+  036 GETTABUP   R3 := U0[K7('NewMarchType')]
+  037 GETFIELD   R3 := R3.K10('CHALLENGE_BOSS')
+  038 EQ         A=2 B=3 C=0 k=1
+  039 JMP        goto 58
+  040 GETFIELD   R2 := R0.K5('monsterInfo')
+  041 GETFIELD   R2 := R2.K6('type')
+  042 GETTABUP   R3 := U0[K7('NewMarchType')]
+  043 GETFIELD   R3 := R3.K11('MonsterTowerAlBoss')
+  044 EQ         A=2 B=3 C=0 k=1
+  045 JMP        goto 58
+  046 GETFIELD   R2 := R0.K5('monsterInfo')
+  047 GETFIELD   R2 := R2.K6('type')
+  048 GETTABUP   R3 := U0[K7('NewMarchType')]
+  049 GETFIELD   R3 := R3.K12('BOSS')
+  050 EQ         A=2 B=3 C=0 k=1
+  051 JMP        goto 58
+  052 GETFIELD   R2 := R0.K5('monsterInfo')
+  053 GETFIELD   R2 := R2.K6('type')
+  054 GETTABUP   R3 := U0[K7('NewMarchType')]
+  055 GETFIELD   R3 := R3.K13('CAR_CHIP_TRAIL_BOSS')
+  056 EQ         A=2 B=3 C=0 k=0
+  057 JMP        goto 59
+  058 SETFIELD   R0.K14('winTargetPos') := R1
+  059 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.SetLabel (L208-270) ====================
+  Locals: ['R0:self(pc 0..174)', 'R1:type(pc 10..174)', 'R2:labels(pc 55..72)', 'R3:(for state)(pc 60..72)', 'R4:(for state)(pc 60..72)', 'R5:(for state)(pc 60..72)', 'R6:i(pc 61..71)', 'R7:item(pc 62..71)', 'R8:marchInfo(pc 88..142)', 'R9:tempName(pc 103..142)', 'R10:nameStr(pc 116..142)', 'R11:labels(pc 117..142)', 'R12:(for state)(pc 131..142)', 'R13:(for state)(pc 131..142)', 'R14:(for state)(pc 131..142)', 'R15:i(pc 132..141)', 'R16:item(pc 133..141)', 'R17:labels(pc 156..173)', 'R18:(for state)(pc 161..173)', 'R19:(for state)(pc 161..173)', 'R20:(for state)(pc 161..173)', 'R21:i(pc 162..172)', 'R22:item(pc 163..172)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'monsterInfo'", 'K1:None', "K2:'cityLabels'", "K3:'type'", "K4:'NewMarchType'", "K5:'MONSTER'", "K6:'BOSS'", "K7:'CAR_CHIP_TRAIL_BOSS'", "K8:'ACT_BOSS'", "K9:'PUZZLE_BOSS'", "K10:'MONSTER_SIEGE'", "K11:'CHALLENGE_BOSS'", "K12:'MonsterTowerAlBoss'", "K13:'monsterLevel'", "K14:'DataCenter'", "K15:'MonsterTemplateManager'", "K16:'GetTableValue'", "K17:'monsterId'", "K18:'level'", 'K19:1', "K20:'Length'", "K21:'SetLevel'", "K22:'SetLevelTextScale'", 'K23:0.8', "K24:'ALLIANCE_BOSS'", "K25:'AllianceBossManager'", "K26:'GetCurDiff'", "K27:'PBController'", "K28:'ParsePbFromBytes'", "K29:'monsterExtraInfo'", "K30:'protobuf.AllianceBossInfo'", "K31:'name'", "K32:'Localization'", "K33:'GetString'", "K34:'311026'", "K35:'allianceAbbr'", "K36:'Lv.'", "K37:'EventManager'", "K38:'GetInstance'", "K39:'Broadcast'", "K40:'EventId'", "K41:'AllianceBossTimeShow'", "K42:'uuid'", "K43:'SetName'", "K44:''"]
+  000 GETFIELD   R1 := R0.K0('monsterInfo')
+  001 EQK        A=1 B=1 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN0    A=1 B=1 C=0 k=0
+  004 GETFIELD   R1 := R0.K2('cityLabels')
+  005 EQK        A=1 B=1 C=0 k=0
+  006 JMP        goto 8
+  007 RETURN0    A=1 B=1 C=0 k=0
+  008 GETFIELD   R1 := R0.K0('monsterInfo')
+  009 GETFIELD   R1 := R1.K3('type')
+  010 GETTABUP   R2 := U0[K4('NewMarchType')]
+  011 GETFIELD   R2 := R2.K5('MONSTER')
+  012 EQ         A=1 B=2 C=0 k=1
+  013 JMP        goto 42
+  014 GETTABUP   R2 := U0[K4('NewMarchType')]
+  015 GETFIELD   R2 := R2.K6('BOSS')
+  016 EQ         A=1 B=2 C=0 k=1
+  017 JMP        goto 42
+  018 GETTABUP   R2 := U0[K4('NewMarchType')]
+  019 GETFIELD   R2 := R2.K7('CAR_CHIP_TRAIL_BOSS')
+  020 EQ         A=1 B=2 C=0 k=1
+  021 JMP        goto 42
+  022 GETTABUP   R2 := U0[K4('NewMarchType')]
+  023 GETFIELD   R2 := R2.K8('ACT_BOSS')
+  024 EQ         A=1 B=2 C=0 k=1
+  025 JMP        goto 42
+  026 GETTABUP   R2 := U0[K4('NewMarchType')]
+  027 GETFIELD   R2 := R2.K9('PUZZLE_BOSS')
+  028 EQ         A=1 B=2 C=0 k=1
+  029 JMP        goto 42
+  030 GETTABUP   R2 := U0[K4('NewMarchType')]
+  031 GETFIELD   R2 := R2.K10('MONSTER_SIEGE')
+  032 EQ         A=1 B=2 C=0 k=1
+  033 JMP        goto 42
+  034 GETTABUP   R2 := U0[K4('NewMarchType')]
+  035 GETFIELD   R2 := R2.K11('CHALLENGE_BOSS')
+  036 EQ         A=1 B=2 C=0 k=1
+  037 JMP        goto 42
+  038 GETTABUP   R2 := U0[K4('NewMarchType')]
+  039 GETFIELD   R2 := R2.K12('MonsterTowerAlBoss')
+  040 EQ         A=1 B=2 C=0 k=0
+  041 JMP        goto 73
+  042 GETTABUP   R2 := U0[K14('DataCenter')]
+  043 GETFIELD   R2 := R2.K15('MonsterTemplateManager')
+  044 SELF       R3 := R2; R2 := R2:K16('GetTableValue')
+  045 GETFIELD   R4 := R0.K0('monsterInfo')
+  046 GETFIELD   R4 := R4.K17('monsterId')
+  047 LOADK      R5 := K18('level')
+  048 CALL       R2(nargs=3, nret=1)
+  049 SETFIELD   R0.K13('monsterLevel') := R2
+  050 GETFIELD   R2 := R0.K13('monsterLevel')
+  051 EQK        A=2 B=1 C=0 k=0
+  052 JMP        goto 54
+  053 SETFIELD   R0.K13('monsterLevel') := K19(1)
+  054 GETFIELD   R2 := R0.K2('cityLabels')
+  055 LOADI      R3 := 0
+  056 GETFIELD   R4 := R2.K20('Length')
+  057 ADDI       A=4 B=4 C=126 k=0
+  058 MMBINI     A=4 B=128 C=7 k=0
+  059 LOADI      R5 := 1
+  060 FORPREP    A=3 B=5 C=0 k=0
+  061 GETTABLE   A=7 B=2 C=6 k=0
+  062 EQK        A=7 B=1 C=0 k=1
+  063 JMP        goto 71
+  064 SELF       R9 := R7; R8 := R7:K21('SetLevel')
+  065 GETFIELD   R10 := R0.K13('monsterLevel')
+  066 CALL       R8(nargs=2, nret=0)
+  067 SELF       R9 := R0; R8 := R0:K22('SetLevelTextScale')
+  068 MOVE       A=10 B=7 C=0 k=0
+  069 LOADK      R11 := K23(0.8)
+  070 CALL       R8(nargs=3, nret=0)
+  071 FORLOOP    A=3 B=5 C=0 k=1
+  072 JMP        goto 173
+  073 GETTABUP   R2 := U0[K4('NewMarchType')]
+  074 GETFIELD   R2 := R2.K24('ALLIANCE_BOSS')
+  075 EQ         A=1 B=2 C=0 k=0
+  076 JMP        goto 143
+  077 GETTABUP   R2 := U0[K14('DataCenter')]
+  078 GETFIELD   R2 := R2.K25('AllianceBossManager')
+  079 SELF       R3 := R2; R2 := R2:K26('GetCurDiff')
+  080 CALL       R2(nargs=1, nret=1)
+  081 SETFIELD   R0.K13('monsterLevel') := R2
+  082 GETTABUP   R2 := U0[K27('PBController')]
+  083 GETFIELD   R2 := R2.K28('ParsePbFromBytes')
+  084 GETFIELD   R3 := R0.K0('monsterInfo')
+  085 GETFIELD   R3 := R3.K29('monsterExtraInfo')
+  086 LOADK      R4 := K30('protobuf.AllianceBossInfo')
+  087 CALL       R2(nargs=2, nret=1)
+  088 GETFIELD   R3 := R2.K18('level')
+  089 EQK        A=3 B=1 C=0 k=1
+  090 JMP        goto 96
+  091 GETFIELD   R3 := R2.K18('level')
+  092 GTI        A=3 B=127 C=0 k=0
+  093 JMP        goto 96
+  094 GETFIELD   R3 := R2.K18('level')
+  095 SETFIELD   R0.K13('monsterLevel') := R3
+  096 GETTABUP   R3 := U0[K14('DataCenter')]
+  097 GETFIELD   R3 := R3.K15('MonsterTemplateManager')
+  098 SELF       R4 := R3; R3 := R3:K16('GetTableValue')
+  099 GETFIELD   R5 := R0.K0('monsterInfo')
+  100 GETFIELD   R5 := R5.K17('monsterId')
+  101 LOADK      R6 := K31('name')
+  102 CALL       R3(nargs=3, nret=1)
+  103 GETTABUP   R4 := U0[K32('Localization')]
+  104 SELF       R5 := R4; R4 := R4:K33('GetString')
+  105 LOADK      R6 := K34('311026')
+  106 GETFIELD   R7 := R2.K35('allianceAbbr')
+  107 LOADK      R8 := K36('Lv.')
+  108 GETFIELD   R9 := R0.K13('monsterLevel')
+  109 CONCAT     A=8 B=2 C=0 k=0
+  110 CALL       R4(nargs=4, nret=1)
+  111 GETTABUP   R5 := U0[K32('Localization')]
+  112 SELF       R6 := R5; R5 := R5:K33('GetString')
+  113 MOVE       A=7 B=3 C=0 k=0
+  114 CALL       R5(nargs=2, nret=1)
+  115 CONCAT     A=4 B=2 C=0 k=0
+  116 GETFIELD   R5 := R0.K2('cityLabels')
+  117 GETTABUP   R6 := U0[K37('EventManager')]
+  118 SELF       R7 := R6; R6 := R6:K38('GetInstance')
+  119 CALL       R6(nargs=1, nret=1)
+  120 SELF       R7 := R6; R6 := R6:K39('Broadcast')
+  121 GETTABUP   R8 := U0[K40('EventId')]
+  122 GETFIELD   R8 := R8.K41('AllianceBossTimeShow')
+  123 GETFIELD   R9 := R0.K0('monsterInfo')
+  124 GETFIELD   R9 := R9.K42('uuid')
+  125 CALL       R6(nargs=3, nret=0)
+  126 LOADI      R6 := 0
+  127 GETFIELD   R7 := R5.K20('Length')
+  128 ADDI       A=7 B=7 C=126 k=0
+  129 MMBINI     A=7 B=128 C=7 k=0
+  130 LOADI      R8 := 1
+  131 FORPREP    A=6 B=4 C=0 k=1
+  132 GETTABLE   A=10 B=5 C=9 k=0
+  133 EQK        A=10 B=1 C=0 k=1
+  134 JMP        goto 141
+  135 SELF       R12 := R10; R11 := R10:K43('SetName')
+  136 LOADK      R13 := K44('')
+  137 CALL       R11(nargs=2, nret=0)
+  138 SELF       R12 := R10; R11 := R10:K43('SetName')
+  139 MOVE       A=13 B=4 C=0 k=0
+  140 CALL       R11(nargs=2, nret=0)
+  141 FORLOOP    A=6 B=5 C=0 k=0
+  142 JMP        goto 173
+  143 GETTABUP   R2 := U0[K14('DataCenter')]
+  144 GETFIELD   R2 := R2.K15('MonsterTemplateManager')
+  145 SELF       R3 := R2; R2 := R2:K16('GetTableValue')
+  146 GETFIELD   R4 := R0.K0('monsterInfo')
+  147 GETFIELD   R4 := R4.K17('monsterId')
+  148 LOADK      R5 := K18('level')
+  149 CALL       R2(nargs=3, nret=1)
+  150 SETFIELD   R0.K13('monsterLevel') := R2
+  151 GETFIELD   R2 := R0.K13('monsterLevel')
+  152 EQK        A=2 B=1 C=0 k=0
+  153 JMP        goto 155
+  154 SETFIELD   R0.K13('monsterLevel') := K19(1)
+  155 GETFIELD   R2 := R0.K2('cityLabels')
+  156 LOADI      R3 := 0
+  157 GETFIELD   R4 := R2.K20('Length')
+  158 ADDI       A=4 B=4 C=126 k=0
+  159 MMBINI     A=4 B=128 C=7 k=0
+  160 LOADI      R5 := 1
+  161 FORPREP    A=3 B=5 C=0 k=0
+  162 GETTABLE   A=7 B=2 C=6 k=0
+  163 EQK        A=7 B=1 C=0 k=1
+  164 JMP        goto 172
+  165 SELF       R9 := R7; R8 := R7:K21('SetLevel')
+  166 GETFIELD   R10 := R0.K13('monsterLevel')
+  167 CALL       R8(nargs=2, nret=0)
+  168 SELF       R9 := R0; R8 := R0:K22('SetLevelTextScale')
+  169 MOVE       A=10 B=7 C=0 k=0
+  170 LOADK      R11 := K23(0.8)
+  171 CALL       R8(nargs=3, nret=0)
+  172 FORLOOP    A=3 B=5 C=0 k=1
+  173 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.PlayDeadEff (L763-787) ====================
+  Locals: ['R0:self(pc 0..25)', 'R1:seasonId(pc 9..25)', 'R2:eff_path(pc 10..25)', 'R3:request(pc 19..25)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'SeasonUtil'", "K1:'GetSeasonId'", "K2:'SeasonType'", "K3:'WorldSeason'", "K4:'LuaEntry'", "K5:'Player'", "K6:'GetCurServerId'", "K7:'Assets/_Art_LastDay/Effect/Prefab/Common/Eff_sj_death_S1-S2.prefab'", "K8:'Assets/_Art_LastDay/Effect/Prefab/Common/Eff_sj_death_S3_01.prefab'", "K9:'CS'", "K10:'GameEntry'", "K11:'Resource'", "K12:'InstantiateAsync'", "K13:'deadEffReq'", "K14:'completed'", "K15:'+'"]
+  000 GETTABUP   R1 := U0[K0('SeasonUtil')]
+  001 GETFIELD   R1 := R1.K1('GetSeasonId')
+  002 GETTABUP   R2 := U0[K2('SeasonType')]
+  003 GETFIELD   R2 := R2.K3('WorldSeason')
+  004 GETTABUP   R3 := U0[K4('LuaEntry')]
+  005 GETFIELD   R3 := R3.K5('Player')
+  006 SELF       R4 := R3; R3 := R3:K6('GetCurServerId')
+  007 CALL       R3(nargs=1, nret=-1)
+  008 CALL       R1(nargs=-1, nret=1)
+  009 LOADK      R2 := K7('Assets/_Art_LastDay/Effect/Prefab/Common/Eff_sj_death_S1-S2.prefab')
+  010 EQI        A=1 B=130 C=0 k=0
+  011 JMP        goto 13
+  012 LOADK      R2 := K8('Assets/_Art_LastDay/Effect/Prefab/Common/Eff_sj_death_S3_01.prefab')
+  013 GETTABUP   R3 := U0[K9('CS')]
+  014 GETFIELD   R3 := R3.K10('GameEntry')
+  015 GETFIELD   R3 := R3.K11('Resource')
+  016 SELF       R4 := R3; R3 := R3:K12('InstantiateAsync')
+  017 MOVE       A=5 B=2 C=0 k=0
+  018 CALL       R3(nargs=2, nret=1)
+  019 SETFIELD   R0.K13('deadEffReq') := R3
+  020 SELF       R5 := R3; R4 := R3:K14('completed')
+  021 LOADK      R6 := K15('+')
+  022 CLOSURE    A=7 B=0 C=0 k=0
+  023 CALL       R4(nargs=3, nret=0)
+  024 RETURN     A=4 B=1 C=0 k=1
+
+==================== WMO.GetPrefabPath (L45-47) ====================
+  Locals: ['R0:self(pc 0..6)', 'R1:info(pc 0..6)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'WorldBuildUtil'", "K1:'GetWorldPointModelPath'"]
+  000 GETTABUP   R2 := U0[K0('WorldBuildUtil')]
+  001 GETFIELD   R2 := R2.K1('GetWorldPointModelPath')
+  002 MOVE       A=3 B=1 C=0 k=0
+  003 TAILCALL   A=2 B=2 C=0 k=0
+  004 RETURN     A=2 B=0 C=0 k=0
+  005 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.Attack (L531-533) ====================
+  Locals: ['R0:self(pc 0..5)']
+  Upvals: ['U0:Const']
+  Consts: ["K0:'PlayAnim'", "K1:'WorldTroopAnim'", "K2:'Anim_Attack'"]
+  000 SELF       R2 := R0; R1 := R0:K0('PlayAnim')
+  001 GETTABUP   R3 := U0[K1('WorldTroopAnim')]
+  002 GETFIELD   R3 := R3.K2('Anim_Attack')
+  003 CALL       R1(nargs=2, nret=0)
+  004 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.PlayAnim (L354-379) ====================
+  Locals: ['R0:self(pc 0..56)', 'R1:animName(pc 0..56)', 'R2:notNeedStopAniTimer(pc 0..56)', 'R3:sameAnim(pc 9..56)', 'R4:(for state)(pc 19..37)', 'R5:(for state)(pc 19..37)', 'R6:(for state)(pc 19..37)', 'R7:i(pc 20..36)', 'R8:item(pc 22..36)', 'R9:(for state)(pc 46..55)', 'R10:(for state)(pc 46..55)', 'R11:(for state)(pc 46..55)', 'R12:i(pc 47..54)', 'R13:item(pc 49..54)']
+  Upvals: ['U0:_ENV']
+  Consts: ['K0:None', "K1:'DeletePlayNextAniTimer'", "K2:'lastPlayAnimName'", "K3:'anims'", "K4:'Length'", "K5:'IsNull'", "K6:'Stop'", "K7:'Play'", "K8:'_ToID'", "K9:'gpuAnims'"]
+  000 EQK        A=2 B=0 C=0 k=0
+  001 JMP        goto 4
+  002 SELF       R4 := R0; R3 := R0:K1('DeletePlayNextAniTimer')
+  003 CALL       R3(nargs=1, nret=0)
+  004 GETFIELD   R3 := R0.K2('lastPlayAnimName')
+  005 EQ         A=3 B=1 C=0 k=1
+  006 JMP        goto 8
+  007 LFALSESKIP A=3 B=0 C=0 k=0
+  008 LOADTRUE   A=3 B=0 C=0 k=0
+  009 SETFIELD   R0.K2('lastPlayAnimName') := R1
+  010 GETFIELD   R4 := R0.K3('anims')
+  011 EQK        A=4 B=0 C=0 k=1
+  012 JMP        goto 37
+  013 LOADI      R4 := 0
+  014 GETFIELD   R5 := R0.K3('anims')
+  015 GETFIELD   R5 := R5.K4('Length')
+  016 ADDI       A=5 B=5 C=126 k=0
+  017 MMBINI     A=5 B=128 C=7 k=0
+  018 LOADI      R6 := 1
+  019 FORPREP    A=4 B=8 C=0 k=0
+  020 GETFIELD   R8 := R0.K3('anims')
+  021 GETTABLE   A=8 B=8 C=7 k=0
+  022 GETTABUP   R9 := U0[K5('IsNull')]
+  023 MOVE       A=10 B=8 C=0 k=0
+  024 CALL       R9(nargs=1, nret=1)
+  025 TEST       A=9 B=0 C=0 k=1
+  026 JMP        goto 36
+  027 TEST       A=3 B=0 C=0 k=1
+  028 JMP        goto 31
+  029 SELF       R10 := R8; R9 := R8:K6('Stop')
+  030 CALL       R9(nargs=1, nret=0)
+  031 SELF       R10 := R8; R9 := R8:K7('Play')
+  032 GETTABUP   R11 := U0[K8('_ToID')]
+  033 MOVE       A=12 B=1 C=0 k=0
+  034 CALL       R11(nargs=1, nret=-1)
+  035 CALL       R9(nargs=-1, nret=0)
+  036 FORLOOP    A=4 B=8 C=0 k=1
+  037 GETFIELD   R4 := R0.K9('gpuAnims')
+  038 EQK        A=4 B=0 C=0 k=1
+  039 JMP        goto 55
+  040 LOADI      R4 := 0
+  041 GETFIELD   R5 := R0.K9('gpuAnims')
+  042 GETFIELD   R5 := R5.K4('Length')
+  043 ADDI       A=5 B=5 C=126 k=0
+  044 MMBINI     A=5 B=128 C=7 k=0
+  045 LOADI      R6 := 1
+  046 FORPREP    A=4 B=3 C=0 k=1
+  047 GETFIELD   R8 := R0.K9('gpuAnims')
+  048 GETTABLE   A=8 B=8 C=7 k=0
+  049 EQK        A=8 B=0 C=0 k=1
+  050 JMP        goto 54
+  051 SELF       R10 := R8; R9 := R8:K7('Play')
+  052 MOVE       A=11 B=1 C=0 k=0
+  053 CALL       R9(nargs=2, nret=0)
+  054 FORLOOP    A=4 B=4 C=0 k=0
+  055 RETURN0    A=4 B=1 C=0 k=0
+
+==================== WMO.HideDetectEvent (L343-352) ====================
+  Locals: ['R0:self(pc 0..17)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'detectEventInst'", 'K1:None', "K2:'bubble_touchEvent'", "K3:'SetPointerClick'", "K4:'Destroy'"]
+  000 GETFIELD   R1 := R0.K0('detectEventInst')
+  001 EQK        A=1 B=1 C=0 k=1
+  002 JMP        goto 16
+  003 GETFIELD   R1 := R0.K2('bubble_touchEvent')
+  004 TEST       A=1 B=0 C=0 k=0
+  005 JMP        goto 11
+  006 GETTABUP   R1 := U0[K3('SetPointerClick')]
+  007 GETFIELD   R2 := R0.K2('bubble_touchEvent')
+  008 LOADNIL    A=3 B=0 C=0 k=0
+  009 CALL       R1(nargs=2, nret=0)
+  010 SETFIELD   R0.K2('bubble_touchEvent') := K1(None)
+  011 GETFIELD   R1 := R0.K0('detectEventInst')
+  012 SELF       R2 := R1; R1 := R1:K4('Destroy')
+  013 LOADFALSE  A=3 B=0 C=0 k=0
+  014 CALL       R1(nargs=2, nret=0)
+  015 SETFIELD   R0.K0('detectEventInst') := K1(None)
+  016 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.GetDeathTime (L398-413) ====================
+  Locals: ['R0:self(pc 0..26)', 'R1:deathTime(pc 1..26)', 'R2:(for state)(pc 10..24)', 'R3:(for state)(pc 10..24)', 'R4:(for state)(pc 10..24)', 'R5:i(pc 11..23)', 'R6:item(pc 13..23)', 'R7:result(pc 19..23)']
+  Upvals: ['U0:Const']
+  Consts: ['K0:2.3', "K1:'anims'", 'K2:None', "K3:'Length'", "K4:'GetClipTime'", "K5:'WorldTroopAnim'", "K6:'Anim_Death'", 'K7:0.1']
+  000 LOADK      R1 := K0(2.3)
+  001 GETFIELD   R2 := R0.K1('anims')
+  002 EQK        A=2 B=2 C=0 k=1
+  003 JMP        goto 24
+  004 LOADI      R2 := 0
+  005 GETFIELD   R3 := R0.K1('anims')
+  006 GETFIELD   R3 := R3.K3('Length')
+  007 ADDI       A=3 B=3 C=126 k=0
+  008 MMBINI     A=3 B=128 C=7 k=0
+  009 LOADI      R4 := 1
+  010 FORPREP    A=2 B=6 C=0 k=0
+  011 GETFIELD   R6 := R0.K1('anims')
+  012 GETTABLE   A=6 B=6 C=5 k=0
+  013 EQK        A=6 B=2 C=0 k=1
+  014 JMP        goto 23
+  015 SELF       R8 := R6; R7 := R6:K4('GetClipTime')
+  016 GETTABUP   R9 := U0[K5('WorldTroopAnim')]
+  017 GETFIELD   R9 := R9.K6('Anim_Death')
+  018 CALL       R7(nargs=2, nret=1)
+  019 LOADK      R8 := K7(0.1)
+  020 LT         A=8 B=7 C=0 k=0
+  021 JMP        goto 23
+  022 MOVE       A=1 B=7 C=0 k=0
+  023 FORLOOP    A=2 B=6 C=0 k=1
+  024 RETURN1    A=1 B=2 C=0 k=0
+  025 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.RefreshLodType (L648-658) ====================
+  Locals: ['R0:self(pc 0..52)', 'R1:showType(pc 7..17)', 'R2:showType(pc 31..51)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'lodSetObj'", "K1:'DataCenter'", "K2:'WorldPointManager'", "K3:'GetSelectWorldLodType'", "K4:'gameObject'", "K5:'SetActive'", "K6:'WorldPointLodType'", "K7:'Monster'", "K8:'IsNotNull'", "K9:'lodSetObj_2'", "K10:'lodSetObj_3'"]
+  000 GETFIELD   R1 := R0.K0('lodSetObj')
+  001 TEST       A=1 B=0 C=0 k=0
+  002 JMP        goto 17
+  003 GETTABUP   R1 := U0[K1('DataCenter')]
+  004 GETFIELD   R1 := R1.K2('WorldPointManager')
+  005 SELF       R2 := R1; R1 := R1:K3('GetSelectWorldLodType')
+  006 CALL       R1(nargs=1, nret=1)
+  007 GETFIELD   R2 := R0.K0('lodSetObj')
+  008 GETFIELD   R2 := R2.K4('gameObject')
+  009 SELF       R3 := R2; R2 := R2:K5('SetActive')
+  010 GETTABUP   R4 := U0[K6('WorldPointLodType')]
+  011 GETFIELD   R4 := R4.K7('Monster')
+  012 EQ         A=1 B=4 C=0 k=1
+  013 JMP        goto 15
+  014 LFALSESKIP A=4 B=0 C=0 k=0
+  015 LOADTRUE   A=4 B=0 C=0 k=0
+  016 CALL       R2(nargs=2, nret=0)
+  017 GETTABUP   R1 := U0[K8('IsNotNull')]
+  018 GETFIELD   R2 := R0.K9('lodSetObj_2')
+  019 CALL       R1(nargs=1, nret=1)
+  020 TEST       A=1 B=0 C=0 k=0
+  021 JMP        goto 51
+  022 GETTABUP   R1 := U0[K8('IsNotNull')]
+  023 GETFIELD   R2 := R0.K10('lodSetObj_3')
+  024 CALL       R1(nargs=1, nret=1)
+  025 TEST       A=1 B=0 C=0 k=0
+  026 JMP        goto 51
+  027 GETTABUP   R1 := U0[K1('DataCenter')]
+  028 GETFIELD   R1 := R1.K2('WorldPointManager')
+  029 SELF       R2 := R1; R1 := R1:K3('GetSelectWorldLodType')
+  030 CALL       R1(nargs=1, nret=1)
+  031 GETFIELD   R2 := R0.K9('lodSetObj_2')
+  032 GETFIELD   R2 := R2.K4('gameObject')
+  033 SELF       R3 := R2; R2 := R2:K5('SetActive')
+  034 GETTABUP   R4 := U0[K6('WorldPointLodType')]
+  035 GETFIELD   R4 := R4.K7('Monster')
+  036 EQ         A=1 B=4 C=0 k=1
+  037 JMP        goto 39
+  038 LFALSESKIP A=4 B=0 C=0 k=0
+  039 LOADTRUE   A=4 B=0 C=0 k=0
+  040 CALL       R2(nargs=2, nret=0)
+  041 GETFIELD   R2 := R0.K10('lodSetObj_3')
+  042 GETFIELD   R2 := R2.K4('gameObject')
+  043 SELF       R3 := R2; R2 := R2:K5('SetActive')
+  044 GETTABUP   R4 := U0[K6('WorldPointLodType')]
+  045 GETFIELD   R4 := R4.K7('Monster')
+  046 EQ         A=1 B=4 C=0 k=1
+  047 JMP        goto 49
+  048 LFALSESKIP A=4 B=0 C=0 k=0
+  049 LOADTRUE   A=4 B=0 C=0 k=0
+  050 CALL       R2(nargs=2, nret=0)
+  051 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.SetOriginalRotation (L145-158) ====================
+  Locals: ['R0:self(pc 0..47)', 'R1:template(pc 1..47)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'monsterInfo'", 'K1:None', "K2:'DataCenter'", "K3:'MonsterTemplateManager'", "K4:'GetMonsterTemplate'", "K5:'monsterId'", "K6:'special'", "K7:'MonsterSpecialType'", "K8:'SeasonMonster1'", "K9:'SeasonRallyBoss'", "K10:'DinosaurBoss'", "K11:'OriginalRotation'", "K12:'Quaternion'", "K13:'Euler'", "K14:'SetRotation'"]
+  000 LOADNIL    A=1 B=0 C=0 k=0
+  001 GETFIELD   R2 := R0.K0('monsterInfo')
+  002 EQK        A=2 B=1 C=0 k=1
+  003 JMP        goto 11
+  004 GETTABUP   R2 := U0[K2('DataCenter')]
+  005 GETFIELD   R2 := R2.K3('MonsterTemplateManager')
+  006 SELF       R3 := R2; R2 := R2:K4('GetMonsterTemplate')
+  007 GETFIELD   R4 := R0.K0('monsterInfo')
+  008 GETFIELD   R4 := R4.K5('monsterId')
+  009 CALL       R2(nargs=2, nret=1)
+  010 MOVE       A=1 B=2 C=0 k=0
+  011 TEST       A=1 B=0 C=0 k=0
+  012 JMP        goto 36
+  013 GETFIELD   R2 := R1.K6('special')
+  014 GETTABUP   R3 := U0[K7('MonsterSpecialType')]
+  015 GETFIELD   R3 := R3.K8('SeasonMonster1')
+  016 EQ         A=2 B=3 C=0 k=1
+  017 JMP        goto 28
+  018 GETFIELD   R2 := R1.K6('special')
+  019 GETTABUP   R3 := U0[K7('MonsterSpecialType')]
+  020 GETFIELD   R3 := R3.K9('SeasonRallyBoss')
+  021 EQ         A=2 B=3 C=0 k=1
+  022 JMP        goto 28
+  023 GETFIELD   R2 := R1.K6('special')
+  024 GETTABUP   R3 := U0[K7('MonsterSpecialType')]
+  025 GETFIELD   R3 := R3.K10('DinosaurBoss')
+  026 EQ         A=2 B=3 C=0 k=0
+  027 JMP        goto 36
+  028 GETTABUP   R2 := U0[K12('Quaternion')]
+  029 GETFIELD   R2 := R2.K13('Euler')
+  030 LOADI      R3 := 0
+  031 LOADI      R4 := -150
+  032 LOADI      R5 := 0
+  033 CALL       R2(nargs=3, nret=1)
+  034 SETFIELD   R0.K11('OriginalRotation') := R2
+  035 JMP        goto 43
+  036 GETTABUP   R2 := U0[K12('Quaternion')]
+  037 GETFIELD   R2 := R2.K13('Euler')
+  038 LOADI      R3 := 0
+  039 LOADI      R4 := 180
+  040 LOADI      R5 := 0
+  041 CALL       R2(nargs=3, nret=1)
+  042 SETFIELD   R0.K11('OriginalRotation') := R2
+  043 SELF       R3 := R0; R2 := R0:K14('SetRotation')
+  044 GETFIELD   R4 := R0.K11('OriginalRotation')
+  045 CALL       R2(nargs=2, nret=0)
+  046 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.ShowAllianceBossBlood (L638-646) ====================
+  Locals: ['R0:self(pc 0..11)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'monsterInfo'", 'K1:None', "K2:'type'", "K3:'NewMarchType'", "K4:'ALLIANCE_BOSS'"]
+  000 GETFIELD   R1 := R0.K0('monsterInfo')
+  001 EQK        A=1 B=1 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN0    A=1 B=1 C=0 k=0
+  004 GETFIELD   R1 := R0.K0('monsterInfo')
+  005 GETFIELD   R1 := R1.K2('type')
+  006 GETTABUP   R2 := U0[K3('NewMarchType')]
+  007 GETFIELD   R2 := R2.K4('ALLIANCE_BOSS')
+  008 EQ         A=1 B=2 C=0 k=0
+  009 JMP        goto 10
+  010 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.ShowDetectEvent (L273-342) ====================
+  Locals: ['R0:self(pc 0..55)', 'R1:type(pc 10..55)', 'R2:marchInfo(pc 21..55)', 'R3:eventId(pc 38..50)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'gameObject'", 'K1:None', "K2:'monsterInfo'", "K3:'type'", "K4:'NewMarchType'", "K5:'MONSTER'", "K6:'PBController'", "K7:'ParsePbFromBytes'", "K8:'monsterExtraInfo'", "K9:'protobuf.NormalMonsterInfo'", "K10:'eventId'", "K11:''", "K12:'belongUid'", "K13:'LuaEntry'", "K14:'Player'", "K15:'uid'", "K16:'detectEventInst'", "K17:'CS'", "K18:'GameEntry'", "K19:'Resource'", "K20:'InstantiateAsync'", "K21:'Assets/Main/Prefabs/March/WorldDetectInfo.prefab'", "K22:'completed'", "K23:'+'", "K24:'HideDetectEvent'"]
+  000 GETFIELD   R1 := R0.K0('gameObject')
+  001 EQK        A=1 B=1 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN     A=1 B=1 C=0 k=1
+  004 GETFIELD   R1 := R0.K2('monsterInfo')
+  005 EQK        A=1 B=1 C=0 k=0
+  006 JMP        goto 8
+  007 RETURN     A=1 B=1 C=0 k=1
+  008 GETFIELD   R1 := R0.K2('monsterInfo')
+  009 GETFIELD   R1 := R1.K3('type')
+  010 GETTABUP   R2 := U0[K4('NewMarchType')]
+  011 GETFIELD   R2 := R2.K5('MONSTER')
+  012 EQ         A=1 B=2 C=0 k=1
+  013 JMP        goto 15
+  014 RETURN     A=2 B=1 C=0 k=1
+  015 GETTABUP   R2 := U0[K6('PBController')]
+  016 GETFIELD   R2 := R2.K7('ParsePbFromBytes')
+  017 GETFIELD   R3 := R0.K2('monsterInfo')
+  018 GETFIELD   R3 := R3.K8('monsterExtraInfo')
+  019 LOADK      R4 := K9('protobuf.NormalMonsterInfo')
+  020 CALL       R2(nargs=2, nret=1)
+  021 GETFIELD   R3 := R2.K10('eventId')
+  022 EQK        A=3 B=1 C=0 k=1
+  023 JMP        goto 52
+  024 GETFIELD   R3 := R2.K10('eventId')
+  025 EQK        A=3 B=11 C=0 k=1
+  026 JMP        goto 52
+  027 GETFIELD   R3 := R0.K2('monsterInfo')
+  028 GETFIELD   R3 := R3.K12('belongUid')
+  029 GETTABUP   R4 := U0[K13('LuaEntry')]
+  030 GETFIELD   R4 := R4.K14('Player')
+  031 GETFIELD   R4 := R4.K15('uid')
+  032 EQ         A=3 B=4 C=0 k=0
+  033 JMP        goto 52
+  034 GETFIELD   R3 := R0.K16('detectEventInst')
+  035 EQK        A=3 B=1 C=0 k=0
+  036 JMP        goto 54
+  037 GETFIELD   R3 := R2.K10('eventId')
+  038 GETTABUP   R4 := U0[K17('CS')]
+  039 GETFIELD   R4 := R4.K18('GameEntry')
+  040 GETFIELD   R4 := R4.K19('Resource')
+  041 SELF       R5 := R4; R4 := R4:K20('InstantiateAsync')
+  042 LOADK      R6 := K21('Assets/Main/Prefabs/March/WorldDetectInfo.prefab')
+  043 CALL       R4(nargs=2, nret=1)
+  044 SETFIELD   R0.K16('detectEventInst') := R4
+  045 GETFIELD   R4 := R0.K16('detectEventInst')
+  046 SELF       R5 := R4; R4 := R4:K22('completed')
+  047 LOADK      R6 := K23('+')
+  048 CLOSURE    A=7 B=0 C=0 k=0
+  049 CALL       R4(nargs=3, nret=0)
+  050 CLOSE      A=3 B=0 C=0 k=0
+  051 JMP        goto 54
+  052 SELF       R4 := R0; R3 := R0:K24('HideDetectEvent')
+  053 CALL       R3(nargs=1, nret=0)
+  054 RETURN     A=3 B=1 C=0 k=1
+
+==================== WMO.GetTransform (L586-591) ====================
+  Locals: ['R0:self(pc 0..9)']
+  Upvals: []
+  Consts: ["K0:'gameObject'", 'K1:None', "K2:'transform'"]
+  000 GETFIELD   R1 := R0.K0('gameObject')
+  001 EQK        A=1 B=1 C=0 k=0
+  002 JMP        goto 5
+  003 LOADNIL    A=1 B=0 C=0 k=0
+  004 RETURN1    A=1 B=2 C=0 k=0
+  005 GETFIELD   R1 := R0.K0('gameObject')
+  006 GETFIELD   R1 := R1.K2('transform')
+  007 RETURN1    A=1 B=2 C=0 k=0
+  008 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.SelectMonsterModel (L729-761) ====================
+  Locals: ['R0:self(pc 0..85)', 'R1:marchType(pc 6..85)', 'R2:seasonId(pc 20..85)', 'R3:normalBoss(pc 25..85)', 'R4:worldBoss_S3(pc 32..44)', 'R5:worldBoss_S4(pc 52..64)', 'R6:worldBoss_S5(pc 72..84)']
+  Upvals: ['U0:_ENV', 'U1:normalBossName', 'U2:S3BossName', 'U3:S4BossName', 'U4:S5BossName']
+  Consts: ["K0:'monsterInfo'", 'K1:None', "K2:'type'", "K3:'NewMarchType'", "K4:'ACT_BOSS'", "K5:'SeasonUtil'", "K6:'GetSeasonId'", "K7:'SeasonType'", "K8:'WorldSeason'", "K9:'LuaEntry'", "K10:'Player'", "K11:'GetCurServerId'", "K12:'model'", "K13:'transform'", "K14:'Find'", "K15:'gameObject'", "K16:'SetActive'"]
+  000 GETFIELD   R1 := R0.K0('monsterInfo')
+  001 EQK        A=1 B=1 C=0 k=0
+  002 JMP        goto 4
+  003 RETURN0    A=1 B=1 C=0 k=0
+  004 GETFIELD   R1 := R0.K0('monsterInfo')
+  005 GETFIELD   R1 := R1.K2('type')
+  006 GETTABUP   R2 := U0[K3('NewMarchType')]
+  007 GETFIELD   R2 := R2.K4('ACT_BOSS')
+  008 EQ         A=1 B=2 C=0 k=1
+  009 JMP        goto 11
+  010 RETURN0    A=2 B=1 C=0 k=0
+  011 GETTABUP   R2 := U0[K5('SeasonUtil')]
+  012 GETFIELD   R2 := R2.K6('GetSeasonId')
+  013 GETTABUP   R3 := U0[K7('SeasonType')]
+  014 GETFIELD   R3 := R3.K8('WorldSeason')
+  015 GETTABUP   R4 := U0[K9('LuaEntry')]
+  016 GETFIELD   R4 := R4.K10('Player')
+  017 SELF       R5 := R4; R4 := R4:K11('GetCurServerId')
+  018 CALL       R4(nargs=1, nret=-1)
+  019 CALL       R2(nargs=-1, nret=1)
+  020 GETFIELD   R3 := R0.K12('model')
+  021 GETFIELD   R3 := R3.K13('transform')
+  022 SELF       R4 := R3; R3 := R3:K14('Find')
+  023 GETUPVAL   R5 := U1(normalBossName)
+  024 CALL       R3(nargs=2, nret=1)
+  025 EQI        A=2 B=130 C=0 k=0
+  026 JMP        goto 45
+  027 GETFIELD   R4 := R0.K12('model')
+  028 GETFIELD   R4 := R4.K13('transform')
+  029 SELF       R5 := R4; R4 := R4:K14('Find')
+  030 GETUPVAL   R6 := U2(S3BossName)
+  031 CALL       R4(nargs=2, nret=1)
+  032 TEST       A=4 B=0 C=0 k=0
+  033 JMP        goto 84
+  034 TEST       A=3 B=0 C=0 k=0
+  035 JMP        goto 84
+  036 GETFIELD   R5 := R4.K15('gameObject')
+  037 SELF       R6 := R5; R5 := R5:K16('SetActive')
+  038 LOADTRUE   A=7 B=0 C=0 k=0
+  039 CALL       R5(nargs=2, nret=0)
+  040 GETFIELD   R5 := R3.K15('gameObject')
+  041 SELF       R6 := R5; R5 := R5:K16('SetActive')
+  042 LOADFALSE  A=7 B=0 C=0 k=0
+  043 CALL       R5(nargs=2, nret=0)
+  044 JMP        goto 84
+  045 EQI        A=2 B=131 C=0 k=0
+  046 JMP        goto 65
+  047 GETFIELD   R4 := R0.K12('model')
+  048 GETFIELD   R4 := R4.K13('transform')
+  049 SELF       R5 := R4; R4 := R4:K14('Find')
+  050 GETUPVAL   R6 := U3(S4BossName)
+  051 CALL       R4(nargs=2, nret=1)
+  052 TEST       A=4 B=0 C=0 k=0
+  053 JMP        goto 84
+  054 TEST       A=3 B=0 C=0 k=0
+  055 JMP        goto 84
+  056 GETFIELD   R5 := R4.K15('gameObject')
+  057 SELF       R6 := R5; R5 := R5:K16('SetActive')
+  058 LOADTRUE   A=7 B=0 C=0 k=0
+  059 CALL       R5(nargs=2, nret=0)
+  060 GETFIELD   R5 := R3.K15('gameObject')
+  061 SELF       R6 := R5; R5 := R5:K16('SetActive')
+  062 LOADFALSE  A=7 B=0 C=0 k=0
+  063 CALL       R5(nargs=2, nret=0)
+  064 JMP        goto 84
+  065 EQI        A=2 B=132 C=0 k=0
+  066 JMP        goto 84
+  067 GETFIELD   R4 := R0.K12('model')
+  068 GETFIELD   R4 := R4.K13('transform')
+  069 SELF       R5 := R4; R4 := R4:K14('Find')
+  070 GETUPVAL   R6 := U4(S5BossName)
+  071 CALL       R4(nargs=2, nret=1)
+  072 TEST       A=4 B=0 C=0 k=0
+  073 JMP        goto 84
+  074 TEST       A=3 B=0 C=0 k=0
+  075 JMP        goto 84
+  076 GETFIELD   R5 := R4.K15('gameObject')
+  077 SELF       R6 := R5; R5 := R5:K16('SetActive')
+  078 LOADTRUE   A=7 B=0 C=0 k=0
+  079 CALL       R5(nargs=2, nret=0)
+  080 GETFIELD   R5 := R3.K15('gameObject')
+  081 SELF       R6 := R5; R5 := R5:K16('SetActive')
+  082 LOADFALSE  A=7 B=0 C=0 k=0
+  083 CALL       R5(nargs=2, nret=0)
+  084 RETURN0    A=4 B=1 C=0 k=0
+
+==================== WMO.AttackOrSkill (L503-529) ====================
+  Locals: ['R0:self(pc 0..92)', 'R1:seasonId(pc 12..91)', 'R2:worldBoss_S3(pc 19..91)']
+  Upvals: ['U0:_ENV', 'U1:S3BossName', 'U2:S4BossName', 'U3:S5BossName', 'U4:MonsterTowerAlBoss']
+  Consts: ['K0:None', "K1:'model'", "K2:'SeasonUtil'", "K3:'GetSeasonId'", "K4:'SeasonType'", "K5:'WorldSeason'", "K6:'LuaEntry'", "K7:'Player'", "K8:'GetCurServerId'", "K9:'transform'", "K10:'Find'", "K11:'_ToID'", "K12:'nextAniTimer'", "K13:'curAniIndex'", 'K14:0', "K15:'TimerToPlayNextAni'", "K16:'monsterInfo'", "K17:'type'", "K18:'NewMarchType'", "K19:'MonsterTowerAlBoss'", "K20:'Attack'"]
+  000 GETFIELD   R1 := R0.K1('model')
+  001 EQK        A=1 B=0 C=0 k=1
+  002 JMP        goto 91
+  003 GETTABUP   R1 := U0[K2('SeasonUtil')]
+  004 GETFIELD   R1 := R1.K3('GetSeasonId')
+  005 GETTABUP   R2 := U0[K4('SeasonType')]
+  006 GETFIELD   R2 := R2.K5('WorldSeason')
+  007 GETTABUP   R3 := U0[K6('LuaEntry')]
+  008 GETFIELD   R3 := R3.K7('Player')
+  009 SELF       R4 := R3; R3 := R3:K8('GetCurServerId')
+  010 CALL       R3(nargs=1, nret=-1)
+  011 CALL       R1(nargs=-1, nret=1)
+  012 GETFIELD   R2 := R0.K1('model')
+  013 GETFIELD   R2 := R2.K9('transform')
+  014 SELF       R3 := R2; R2 := R2:K10('Find')
+  015 GETTABUP   R4 := U0[K11('_ToID')]
+  016 GETUPVAL   R5 := U1(S3BossName)
+  017 CALL       R4(nargs=1, nret=-1)
+  018 CALL       R2(nargs=-1, nret=1)
+  019 EQI        A=1 B=130 C=0 k=0
+  020 JMP        goto 30
+  021 TEST       A=2 B=0 C=0 k=0
+  022 JMP        goto 30
+  023 GETFIELD   R3 := R0.K12('nextAniTimer')
+  024 EQK        A=3 B=0 C=0 k=0
+  025 JMP        goto 91
+  026 SETFIELD   R0.K13('curAniIndex') := K14(0)
+  027 SELF       R4 := R0; R3 := R0:K15('TimerToPlayNextAni')
+  028 CALL       R3(nargs=1, nret=0)
+  029 JMP        goto 91
+  030 EQI        A=1 B=131 C=0 k=0
+  031 JMP        goto 47
+  032 GETFIELD   R3 := R0.K1('model')
+  033 GETFIELD   R3 := R3.K9('transform')
+  034 SELF       R4 := R3; R3 := R3:K10('Find')
+  035 GETTABUP   R5 := U0[K11('_ToID')]
+  036 GETUPVAL   R6 := U2(S4BossName)
+  037 CALL       R5(nargs=1, nret=-1)
+  038 CALL       R3(nargs=-1, nret=1)
+  039 TEST       A=3 B=0 C=0 k=0
+  040 JMP        goto 47
+  041 GETFIELD   R3 := R0.K12('nextAniTimer')
+  042 EQK        A=3 B=0 C=0 k=0
+  043 JMP        goto 91
+  044 SELF       R4 := R0; R3 := R0:K15('TimerToPlayNextAni')
+  045 CALL       R3(nargs=1, nret=0)
+  046 JMP        goto 91
+  047 EQI        A=1 B=132 C=0 k=0
+  048 JMP        goto 64
+  049 GETFIELD   R3 := R0.K1('model')
+  050 GETFIELD   R3 := R3.K9('transform')
+  051 SELF       R4 := R3; R3 := R3:K10('Find')
+  052 GETTABUP   R5 := U0[K11('_ToID')]
+  053 GETUPVAL   R6 := U3(S5BossName)
+  054 CALL       R5(nargs=1, nret=-1)
+  055 CALL       R3(nargs=-1, nret=1)
+  056 TEST       A=3 B=0 C=0 k=0
+  057 JMP        goto 64
+  058 GETFIELD   R3 := R0.K12('nextAniTimer')
+  059 EQK        A=3 B=0 C=0 k=0
+  060 JMP        goto 91
+  061 SELF       R4 := R0; R3 := R0:K15('TimerToPlayNextAni')
+  062 CALL       R3(nargs=1, nret=0)
+  063 JMP        goto 91
+  064 GETFIELD   R3 := R0.K16('monsterInfo')
+  065 TEST       A=3 B=0 C=0 k=0
+  066 JMP        goto 89
+  067 GETFIELD   R3 := R0.K16('monsterInfo')
+  068 GETFIELD   R3 := R3.K17('type')
+  069 GETTABUP   R4 := U0[K18('NewMarchType')]
+  070 GETFIELD   R4 := R4.K19('MonsterTowerAlBoss')
+  071 EQ         A=3 B=4 C=0 k=0
+  072 JMP        goto 89
+  073 GETFIELD   R3 := R0.K1('model')
+  074 GETFIELD   R3 := R3.K9('transform')
+  075 SELF       R4 := R3; R3 := R3:K10('Find')
+  076 GETTABUP   R5 := U0[K11('_ToID')]
+  077 GETUPVAL   R6 := U4(MonsterTowerAlBoss)
+  078 CALL       R5(nargs=1, nret=-1)
+  079 CALL       R3(nargs=-1, nret=1)
+  080 TEST       A=3 B=0 C=0 k=0
+  081 JMP        goto 89
+  082 GETFIELD   R3 := R0.K12('nextAniTimer')
+  083 EQK        A=3 B=0 C=0 k=0
+  084 JMP        goto 91
+  085 SETFIELD   R0.K13('curAniIndex') := K14(0)
+  086 SELF       R4 := R0; R3 := R0:K15('TimerToPlayNextAni')
+  087 CALL       R3(nargs=1, nret=0)
+  088 JMP        goto 91
+  089 SELF       R4 := R0; R3 := R0:K20('Attack')
+  090 CALL       R3(nargs=1, nret=0)
+  091 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.Die (L419-438) ====================
+  Locals: ['R0:self(pc 0..51)', 'R1:isActBoss(pc 1..51)', 'R2:type(pc 6..11)', 'R3:normalized(pc 40..48)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'monsterInfo'", "K1:'type'", "K2:'NewMarchType'", "K3:'ACT_BOSS'", "K4:'PlayAnim'", "K5:'death'", "K6:'winTargetPos'", 'K7:None', "K8:'MONSTER'", "K9:'gameObject'", "K10:'Vector3'", "K11:'Normalize'", "K12:'transform'", "K13:'position'", "K14:'SetRotation'", "K15:'Quaternion'", "K16:'LookRotation'", "K17:'up'", "K18:'PlayDeadEff'"]
+  000 LOADFALSE  A=1 B=0 C=0 k=0
+  001 GETFIELD   R2 := R0.K0('monsterInfo')
+  002 TEST       A=2 B=0 C=0 k=0
+  003 JMP        goto 11
+  004 GETFIELD   R2 := R0.K0('monsterInfo')
+  005 GETFIELD   R2 := R2.K1('type')
+  006 GETTABUP   R3 := U0[K2('NewMarchType')]
+  007 GETFIELD   R3 := R3.K3('ACT_BOSS')
+  008 EQ         A=2 B=3 C=0 k=0
+  009 JMP        goto 11
+  010 LOADTRUE   A=1 B=0 C=0 k=0
+  011 TEST       A=1 B=0 C=0 k=1
+  012 JMP        goto 16
+  013 SELF       R3 := R0; R2 := R0:K4('PlayAnim')
+  014 LOADK      R4 := K5('death')
+  015 CALL       R2(nargs=2, nret=0)
+  016 GETFIELD   R2 := R0.K6('winTargetPos')
+  017 EQK        A=2 B=7 C=0 k=1
+  018 JMP        goto 48
+  019 GETFIELD   R2 := R0.K0('monsterInfo')
+  020 TEST       A=2 B=0 C=0 k=0
+  021 JMP        goto 48
+  022 GETFIELD   R2 := R0.K0('monsterInfo')
+  023 GETFIELD   R2 := R2.K1('type')
+  024 GETTABUP   R3 := U0[K2('NewMarchType')]
+  025 GETFIELD   R3 := R3.K8('MONSTER')
+  026 EQ         A=2 B=3 C=0 k=1
+  027 JMP        goto 48
+  028 GETFIELD   R2 := R0.K9('gameObject')
+  029 EQK        A=2 B=7 C=0 k=1
+  030 JMP        goto 48
+  031 GETTABUP   R2 := U0[K10('Vector3')]
+  032 GETFIELD   R2 := R2.K11('Normalize')
+  033 GETFIELD   R3 := R0.K6('winTargetPos')
+  034 GETFIELD   R4 := R0.K9('gameObject')
+  035 GETFIELD   R4 := R4.K12('transform')
+  036 GETFIELD   R4 := R4.K13('position')
+  037 SUB        A=3 B=3 C=4 k=0
+  038 MMBIN      A=3 B=4 C=7 k=0
+  039 CALL       R2(nargs=1, nret=1)
+  040 SELF       R4 := R0; R3 := R0:K14('SetRotation')
+  041 GETTABUP   R5 := U0[K15('Quaternion')]
+  042 GETFIELD   R5 := R5.K16('LookRotation')
+  043 MOVE       A=6 B=2 C=0 k=0
+  044 GETTABUP   R7 := U0[K10('Vector3')]
+  045 GETFIELD   R7 := R7.K17('up')
+  046 CALL       R5(nargs=2, nret=-1)
+  047 CALL       R3(nargs=-1, nret=0)
+  048 SELF       R3 := R0; R2 := R0:K18('PlayDeadEff')
+  049 CALL       R2(nargs=1, nret=0)
+  050 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WMO.OnCreateGameObject (L82-143) ====================
+  Locals: ['R0:self(pc 0..159)', 'R1:trans(pc 26..158)', 'R2:setLodSet(pc 80..158)', 'R3:marchType(pc 85..115)', 'R4:marchInfo(pc 108..115)']
+  Upvals: ['U0:_ENV', 'U1:Const']
+  Consts: ["K0:'gameObject'", 'K1:None', "K2:'App'", "K3:'IsEditor'", "K4:'IsShowFullName'", "K5:'name'", "K6:'WorldMonsterPoint_'", "K7:'pointIndex'", "K8:'transform'", "K9:'SetParent'", "K10:'CS'", "K11:'SceneManager'", "K12:'World'", "K13:'DynamicObjNode'", "K14:'position'", "K15:'SceneUtils'", "K16:'TileIndexToWorld'", "K17:'ForceChangeScene'", "K18:'model'", "K19:'Find'", "K20:'modelPath1'", "K21:'SetActive'", "K22:'isVisible'", "K23:'lodSetObj'", "K24:'lodSetObjPath'", "K25:'lodSetObj_2'", "K26:'Icon/lodSetObj/MonsterIconSprite'", "K27:'lodSetObj_3'", "K28:'Icon/lodSetObj/IconLabel'", "K29:'anims'", "K30:'GetComponentsInChildren'", "K31:'typeof'", "K32:'SimpleAnimation'", "K33:'gpuAnims'", "K34:'cityLabels'", "K35:'UIWorldLabel'", "K36:'localScale'", "K37:'Vector3'", "K38:'one'", "K39:'monsterInfo'", "K40:'type'", "K41:'NewMarchType'", "K42:'MONSTER'", "K43:'BOSS'", "K44:'CAR_CHIP_TRAIL_BOSS'", "K45:'PBController'", "K46:'ParsePbFromBytes'", "K47:'monsterExtraInfo'", "K48:'protobuf.NormalMonsterInfo'", "K49:'eventId'", "K50:''", 'K51:False', "K52:'RefreshLodType'", "K53:'IsNotNull'", "K54:'Set_localScale'", 'K55:0.5']
+  000 GETFIELD   R1 := R0.K0('gameObject')
+  001 EQK        A=1 B=1 C=0 k=1
+  002 JMP        goto 158
+  003 GETTABUP   R1 := U0[K2('App')]
+  004 GETFIELD   R1 := R1.K3('IsEditor')
+  005 CALL       R1(nargs=0, nret=1)
+  006 TEST       A=1 B=0 C=0 k=0
+  007 JMP        goto 24
+  008 GETTABUP   R1 := U0[K4('IsShowFullName')]
+  009 TEST       A=1 B=0 C=0 k=0
+  010 JMP        goto 19
+  011 GETFIELD   R1 := R0.K0('gameObject')
+  012 GETFIELD   R2 := R0.K0('gameObject')
+  013 GETFIELD   R2 := R2.K5('name')
+  014 LOADK      R3 := K6('WorldMonsterPoint_')
+  015 GETFIELD   R4 := R0.K7('pointIndex')
+  016 CONCAT     A=2 B=3 C=0 k=0
+  017 SETFIELD   R1.K5('name') := R2
+  018 JMP        goto 24
+  019 GETFIELD   R1 := R0.K0('gameObject')
+  020 LOADK      R2 := K6('WorldMonsterPoint_')
+  021 GETFIELD   R3 := R0.K7('pointIndex')
+  022 CONCAT     A=2 B=2 C=0 k=0
+  023 SETFIELD   R1.K5('name') := R2
+  024 GETFIELD   R1 := R0.K0('gameObject')
+  025 GETFIELD   R1 := R1.K8('transform')
+  026 SELF       R3 := R1; R2 := R1:K9('SetParent')
+  027 GETTABUP   R4 := U0[K10('CS')]
+  028 GETFIELD   R4 := R4.K11('SceneManager')
+  029 GETFIELD   R4 := R4.K12('World')
+  030 GETFIELD   R4 := R4.K13('DynamicObjNode')
+  031 CALL       R2(nargs=2, nret=0)
+  032 GETTABUP   R2 := U0[K15('SceneUtils')]
+  033 GETFIELD   R2 := R2.K16('TileIndexToWorld')
+  034 GETFIELD   R3 := R0.K7('pointIndex')
+  035 GETTABUP   R4 := U0[K17('ForceChangeScene')]
+  036 GETFIELD   R4 := R4.K12('World')
+  037 CALL       R2(nargs=2, nret=1)
+  038 SETFIELD   R1.K14('position') := R2
+  039 SELF       R3 := R1; R2 := R1:K19('Find')
+  040 GETTABUP   R4 := U1[K20('modelPath1')]
+  041 CALL       R2(nargs=2, nret=1)
+  042 SETFIELD   R0.K18('model') := R2
+  043 GETFIELD   R2 := R0.K0('gameObject')
+  044 SELF       R3 := R2; R2 := R2:K21('SetActive')
+  045 GETFIELD   R4 := R0.K22('isVisible')
+  046 CALL       R2(nargs=2, nret=0)
+  047 SELF       R3 := R1; R2 := R1:K19('Find')
+  048 GETTABUP   R4 := U1[K24('lodSetObjPath')]
+  049 CALL       R2(nargs=2, nret=1)
+  050 SETFIELD   R0.K23('lodSetObj') := R2
+  051 SELF       R3 := R1; R2 := R1:K19('Find')
+  052 LOADK      R4 := K26('Icon/lodSetObj/MonsterIconSprite')
+  053 CALL       R2(nargs=2, nret=1)
+  054 SETFIELD   R0.K25('lodSetObj_2') := R2
+  055 SELF       R3 := R1; R2 := R1:K19('Find')
+  056 LOADK      R4 := K28('Icon/lodSetObj/IconLabel')
+  057 CALL       R2(nargs=2, nret=1)
+  058 SETFIELD   R0.K27('lodSetObj_3') := R2
+  059 SELF       R3 := R1; R2 := R1:K30('GetComponentsInChildren')
+  060 GETTABUP   R4 := U0[K31('typeof')]
+  061 GETTABUP   R5 := U0[K10('CS')]
+  062 GETFIELD   R5 := R5.K32('SimpleAnimation')
+  063 CALL       R4(nargs=1, nret=1)
+  064 LOADTRUE   A=5 B=0 C=0 k=0
+  065 CALL       R2(nargs=3, nret=1)
+  066 SETFIELD   R0.K29('anims') := R2
+  067 SETFIELD   R0.K33('gpuAnims') := K1(None)
+  068 SELF       R3 := R1; R2 := R1:K30('GetComponentsInChildren')
+  069 GETTABUP   R4 := U0[K31('typeof')]
+  070 GETTABUP   R5 := U0[K10('CS')]
+  071 GETFIELD   R5 := R5.K35('UIWorldLabel')
+  072 CALL       R4(nargs=1, nret=1)
+  073 LOADTRUE   A=5 B=0 C=0 k=0
+  074 CALL       R2(nargs=3, nret=1)
+  075 SETFIELD   R0.K34('cityLabels') := R2
+  076 GETTABUP   R2 := U0[K37('Vector3')]
+  077 GETFIELD   R2 := R2.K38('one')
+  078 SETFIELD   R1.K36('localScale') := R2
+  079 LOADFALSE  A=2 B=0 C=0 k=0
+  080 GETFIELD   R3 := R0.K39('monsterInfo')
+  081 EQK        A=3 B=1 C=0 k=1
+  082 JMP        goto 115
+  083 GETFIELD   R3 := R0.K39('monsterInfo')
+  084 GETFIELD   R3 := R3.K40('type')
+  085 GETTABUP   R4 := U0[K41('NewMarchType')]
+  086 GETFIELD   R4 := R4.K42('MONSTER')
+  087 EQ         A=3 B=4 C=0 k=1
+  088 JMP        goto 97
+  089 GETTABUP   R4 := U0[K41('NewMarchType')]
+  090 GETFIELD   R4 := R4.K43('BOSS')
+  091 EQ         A=3 B=4 C=0 k=1
+  092 JMP        goto 97
+  093 GETTABUP   R4 := U0[K41('NewMarchType')]
+  094 GETFIELD   R4 := R4.K44('CAR_CHIP_TRAIL_BOSS')
+  095 EQ         A=3 B=4 C=0 k=0
+  096 JMP        goto 115
+  097 LOADTRUE   A=2 B=0 C=0 k=0
+  098 GETTABUP   R4 := U0[K41('NewMarchType')]
+  099 GETFIELD   R4 := R4.K42('MONSTER')
+  100 EQ         A=3 B=4 C=0 k=0
+  101 JMP        goto 115
+  102 GETTABUP   R4 := U0[K45('PBController')]
+  103 GETFIELD   R4 := R4.K46('ParsePbFromBytes')
+  104 GETFIELD   R5 := R0.K39('monsterInfo')
+  105 GETFIELD   R5 := R5.K47('monsterExtraInfo')
+  106 LOADK      R6 := K48('protobuf.NormalMonsterInfo')
+  107 CALL       R4(nargs=2, nret=1)
+  108 GETFIELD   R5 := R4.K49('eventId')
+  109 EQK        A=5 B=1 C=0 k=1
+  110 JMP        goto 115
+  111 GETFIELD   R5 := R4.K49('eventId')
+  112 EQK        A=5 B=50 C=0 k=1
+  113 JMP        goto 115
+  114 LOADFALSE  A=2 B=0 C=0 k=0
+  115 GETFIELD   R3 := R0.K23('lodSetObj')
+  116 EQK        A=3 B=1 C=0 k=1
+  117 JMP        goto 128
+  118 EQK        A=2 B=51 C=0 k=0
+  119 JMP        goto 126
+  120 GETFIELD   R3 := R0.K23('lodSetObj')
+  121 GETFIELD   R3 := R3.K0('gameObject')
+  122 SELF       R4 := R3; R3 := R3:K21('SetActive')
+  123 LOADTRUE   A=5 B=0 C=0 k=0
+  124 CALL       R3(nargs=2, nret=0)
+  125 JMP        goto 128
+  126 SELF       R4 := R0; R3 := R0:K52('RefreshLodType')
+  127 CALL       R3(nargs=1, nret=0)
+  128 GETTABUP   R3 := U0[K53('IsNotNull')]
+  129 GETFIELD   R4 := R0.K25('lodSetObj_2')
+  130 CALL       R3(nargs=1, nret=1)
+  131 TEST       A=3 B=0 C=0 k=0
+  132 JMP        goto 158
+  133 GETFIELD   R3 := R0.K25('lodSetObj_2')
+  134 SELF       R4 := R3; R3 := R3:K54('Set_localScale')
+  135 LOADK      R5 := K55(0.5)
+  136 LOADK      R6 := K55(0.5)
+  137 LOADI      R7 := 0
+  138 CALL       R3(nargs=4, nret=0)
+  139 GETTABUP   R3 := U0[K53('IsNotNull')]
+  140 GETFIELD   R4 := R0.K27('lodSetObj_3')
+  141 CALL       R3(nargs=1, nret=1)
+  142 TEST       A=3 B=0 C=0 k=0
+  143 JMP        goto 158
+  144 EQK        A=2 B=51 C=0 k=0
+  145 JMP        goto 156
+  146 GETFIELD   R3 := R0.K25('lodSetObj_2')
+  147 GETFIELD   R3 := R3.K0('gameObject')
+  148 SELF       R4 := R3; R3 := R3:K21('SetActive')
+  149 LOADTRUE   A=5 B=0 C=0 k=0
+  150 CALL       R3(nargs=2, nret=0)
+  151 GETFIELD   R3 := R0.K27('lodSetObj_3')
+  152 GETFIELD   R3 := R3.K0('gameObject')
+  153 SELF       R4 := R3; R3 := R3:K21('SetActive')
+  154 LOADTRUE   A=5 B=0 C=0 k=0
+  155 CALL       R3(nargs=2, nret=0)
+  156 SELF       R4 := R0; R3 := R0:K52('RefreshLodType')
+  157 CALL       R3(nargs=1, nret=0)
+  158 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WMO.GetTargetPos (L544-555) ====================
+  Locals: ['R0:self(pc 0..29)', 'R1:targetUuid(pc 0..29)', 'R2:troop(pc 6..29)', 'R3:march(pc 17..28)', 'R4:pos(pc 21..28)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'WorldTroopManager'", "K1:'GetInstance'", "K2:'GetTroop'", 'K3:None', "K4:'GetPosition'", "K5:'DataCenter'", "K6:'WorldMarchDataManager'", "K7:'GetMarch'", "K8:'GetMarchCurPos'", "K9:'Vector3'", "K10:'New'", "K11:'x'", "K12:'y'", "K13:'z'"]
+  000 GETTABUP   R2 := U0[K0('WorldTroopManager')]
+  001 SELF       R3 := R2; R2 := R2:K1('GetInstance')
+  002 CALL       R2(nargs=1, nret=1)
+  003 SELF       R3 := R2; R2 := R2:K2('GetTroop')
+  004 MOVE       A=4 B=1 C=0 k=0
+  005 CALL       R2(nargs=2, nret=1)
+  006 EQK        A=2 B=3 C=0 k=1
+  007 JMP        goto 12
+  008 SELF       R4 := R2; R3 := R2:K4('GetPosition')
+  009 TAILCALL   A=3 B=2 C=0 k=0
+  010 RETURN     A=3 B=0 C=0 k=0
+  011 JMP        goto 28
+  012 GETTABUP   R3 := U0[K5('DataCenter')]
+  013 GETFIELD   R3 := R3.K6('WorldMarchDataManager')
+  014 SELF       R4 := R3; R3 := R3:K7('GetMarch')
+  015 MOVE       A=5 B=1 C=0 k=0
+  016 CALL       R3(nargs=2, nret=1)
+  017 EQK        A=3 B=3 C=0 k=1
+  018 JMP        goto 28
+  019 SELF       R5 := R3; R4 := R3:K8('GetMarchCurPos')
+  020 CALL       R4(nargs=1, nret=1)
+  021 GETTABUP   R5 := U0[K9('Vector3')]
+  022 GETFIELD   R5 := R5.K10('New')
+  023 GETFIELD   R6 := R4.K11('x')
+  024 GETFIELD   R7 := R4.K12('y')
+  025 GETFIELD   R8 := R4.K13('z')
+  026 TAILCALL   A=5 B=4 C=0 k=0
+  027 RETURN     A=5 B=0 C=0 k=0
+  028 RETURN0    A=3 B=1 C=0 k=0

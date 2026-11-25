@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+build/
+dist/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.suo
+
+# Temporary and machine-local runtime configs
+*.tmp
+tools/detected_environment.json
+data/client profiles.json
+data/farm status.json
+data/bot state.json
+data/bot status.json
+data/bot.lock
+data/bot config.json
+data/daily_task_state.json
+data/bot_stage_state.json
+data/cache/
+data/heinzy2_*.json
+data/json cache/translator config.json
+data/json cache/translator bridge.json
+data/json cache/translation cache.sqlite*
+data/json cache/shield watchlist.json
+data/json cache/ui preferences.json
+data/json cache/bound accounts.json
+data/json cache/heinz login prefs.json
+/engine/
+
+# Agent logs and temporary runtime manifests
+.agents/
+checkpoints/
+scratch/
+data/detected_environment.json
+data/detected environment.json
+TEST_INFRA.md
+TEST_READY.md
+
+# Large extracted game asset libraries (3.4 GB total; regenerable via tools/extract all *.py)
+/assets/
+/models/
+/maps/

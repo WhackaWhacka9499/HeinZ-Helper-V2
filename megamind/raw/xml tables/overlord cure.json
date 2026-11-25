@@ -1,0 +1,1 @@
+{"xml":"overlord_cure","table_keys":["TableName.OverlordCure"],"columns":["id","cure_point","cure_state","cure_state_icon","font_color","spine"],"row_count":3,"rows":{"3":["3","150","913712","c_dominate_C","7cef76","Spine_Dominate_00"],"1":["1","49","913710","c_dominate_A","e35252","Spine_Dominate_00"],"2":["2","99","913711","c_dominate_B","ffb320","Spine_Dominate_00"]}}

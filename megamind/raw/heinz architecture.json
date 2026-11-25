@@ -1,0 +1,7601 @@
+{
+  "hub_backend": {
+    "file": "launcher/heinz_hub_web.py",
+    "lines": 5586,
+    "bytes": 271702,
+    "classes": [
+      {
+        "name": "HubBackend",
+        "line": 1013,
+        "end_line": 5394,
+        "methods": [
+          {
+            "name": "__init__",
+            "line": 1016,
+            "end_line": 1146,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "set_window",
+            "line": 1148,
+            "end_line": 1149,
+            "args": [
+              "self",
+              "win"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_load_cached_state",
+            "line": 1151,
+            "end_line": 1195,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "log",
+            "line": 1199,
+            "end_line": 1271,
+            "args": [
+              "self",
+              "msg",
+              "kind",
+              "category",
+              "is_tip"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_resolve_client_context",
+            "line": 1273,
+            "end_line": 1287,
+            "args": [
+              "self",
+              "pid"
+            ],
+            "doc": "Resolve active running process, display label, and sanitized cache stem cleanly."
+          },
+          {
+            "name": "clear_logs",
+            "line": 1289,
+            "end_line": 1292,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "start_monitors",
+            "line": 1294,
+            "end_line": 1297,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_hospital_config_path",
+            "line": 1299,
+            "end_line": 1302,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_is_manual_bot_busy_locked",
+            "line": 1304,
+            "end_line": 1308,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_recompute_always_on_state_locked",
+            "line": 1310,
+            "end_line": 1353,
+            "args": [
+              "self",
+              "now_ts"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_build_always_on_snapshot_locked",
+            "line": 1355,
+            "end_line": 1383,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_always_on_toggle_response_locked",
+            "line": 1385,
+            "end_line": 1401,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_load_always_on_daemon_config",
+            "line": 1403,
+            "end_line": 1487,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_persist_always_on_config",
+            "line": 1489,
+            "end_line": 1553,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_start_always_on_daemon",
+            "line": 1555,
+            "end_line": 1566,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_start_hospital_watcher",
+            "line": 1568,
+            "end_line": 1569,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_start_alliance_help_watcher",
+            "line": 1571,
+            "end_line": 1572,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "toggle_always_on_daemon",
+            "line": 1574,
+            "end_line": 1603,
+            "args": [
+              "self",
+              "enabled"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "toggle_hospital_watcher",
+            "line": 1605,
+            "end_line": 1643,
+            "args": [
+              "self",
+              "target",
+              "enabled"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "toggle_alliance_help_watcher",
+            "line": 1645,
+            "end_line": 1667,
+            "args": [
+              "self",
+              "enabled"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "toggle_alliance_tech_watcher",
+            "line": 1669,
+            "end_line": 1690,
+            "args": [
+              "self",
+              "enabled"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_resolve_hospital_watcher_clients",
+            "line": 1692,
+            "end_line": 1729,
+            "args": [
+              "self",
+              "running"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_run_hospital_watcher_once",
+            "line": 1731,
+            "end_line": 1880,
+            "args": [
+              "self",
+              "dry_run",
+              "held_lock"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_extract_count",
+            "line": 1883,
+            "end_line": 1890,
+            "args": [
+              "val"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_run_alliance_auto_help_once",
+            "line": 1892,
+            "end_line": 2121,
+            "args": [
+              "self",
+              "force_log",
+              "held_lock"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_run_alliance_tech_once",
+            "line": 2123,
+            "end_line": 2327,
+            "args": [
+              "self",
+              "force_log",
+              "held_lock"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_run_always_on_sweep_now",
+            "line": 2329,
+            "end_line": 2382,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_always_on_daemon_loop",
+            "line": 2384,
+            "end_line": 2575,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_begin_action",
+            "line": 2577,
+            "end_line": 2582,
+            "args": [
+              "self",
+              "key"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_end_action",
+            "line": 2584,
+            "end_line": 2586,
+            "args": [
+              "self",
+              "key"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_subprocess_env",
+            "line": 2588,
+            "end_line": 2596,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_pid_args",
+            "line": 2598,
+            "end_line": 2599,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_subproc_run",
+            "line": 2601,
+            "end_line": 2616,
+            "args": [
+              "self",
+              "args",
+              "timeout",
+              "env"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_subproc_popen",
+            "line": 2618,
+            "end_line": 2630,
+            "args": [
+              "self",
+              "args",
+              "env"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "find_script",
+            "line": 2632,
+            "end_line": 2650,
+            "args": [
+              "self",
+              "name"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "find_file",
+            "line": 2652,
+            "end_line": 2664,
+            "args": [
+              "self",
+              "name"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_run_tool",
+            "line": 2666,
+            "end_line": 2671,
+            "args": [
+              "self",
+              "script_name",
+              "extra_args",
+              "timeout",
+              "env",
+              "utf8"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_stream_tool",
+            "line": 2673,
+            "end_line": 2747,
+            "args": [
+              "self",
+              "script_name",
+              "extra_args",
+              "timeout",
+              "env",
+              "utf8",
+              "on_line"
+            ],
+            "doc": "Run a tool script via subprocess.Popen and stream stdout/stderr line-by-line in real time."
+          },
+          {
+            "name": "_norm_log_dedup",
+            "line": 2750,
+            "end_line": 2751,
+            "args": [
+              "text"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_make_bot_stream_handler",
+            "line": 2753,
+            "end_line": 2830,
+            "args": [
+              "self"
+            ],
+            "doc": "Build a live line-by-line parser for multi client bot.py stdout/stderr."
+          },
+          {
+            "name": "_extract_before_after_deltas",
+            "line": 2832,
+            "end_line": 2874,
+            "args": [
+              "self",
+              "t_res"
+            ],
+            "doc": "Extract human-readable before->after delta lines from any task dict."
+          },
+          {
+            "name": "_log_task_deep_details",
+            "line": 2876,
+            "end_line": 2951,
+            "args": [
+              "self",
+              "c_lbl",
+              "t_name",
+              "t_res",
+              "streamed_norm"
+            ],
+            "doc": "Emit any deep diagnostic details (detail_lines, deltas, tips, modals, send_errors) not yet streamed."
+          },
+          {
+            "name": "_open_output_file",
+            "line": 2953,
+            "end_line": 2955,
+            "args": [
+              "self",
+              "path"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_client_display_name",
+            "line": 2957,
+            "end_line": 2968,
+            "args": [
+              "self",
+              "proc"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_discover_running_clients",
+            "line": 2970,
+            "end_line": 3011,
+            "args": [
+              "self",
+              "query_lua",
+              "force_pids"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_refresh_setup_status",
+            "line": 3013,
+            "end_line": 3025,
+            "args": [
+              "self",
+              "base_dir"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "inspect_setup",
+            "line": 3027,
+            "end_line": 3028,
+            "args": [
+              "self",
+              "base_dir"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_update_dropdown_values",
+            "line": 3030,
+            "end_line": 3051,
+            "args": [
+              "self",
+              "running"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_refresh_fleet_state",
+            "line": 3053,
+            "end_line": 3153,
+            "args": [
+              "self",
+              "live_snapshots",
+              "status_data"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_poll_loop",
+            "line": 3155,
+            "end_line": 3244,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "ensure_daemon_running",
+            "line": 3246,
+            "end_line": 3263,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_build_config_snapshot",
+            "line": 3272,
+            "end_line": 3294,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "get_state",
+            "line": 3296,
+            "end_line": 3325,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "select_target_client",
+            "line": 3327,
+            "end_line": 3366,
+            "args": [
+              "self",
+              "choice"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "save_bot_config",
+            "line": 3368,
+            "end_line": 3414,
+            "args": [
+              "self",
+              "payload"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "save_event_rules",
+            "line": 3416,
+            "end_line": 3432,
+            "args": [
+              "self",
+              "rules_payload"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "browse_folder",
+            "line": 3434,
+            "end_line": 3442,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "query_map_targets",
+            "line": 3444,
+            "end_line": 3520,
+            "args": [
+              "self",
+              "search",
+              "category",
+              "max_results"
+            ],
+            "doc": "Search accumulated bases and seasonal tiles from CSV cache for instant UI display."
+          },
+          {
+            "name": "jump_to_coordinate",
+            "line": 3522,
+            "end_line": 3540,
+            "args": [
+              "self",
+              "x",
+              "y",
+              "server_id"
+            ],
+            "doc": "Snap in-game camera to specific map coordinates in the active Last Z client."
+          },
+          {
+            "name": "get_account_inventory",
+            "line": 3542,
+            "end_line": 3777,
+            "args": [
+              "self",
+              "pid",
+              "force_live"
+            ],
+            "doc": "Fetch and return categorized, visually formatted inventory items for target client."
+          },
+          {
+            "name": "_find_asset",
+            "line": 3779,
+            "end_line": 3795,
+            "args": [
+              "self",
+              "filename"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "get_tech_calculator_data",
+            "line": 3797,
+            "end_line": 3993,
+            "args": [
+              "self",
+              "pid",
+              "force_live"
+            ],
+            "doc": "Calculate invested and remaining courage badges per tier and whole tree, with live client sync."
+          },
+          {
+            "name": "get_migration_calculator_data",
+            "line": 3995,
+            "end_line": 4154,
+            "args": [
+              "self",
+              "state_id",
+              "player_query"
+            ],
+            "doc": "Return migration score, pass costs, tier matrix, and top alliance rosters for target state."
+          },
+          {
+            "name": "quick_shield",
+            "line": 4156,
+            "end_line": 4238,
+            "args": [
+              "self",
+              "pid"
+            ],
+            "doc": "Activate a peace shield immediately from bag using passive Lua invocation."
+          },
+          {
+            "name": "quick_recall",
+            "line": 4240,
+            "end_line": 4284,
+            "args": [
+              "self",
+              "pid"
+            ],
+            "doc": "Recall all gathering or field marches back to base immediately."
+          },
+          {
+            "name": "get_troops_overview",
+            "line": 4286,
+            "end_line": 4481,
+            "args": [
+              "self",
+              "pid",
+              "force_live"
+            ],
+            "doc": "Extract or retrieve cached drill ground troops, formations, and hospital wounded status."
+          },
+          {
+            "name": "get_alliance_deltas",
+            "line": 4483,
+            "end_line": 4602,
+            "args": [
+              "self",
+              "state_id",
+              "force_snapshot"
+            ],
+            "doc": "Compute power deltas, member shifts, and rank movements across state alliances."
+          },
+          {
+            "name": "get_presets",
+            "line": 4604,
+            "end_line": 4614,
+            "args": [
+              "self"
+            ],
+            "doc": "Load saved automation presets from data/bot_presets.json."
+          },
+          {
+            "name": "save_preset",
+            "line": 4616,
+            "end_line": 4636,
+            "args": [
+              "self",
+              "name",
+              "tasks",
+              "desc"
+            ],
+            "doc": "Save current task configuration as a named preset."
+          },
+          {
+            "name": "delete_preset",
+            "line": 4638,
+            "end_line": 4656,
+            "args": [
+              "self",
+              "name"
+            ],
+            "doc": "Delete a custom preset from data/bot_presets.json."
+          },
+          {
+            "name": "run_action",
+            "line": 4658,
+            "end_line": 4770,
+            "args": [
+              "self",
+              "action_id",
+              "payload"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_open_named_file",
+            "line": 4772,
+            "end_line": 4778,
+            "args": [
+              "self",
+              "rel_name"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_open_bracket_folder",
+            "line": 4780,
+            "end_line": 4785,
+            "args": [
+              "self"
+            ],
+            "doc": ""
+          },
+          {
+            "name": "_exec_bg_action",
+            "line": 4787,
+            "end_line": 5394,
+            "args": [
+              "self",
+              "action_id",
+              "p"
+            ],
+            "doc": ""
+          }
+        ]
+      }
+    ],
+    "public_rpc_methods": [
+      {
+        "name": "set_window",
+        "line": 1148,
+        "end_line": 1149,
+        "args": [
+          "self",
+          "win"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "log",
+        "line": 1199,
+        "end_line": 1271,
+        "args": [
+          "self",
+          "msg",
+          "kind",
+          "category",
+          "is_tip"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "clear_logs",
+        "line": 1289,
+        "end_line": 1292,
+        "args": [
+          "self"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "start_monitors",
+        "line": 1294,
+        "end_line": 1297,
+        "args": [
+          "self"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "toggle_always_on_daemon",
+        "line": 1574,
+        "end_line": 1603,
+        "args": [
+          "self",
+          "enabled"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "toggle_hospital_watcher",
+        "line": 1605,
+        "end_line": 1643,
+        "args": [
+          "self",
+          "target",
+          "enabled"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "toggle_alliance_help_watcher",
+        "line": 1645,
+        "end_line": 1667,
+        "args": [
+          "self",
+          "enabled"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "toggle_alliance_tech_watcher",
+        "line": 1669,
+        "end_line": 1690,
+        "args": [
+          "self",
+          "enabled"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "find_script",
+        "line": 2632,
+        "end_line": 2650,
+        "args": [
+          "self",
+          "name"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "find_file",
+        "line": 2652,
+        "end_line": 2664,
+        "args": [
+          "self",
+          "name"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "inspect_setup",
+        "line": 3027,
+        "end_line": 3028,
+        "args": [
+          "self",
+          "base_dir"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "ensure_daemon_running",
+        "line": 3246,
+        "end_line": 3263,
+        "args": [
+          "self"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "get_state",
+        "line": 3296,
+        "end_line": 3325,
+        "args": [
+          "self"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "select_target_client",
+        "line": 3327,
+        "end_line": 3366,
+        "args": [
+          "self",
+          "choice"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "save_bot_config",
+        "line": 3368,
+        "end_line": 3414,
+        "args": [
+          "self",
+          "payload"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "save_event_rules",
+        "line": 3416,
+        "end_line": 3432,
+        "args": [
+          "self",
+          "rules_payload"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "browse_folder",
+        "line": 3434,
+        "end_line": 3442,
+        "args": [
+          "self"
+        ],
+        "doc": ""
+      },
+      {
+        "name": "query_map_targets",
+        "line": 3444,
+        "end_line": 3520,
+        "args": [
+          "self",
+          "search",
+          "category",
+          "max_results"
+        ],
+        "doc": "Search accumulated bases and seasonal tiles from CSV cache for instant UI display."
+      },
+      {
+        "name": "jump_to_coordinate",
+        "line": 3522,
+        "end_line": 3540,
+        "args": [
+          "self",
+          "x",
+          "y",
+          "server_id"
+        ],
+        "doc": "Snap in-game camera to specific map coordinates in the active Last Z client."
+      },
+      {
+        "name": "get_account_inventory",
+        "line": 3542,
+        "end_line": 3777,
+        "args": [
+          "self",
+          "pid",
+          "force_live"
+        ],
+        "doc": "Fetch and return categorized, visually formatted inventory items for target client."
+      },
+      {
+        "name": "get_tech_calculator_data",
+        "line": 3797,
+        "end_line": 3993,
+        "args": [
+          "self",
+          "pid",
+          "force_live"
+        ],
+        "doc": "Calculate invested and remaining courage badges per tier and whole tree, with live client sync."
+      },
+      {
+        "name": "get_migration_calculator_data",
+        "line": 3995,
+        "end_line": 4154,
+        "args": [
+          "self",
+          "state_id",
+          "player_query"
+        ],
+        "doc": "Return migration score, pass costs, tier matrix, and top alliance rosters for target state."
+      },
+      {
+        "name": "quick_shield",
+        "line": 4156,
+        "end_line": 4238,
+        "args": [
+          "self",
+          "pid"
+        ],
+        "doc": "Activate a peace shield immediately from bag using passive Lua invocation."
+      },
+      {
+        "name": "quick_recall",
+        "line": 4240,
+        "end_line": 4284,
+        "args": [
+          "self",
+          "pid"
+        ],
+        "doc": "Recall all gathering or field marches back to base immediately."
+      },
+      {
+        "name": "get_troops_overview",
+        "line": 4286,
+        "end_line": 4481,
+        "args": [
+          "self",
+          "pid",
+          "force_live"
+        ],
+        "doc": "Extract or retrieve cached drill ground troops, formations, and hospital wounded status."
+      },
+      {
+        "name": "get_alliance_deltas",
+        "line": 4483,
+        "end_line": 4602,
+        "args": [
+          "self",
+          "state_id",
+          "force_snapshot"
+        ],
+        "doc": "Compute power deltas, member shifts, and rank movements across state alliances."
+      },
+      {
+        "name": "get_presets",
+        "line": 4604,
+        "end_line": 4614,
+        "args": [
+          "self"
+        ],
+        "doc": "Load saved automation presets from data/bot_presets.json."
+      },
+      {
+        "name": "save_preset",
+        "line": 4616,
+        "end_line": 4636,
+        "args": [
+          "self",
+          "name",
+          "tasks",
+          "desc"
+        ],
+        "doc": "Save current task configuration as a named preset."
+      },
+      {
+        "name": "delete_preset",
+        "line": 4638,
+        "end_line": 4656,
+        "args": [
+          "self",
+          "name"
+        ],
+        "doc": "Delete a custom preset from data/bot_presets.json."
+      },
+      {
+        "name": "run_action",
+        "line": 4658,
+        "end_line": 4770,
+        "args": [
+          "self",
+          "action_id",
+          "payload"
+        ],
+        "doc": ""
+      }
+    ],
+    "action_routes": [
+      {
+        "action_id": "toggle_always_on_daemon",
+        "line": 4660,
+        "payload_keys": [
+          "desc",
+          "dry_run",
+          "enabled",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "target",
+          "task",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "toggle_hospital_watcher",
+        "line": 4664,
+        "payload_keys": [
+          "desc",
+          "dry_run",
+          "enabled",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "target",
+          "task",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "toggle_alliance_help_watcher",
+        "line": 4669,
+        "payload_keys": [
+          "desc",
+          "dry_run",
+          "enabled",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "target",
+          "task",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "toggle_alliance_tech_watcher",
+        "line": 4673,
+        "payload_keys": [
+          "desc",
+          "dry_run",
+          "enabled",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "target",
+          "task",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "run_single_task",
+        "line": 4677,
+        "payload_keys": [
+          "desc",
+          "dry_run",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "target",
+          "task",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "quick_shield",
+        "line": 4679,
+        "payload_keys": [
+          "desc",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "quick_recall",
+        "line": 4681,
+        "payload_keys": [
+          "desc",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "get_troops_overview",
+        "line": 4683,
+        "payload_keys": [
+          "desc",
+          "force_live",
+          "force_snapshot",
+          "name",
+          "pid",
+          "state_id",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "get_alliance_deltas",
+        "line": 4685,
+        "payload_keys": [
+          "desc",
+          "force_snapshot",
+          "name",
+          "state_id",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "get_presets",
+        "line": 4687,
+        "payload_keys": [
+          "desc",
+          "name",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "save_preset",
+        "line": 4689,
+        "payload_keys": [
+          "desc",
+          "name",
+          "tasks"
+        ]
+      },
+      {
+        "action_id": "delete_preset",
+        "line": 4691,
+        "payload_keys": [
+          "name"
+        ]
+      },
+      {
+        "action_id": "open_inventory_excel",
+        "line": 4693,
+        "payload_keys": []
+      },
+      {
+        "action_id": "open_google_roster",
+        "line": 4704,
+        "payload_keys": []
+      },
+      {
+        "action_id": "open_scratch_folder",
+        "line": 4708,
+        "payload_keys": []
+      },
+      {
+        "action_id": "open_data_folder",
+        "line": 4711,
+        "payload_keys": []
+      },
+      {
+        "action_id": "open_vs_excel",
+        "line": 4716,
+        "payload_keys": []
+      },
+      {
+        "action_id": "open_all_bases",
+        "line": 4719,
+        "payload_keys": []
+      },
+      {
+        "action_id": "open_all_resources",
+        "line": 4722,
+        "payload_keys": [
+          "state"
+        ]
+      },
+      {
+        "action_id": "open_unshielded_excel",
+        "line": 4725,
+        "payload_keys": [
+          "state"
+        ]
+      },
+      {
+        "action_id": "open_active_migration",
+        "line": 4728,
+        "payload_keys": [
+          "state"
+        ]
+      },
+      {
+        "action_id": "export_top10",
+        "line": 4741,
+        "payload_keys": [
+          "state"
+        ]
+      },
+      {
+        "action_id": "open_selected_bracket_state",
+        "line": 4754,
+        "payload_keys": [
+          "state"
+        ]
+      },
+      {
+        "action_id": "open_bracket_folder",
+        "line": 4765,
+        "payload_keys": []
+      },
+      {
+        "action_id": "apply_engine",
+        "line": 4789,
+        "payload_keys": []
+      },
+      {
+        "action_id": "flush_ram",
+        "line": 4795,
+        "payload_keys": []
+      },
+      {
+        "action_id": "run_always_on_sweep_now",
+        "line": 4803,
+        "payload_keys": []
+      },
+      {
+        "action_id": "restart_daemon",
+        "line": 4815,
+        "payload_keys": []
+      },
+      {
+        "action_id": "export_inventory",
+        "line": 4823,
+        "payload_keys": []
+      },
+      {
+        "action_id": "export_tech",
+        "line": 4836,
+        "payload_keys": []
+      },
+      {
+        "action_id": "export_vs",
+        "line": 4844,
+        "payload_keys": []
+      },
+      {
+        "action_id": "export_roster",
+        "line": 4850,
+        "payload_keys": []
+      },
+      {
+        "action_id": "export_alliance_members",
+        "line": 4863,
+        "payload_keys": [
+          "lvl_str",
+          "res_type"
+        ]
+      },
+      {
+        "action_id": "export_map",
+        "line": 4872,
+        "payload_keys": [
+          "lvl_str",
+          "res_type"
+        ]
+      },
+      {
+        "action_id": "open_map_summary",
+        "line": 4885,
+        "payload_keys": [
+          "lvl_str",
+          "res_type"
+        ]
+      },
+      {
+        "action_id": "export_mines",
+        "line": 4931,
+        "payload_keys": [
+          "base_dir"
+        ]
+      },
+      {
+        "action_id": "scan_fleet",
+        "line": 4937,
+        "payload_keys": [
+          "base_dir"
+        ]
+      },
+      {
+        "action_id": "setup_base_install",
+        "line": 4954,
+        "payload_keys": [
+          "base_dir",
+          "label",
+          "mode",
+          "wait_xlua"
+        ]
+      },
+      {
+        "action_id": "launch_single_client",
+        "line": 4980,
+        "payload_keys": [
+          "label",
+          "mode",
+          "wait_xlua"
+        ]
+      },
+      {
+        "action_id": "stop_single_client",
+        "line": 5003,
+        "payload_keys": [
+          "label",
+          "mode"
+        ]
+      },
+      {
+        "action_id": "sync_farm_builds",
+        "line": 5012,
+        "payload_keys": [
+          "mode"
+        ]
+      },
+      {
+        "action_id": "launch_all_farms",
+        "line": 5031,
+        "payload_keys": [
+          "mode"
+        ]
+      },
+      {
+        "action_id": "stop_all_farms",
+        "line": 5109,
+        "payload_keys": [
+          "create_shortcut",
+          "exe_name",
+          "label",
+          "launch_after",
+          "main_game_dir",
+          "profile",
+          "root_dir"
+        ]
+      },
+      {
+        "action_id": "provision_farm",
+        "line": 5125,
+        "payload_keys": [
+          "create_shortcut",
+          "exe_name",
+          "label",
+          "launch_after",
+          "main_game_dir",
+          "profile",
+          "root_dir"
+        ]
+      },
+      {
+        "action_id": "run_bot_cycle",
+        "line": 5159,
+        "payload_keys": [
+          "dry_run",
+          "scope"
+        ]
+      },
+      {
+        "action_id": "run_single_task",
+        "line": 5212,
+        "payload_keys": [
+          "dry_run",
+          "target",
+          "task"
+        ]
+      },
+      {
+        "action_id": "start_bot_daemon",
+        "line": 5355,
+        "payload_keys": []
+      },
+      {
+        "action_id": "stop_bot_daemon",
+        "line": 5362,
+        "payload_keys": []
+      },
+      {
+        "action_id": "install_bot_task",
+        "line": 5368,
+        "payload_keys": []
+      },
+      {
+        "action_id": "uninstall_bot_task",
+        "line": 5373,
+        "payload_keys": []
+      },
+      {
+        "action_id": "sync_google_bracket",
+        "line": 5378,
+        "payload_keys": []
+      }
+    ],
+    "task_catalog": [
+      {
+        "key": "alliance_daily",
+        "title": "Alliance Red Packets & Tasks",
+        "category": "Daily Care & Alliance",
+        "tag": "Packets + Task Boxes",
+        "desc": "Grabs alliance red packets and collects finished alliance task & exploit milestone boxes. (Alliance Tech Auto-Donate & Both Gift Tabs run in the Always-On Automation panel.)"
+      },
+      {
+        "key": "radar_events",
+        "title": "Radar Events (Scan + All Types)",
+        "category": "Daily Care & Alliance",
+        "tag": "Scan + All 4 Types",
+        "desc": "Triggers the top-left radar scan button first, claims finished rewards, and handles ALL radar task types: Ally Help, Gather/Dig, NPC HQ/Skull Attack, and Radar Exploration (Auto-Skip)."
+      },
+      {
+        "key": "daily_tasks_complete",
+        "title": "Daily Tasks (Complete All)",
+        "category": "Daily Care & Alliance",
+        "tag": "One-Go Auto-Complete",
+        "desc": "Scans your live Daily Tasks popup and completes ALL actionable tasks in one go (Post Likes, Hero EXP, Recruitment Ticket, Building Upgrade, Tech Research, Troop Training, Speedup, Alliance Help/Donate, Radar, Bounties, Trucks, Arena, Boss Rallies, Gathering), then claims every task & milestone chest (30-150). Safely skips real-money IAP & PvP HQ attacks."
+      },
+      {
+        "key": "daily_claims",
+        "title": "Daily Tasks & Passes",
+        "category": "Daily Care & Alliance",
+        "tag": "Tasks + Chests + Passes",
+        "desc": "Claims all completed Daily Tasks, Daily Activity Milestone Chests (1-6), achievements, chapter tasks, and ALL active Battle Passes & Event Passes."
+      },
+      {
+        "key": "vip_store_rewards",
+        "title": "VIP & Store Freebies",
+        "category": "Daily Care & Alliance",
+        "tag": "Daily Rewards",
+        "desc": "Collects your daily VIP login points, VIP freebies chest, and the free reward in the 2nd tab of the Store."
+      },
+      {
+        "key": "war_safety",
+        "title": "War Safety Guard",
+        "category": "Protection & War",
+        "tag": "Shield + Recall",
+        "desc": "Watches for incoming enemy marches on your base or resource tiles, pulls exposed gathering squads home, and shields when safe from War Fever."
+      },
+      {
+        "key": "rf_hq_under_attack",
+        "title": "Reinforce Attacked Allies",
+        "category": "Protection & War",
+        "tag": "Defense",
+        "desc": "Sends reinforcement troops to alliance members or protected accounts when their base comes under attack."
+      },
+      {
+        "key": "arena",
+        "title": "Arena Battles (x5)",
+        "category": "Combat & Events",
+        "tag": "70%+ Win Odds",
+        "desc": "Builds 1v1 or 3v3 pure-faction top-5 hero lineups, skips tough fights, and only challenges opponents when win odds exceed 70%."
+      },
+      {
+        "key": "hero_battlefield",
+        "title": "Hero Battlefield (Quick Deploy + Auto-Skip)",
+        "category": "Combat & Events",
+        "tag": "Quick Deploy • Auto-Skip",
+        "desc": "Uses Quick Deploy / Sweep where unlocked, auto-fills strongest faction heroes, and immediately triggers in-battle Skip on every stage fight."
+      },
+      {
+        "key": "area_exploration",
+        "title": "Area Exploration (Auto-Skip)",
+        "category": "Combat & Events",
+        "tag": "HQ Solo • Auto-Skip",
+        "desc": "Collects idle stage chest rewards, executes batch jumps, and runs solo HQ Explore battles with automatic in-battle Skip enabled."
+      },
+      {
+        "key": "furylord",
+        "title": "Furylord Boss (03:00)",
+        "category": "Combat & Events",
+        "tag": "Squad 1 x4",
+        "desc": "Targets the scheduled 03:00 Furylord window using Squad 1 so all daily boss damage rewards are secured automatically."
+      },
+      {
+        "key": "tyrant_event",
+        "title": "Tyrant Rally",
+        "category": "Combat & Events",
+        "tag": "F1 Host + Join",
+        "desc": "Claims free Tyrant rewards, hosts a Squad 1 rally, joins open alliance Tyrant rallies with extra squads, and repeats smoothly."
+      },
+      {
+        "key": "boomer_runs",
+        "title": "Boomer Rallies",
+        "category": "Combat & Events",
+        "tag": "Auto-Join + Host",
+        "desc": "Joins open alliance Boomer rallies or starts new ones within your stamina reserve for hero EXP and rally rewards."
+      },
+      {
+        "key": "mining_event",
+        "title": "Mining Event (Mon / Tue)",
+        "category": "Combat & Events",
+        "tag": "Lv7 Empty Nodes",
+        "desc": "Looks for unoccupied XP or Gold event mines on Mondays and Tuesdays so farms gather event rewards safely without hitting players."
+      },
+      {
+        "key": "alliance_boss_mine",
+        "title": "Bear Trap & Alliance Mine",
+        "category": "Combat & Events",
+        "tag": "Event + Gather",
+        "desc": "Claims Bear Trap rewards when available, joins active Bear battles, and keeps an idle squad gathering at the Alliance Mine."
+      },
+      {
+        "key": "treasure_helicopter",
+        "title": "Treasure Helicopter",
+        "category": "Progression & Farming",
+        "tag": "Map Dig",
+        "desc": "Claims helicopter supply drops and marches squads to active treasure digs nearby."
+      },
+      {
+        "key": "research_queue",
+        "title": "Research Queue",
+        "category": "Progression & Farming",
+        "tag": "Tech Lab",
+        "desc": "Collects completed technologies, starts recommended or priority research automatically, applies free speedups, and asks for Alliance Help."
+      },
+      {
+        "key": "free_recruits",
+        "title": "Free Recruits & Safe Chests",
+        "category": "Progression & Farming",
+        "tag": "Timer + Drops Only",
+        "desc": "Uses strictly free timer hero recruits and opens safe non-choice drop chests in your bag without touching choice boxes, speedups, or shields."
+      },
+      {
+        "key": "garage_upgrades",
+        "title": "Garage Upgrades (Monday)",
+        "category": "Progression & Farming",
+        "tag": "Mondays Only",
+        "desc": "Every Monday, equips stronger APC vehicle parts, merges matching parts, and performs free refits for event points."
+      },
+      {
+        "key": "full_preparedness",
+        "title": "Full Preparedness",
+        "category": "Progression & Farming",
+        "tag": "Milestone Boxes",
+        "desc": "Collects Full Preparedness point chests and aligns timed progression actions with active daily event windows."
+      },
+      {
+        "key": "speedups",
+        "title": "Smart Speedups",
+        "category": "Progression & Farming",
+        "tag": "Main: Free Only",
+        "desc": "Hits free speedup buttons as soon as timers drop into the free window; on farms, optionally spends small speedups during Preparedness."
+      },
+      {
+        "key": "troop_training",
+        "title": "Train Troops (Event Speed-Zoom)",
+        "category": "Progression & Farming",
+        "tag": "All Barracks • FP/VS Zoom",
+        "desc": "Collects finished soldiers, trains your highest unlocked tier across all barracks, and automatically speed-zooms with Training Speedups when Full Preparedness or Alliance Duel scores troop training."
+      },
+      {
+        "key": "building_upgrades",
+        "title": "Upgrade HQ & Buildings",
+        "category": "Progression & Farming",
+        "tag": "HQ Priority",
+        "desc": "Harvests city resources, starts HQ or required prerequisite buildings when builders are free, and requests Alliance Help."
+      },
+      {
+        "key": "bounties",
+        "title": "Gold Bounties (Lock Orange + Ally Help + Plunder)",
+        "category": "Progression & Farming",
+        "tag": "3-in-1 • Lock Orange",
+        "desc": "Unified 3-in-1 bounty engine: locks Orange/Gold missions before rolling, dispatches all golden bounties, helps alliance members' golden tasks, and plunders cross-state Lv5+ golden bounties."
+      },
+      {
+        "key": "trucks",
+        "title": "Trade Trucks (Claim + Send Gold)",
+        "category": "Progression & Farming",
+        "tag": "Claim + Roll Gold",
+        "desc": "Claims completed golden/old trade trucks first, waits for server sync, rolls for golden trucks, dispatches new trucks across open slots, and raids weaker cross-state trucks."
+      }
+    ],
+    "top_functions": [
+      {
+        "name": "_dir_is_writable",
+        "line": 27,
+        "args": [
+          "path"
+        ]
+      },
+      {
+        "name": "_resolve_data_dir",
+        "line": 39,
+        "args": []
+      },
+      {
+        "name": "_migrate_legacy_data",
+        "line": 64,
+        "args": [
+          "target"
+        ]
+      },
+      {
+        "name": "_ensure_std_streams",
+        "line": 84,
+        "args": []
+      },
+      {
+        "name": "_maybe_run_bundled_script",
+        "line": 99,
+        "args": []
+      },
+      {
+        "name": "_unblock_bundle_zone_identifiers",
+        "line": 163,
+        "args": []
+      },
+      {
+        "name": "_diagnostics_module",
+        "line": 215,
+        "args": []
+      },
+      {
+        "name": "_write_redacted_desktop_crash",
+        "line": 235,
+        "args": [
+          "context",
+          "err",
+          "extra"
+        ]
+      },
+      {
+        "name": "_maybe_run_diagnostics",
+        "line": 270,
+        "args": [
+          "unblocked_count"
+        ]
+      },
+      {
+        "name": "_resource_root",
+        "line": 342,
+        "args": []
+      },
+      {
+        "name": "_resolve_repo_root",
+        "line": 348,
+        "args": []
+      },
+      {
+        "name": "_resolve_python_cli",
+        "line": 375,
+        "args": []
+      },
+      {
+        "name": "_build_script_cmd",
+        "line": 388,
+        "args": [
+          "script_path",
+          "extra_args",
+          "utf8"
+        ]
+      },
+      {
+        "name": "_redact_text",
+        "line": 437,
+        "args": [
+          "text"
+        ]
+      },
+      {
+        "name": "_filter_in_game_tips",
+        "line": 458,
+        "args": [
+          "tips"
+        ]
+      },
+      {
+        "name": "_safe_load_json_file",
+        "line": 474,
+        "args": [
+          "path",
+          "default"
+        ]
+      },
+      {
+        "name": "_load_json_cached",
+        "line": 497,
+        "args": [
+          "path",
+          "default"
+        ]
+      },
+      {
+        "name": "_atomic_write_json",
+        "line": 519,
+        "args": [
+          "path",
+          "payload"
+        ]
+      },
+      {
+        "name": "log_crash",
+        "line": 577,
+        "args": [
+          "err"
+        ]
+      },
+      {
+        "name": "_hidden_startupinfo",
+        "line": 594,
+        "args": []
+      },
+      {
+        "name": "_load_tool_module",
+        "line": 604,
+        "args": [
+          "mod_name",
+          "rel_path"
+        ]
+      },
+      {
+        "name": "_get_dialog_dict",
+        "line": 827,
+        "args": []
+      },
+      {
+        "name": "_parse_speedup_info",
+        "line": 879,
+        "args": [
+          "name",
+          "item_id"
+        ]
+      },
+      {
+        "name": "_format_duration_mins",
+        "line": 927,
+        "args": [
+          "mins"
+        ]
+      },
+      {
+        "name": "_format_count_num",
+        "line": 943,
+        "args": [
+          "num"
+        ]
+      },
+      {
+        "name": "_parse_resource_amount",
+        "line": 952,
+        "args": [
+          "name"
+        ]
+      },
+      {
+        "name": "_deduce_category_and_rarity",
+        "line": 983,
+        "args": [
+          "name",
+          "item_type",
+          "quality",
+          "item_id"
+        ]
+      },
+      {
+        "name": "_load_html_with_assets",
+        "line": 5397,
+        "args": []
+      },
+      {
+        "name": "_webview2_runtime_version",
+        "line": 5424,
+        "args": []
+      },
+      {
+        "name": "_message_box",
+        "line": 5446,
+        "args": [
+          "text",
+          "title",
+          "flags"
+        ]
+      },
+      {
+        "name": "_netfx472_release",
+        "line": 5458,
+        "args": []
+      },
+      {
+        "name": "_check_netfx_or_prompt",
+        "line": 5468,
+        "args": []
+      },
+      {
+        "name": "_check_webview2_or_prompt",
+        "line": 5485,
+        "args": []
+      },
+      {
+        "name": "main",
+        "line": 5503,
+        "args": []
+      }
+    ]
+  },
+  "hub_frontend": {
+    "file": "launcher/web/index.html",
+    "lines": 4925,
+    "bytes": 220232,
+    "views": [
+      {
+        "id": "view-overview",
+        "class": "view-pane active"
+      },
+      {
+        "id": "view-game",
+        "class": "view-pane"
+      },
+      {
+        "id": "view-alliances",
+        "class": "view-pane"
+      },
+      {
+        "id": "view-map",
+        "class": "view-pane"
+      },
+      {
+        "id": "view-bots",
+        "class": "view-pane"
+      },
+      {
+        "id": "view-inventory",
+        "class": "view-pane"
+      },
+      {
+        "id": "view-calculators",
+        "class": "view-pane"
+      }
+    ],
+    "modals": [
+      {
+        "id": "setup-modal",
+        "class": "modal-backdrop"
+      },
+      {
+        "id": "provision-modal",
+        "class": "modal-backdrop"
+      },
+      {
+        "id": "rules-modal",
+        "class": "modal-backdrop"
+      },
+      {
+        "id": "rules-modal-body",
+        "class": "modal-body"
+      },
+      {
+        "id": "troops-modal",
+        "class": "modal-backdrop"
+      }
+    ],
+    "buttons_count": 107,
+    "buttons": [
+      {
+        "section": "nav",
+        "id": "",
+        "class": "nav-btn active",
+        "onclick": "switchView('overview')",
+        "title": "",
+        "data_attrs": {
+          "data-view": "overview"
+        },
+        "label": "Home / Overview"
+      },
+      {
+        "section": "nav",
+        "id": "",
+        "class": "nav-btn",
+        "onclick": "switchView('game')",
+        "title": "",
+        "data_attrs": {
+          "data-view": "game"
+        },
+        "label": "Game & Engine"
+      },
+      {
+        "section": "nav",
+        "id": "",
+        "class": "nav-btn",
+        "onclick": "switchView('alliances')",
+        "title": "",
+        "data_attrs": {
+          "data-view": "alliances"
+        },
+        "label": "Alliances & VS"
+      },
+      {
+        "section": "nav",
+        "id": "",
+        "class": "nav-btn",
+        "onclick": "switchView('map')",
+        "title": "",
+        "data_attrs": {
+          "data-view": "map"
+        },
+        "label": "Map & Scouting"
+      },
+      {
+        "section": "nav",
+        "id": "",
+        "class": "nav-btn",
+        "onclick": "switchView('inventory')",
+        "title": "",
+        "data_attrs": {
+          "data-view": "inventory"
+        },
+        "label": "Vault & Inventory"
+      },
+      {
+        "section": "nav",
+        "id": "",
+        "class": "nav-btn",
+        "onclick": "switchView('calculators')",
+        "title": "",
+        "data_attrs": {
+          "data-view": "calculators"
+        },
+        "label": "Calculators"
+      },
+      {
+        "section": "nav",
+        "id": "",
+        "class": "nav-btn",
+        "onclick": "switchView('bots')",
+        "title": "",
+        "data_attrs": {
+          "data-view": "bots"
+        },
+        "label": "Farms & Bot"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "openSetupModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Install / Check Setup"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "btn btn-purple",
+        "onclick": "openProvisionModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "+ Add Account"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "openSetupModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Setup & Patch Base Game"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "runSingleTask('daily_tasks_complete', false)",
+        "title": "Complete all actionable Daily Tasks & claim all milestone chests (30-150) in one go",
+        "data_attrs": {},
+        "label": "Complete Daily Tasks"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "doAction('run_bot_cycle', {dry_run:false, scope:'All Running'})",
+        "title": "",
+        "data_attrs": {},
+        "label": "Run Bot Cycle Now"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "doAction('launch_all_farms', {mode: cfgLaunchMode()})",
+        "title": "",
+        "data_attrs": {},
+        "label": "Launch Farm Clients"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "pill-tab active",
+        "onclick": "setOverviewRole('main')",
+        "title": "",
+        "data_attrs": {
+          "data-ov-role": "main"
+        },
+        "label": "Main Account"
+      },
+      {
+        "section": "view-overview",
+        "id": "",
+        "class": "pill-tab",
+        "onclick": "setOverviewRole('farm')",
+        "title": "",
+        "data_attrs": {
+          "data-ov-role": "farm"
+        },
+        "label": "Farm Accounts"
+      },
+      {
+        "section": "view-game",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "doAction('apply_engine')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Apply 180 FPS & Smooth Preloader"
+      },
+      {
+        "section": "view-game",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "doAction('flush_ram')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Flush RAM Now"
+      },
+      {
+        "section": "view-game",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "doAction('restart_daemon')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Restart Auto-Engine Daemon"
+      },
+      {
+        "section": "view-game",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "doAction('export_inventory')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export Bag Inventory"
+      },
+      {
+        "section": "view-game",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "doAction('export_tech')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export Tech Tree"
+      },
+      {
+        "section": "view-game",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "doAction('open_data_folder')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Open Data Folder"
+      },
+      {
+        "section": "view-game",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "doAction('open_scratch_folder')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Open Working Folder"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-gold btn-sm",
+        "onclick": "loadAllianceDeltas(true)",
+        "title": "Save current state data as the baseline for delta comparison",
+        "data_attrs": {},
+        "label": "📸 Save Baseline"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-green btn-sm",
+        "onclick": "loadAllianceDeltas(false)",
+        "title": "",
+        "data_attrs": {},
+        "label": "🔄 Refresh"
+      },
+      {
+        "section": "view-alliances",
+        "id": "btn-export-vs",
+        "class": "btn btn-blue",
+        "onclick": "doAction('export_vs')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export VS Duel (Excel)"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "doAction('open_vs_excel')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Open VS Workbook"
+      },
+      {
+        "section": "view-alliances",
+        "id": "btn-export-roster",
+        "class": "btn btn-blue",
+        "onclick": "doAction('export_roster')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export Alliance Roster"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "doAction('export_alliance_members')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export Members Master"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "doAction('open_google_roster')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Google Sheet Roster"
+      },
+      {
+        "section": "view-alliances",
+        "id": "btn-active-mig",
+        "class": "btn btn-green",
+        "onclick": "doAction('open_active_migration')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Open Active State Migration"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "doAction('export_top10')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Open Top 10 Alliances Master"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "doAction('open_selected_bracket_state', {state: document.getElementById('sel-bracket-state').value})",
+        "title": "",
+        "data_attrs": {},
+        "label": "Open Selected State"
+      },
+      {
+        "section": "view-alliances",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "doAction('open_bracket_folder')",
+        "title": "",
+        "data_attrs": {},
+        "label": "All 16 Workbooks Folder"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "doResourceNav(false)",
+        "title": "",
+        "data_attrs": {},
+        "label": "Jump Camera In-Game"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "doResourceNav(true)",
+        "title": "",
+        "data_attrs": {},
+        "label": "Dispatch Free Squad"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "doAction('export_map')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Scan & Export Map"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "doAction('open_all_bases')",
+        "title": "",
+        "data_attrs": {},
+        "label": "All Bases (Excel)"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "doAction('open_all_resources')",
+        "title": "",
+        "data_attrs": {},
+        "label": "All Resources (CSV)"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "doAction('open_map_summary')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Map Summary"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-red",
+        "onclick": "doAction('export_radar')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export Unshielded (HQ 25+)"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-red",
+        "onclick": "doAction('export_elite_radar')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export Elite (HQ 30+)"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "doAction('export_mines')",
+        "title": "",
+        "data_attrs": {},
+        "label": "High-Tier Mines"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "doAction('open_unshielded_excel')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Open Targets Excel"
+      },
+      {
+        "section": "view-map",
+        "id": "",
+        "class": "btn btn-blue",
+        "onclick": "refreshMapTable()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Refresh"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-blue btn-sm",
+        "onclick": "applySelectedPreset()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Apply Preset"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-gold btn-sm",
+        "onclick": "saveCurrentAsPreset()",
+        "title": "",
+        "data_attrs": {},
+        "label": "+ Save As..."
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "deleteSelectedPreset()",
+        "title": "Delete selected custom preset",
+        "data_attrs": {},
+        "label": "🗑️"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "runCycleClick(false)",
+        "title": "",
+        "data_attrs": {},
+        "label": "Run Bot Cycle"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "doAction('launch_all_farms', {mode: cfgLaunchMode()})",
+        "title": "",
+        "data_attrs": {},
+        "label": "🚀 Launch All Farms"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-red",
+        "onclick": "doAction('stop_all_farms')",
+        "title": "",
+        "data_attrs": {},
+        "label": "⏹ Stop All Farms"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-purple",
+        "onclick": "toggleFleetToolsMenu(event)",
+        "title": "",
+        "data_attrs": {},
+        "label": "⚙️ Fleet Tools ▾"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "doAction('scan_fleet'); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "🔍 Scan Active Clients"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "openSetupModal(); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "🛠️ Setup / Patch Base Game"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "doAction('sync_farm_builds'); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "🔄 Sync Farm Game Builds"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "openProvisionModal(); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "➕ Add Account / Clone Farm"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "openRulesModal(); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "📋 Detailed Rules & Trucks..."
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "doAction('sync_google_bracket'); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "📊 Sync 16 Bracket Sheets"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "doAction('start_bot_daemon'); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "🟢 Start Background Loop Daemon"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "doAction('stop_bot_daemon'); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "🔴 Stop Background Loop Daemon"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "doAction('install_bot_task'); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "⏱️ Register Windows Task Scheduler"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "dropdown-btn-item",
+        "onclick": "doAction('uninstall_bot_task'); toggleFleetToolsMenu();",
+        "title": "",
+        "data_attrs": {},
+        "label": "❌ Remove Windows Schedule"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "saveBotSettings(false)",
+        "title": "",
+        "data_attrs": {},
+        "label": "Save Settings"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "console-filter-btn active",
+        "onclick": "setConsoleFilter('all')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "all"
+        },
+        "label": "All"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "console-filter-btn",
+        "onclick": "setConsoleFilter('errors_tips')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "errors_tips"
+        },
+        "label": "Errors & Tips"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "console-filter-btn",
+        "onclick": "setConsoleFilter('steps')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "steps"
+        },
+        "label": "Steps"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "console-filter-btn",
+        "onclick": "setConsoleFilter('details')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "details"
+        },
+        "label": "Details"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-xs btn-autoscroll-on",
+        "onclick": "toggleConsoleAutoScroll()",
+        "title": "Toggle auto-scrolling to newest line",
+        "data_attrs": {
+          "data-autoscroll-btn": null
+        },
+        "label": "Auto-Scroll: ON"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-ghost btn-xs",
+        "onclick": "copyConsoleLogs(this)",
+        "title": "Copy visible diagnostic log lines to clipboard",
+        "data_attrs": {},
+        "label": "Copy Log"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "btn btn-ghost btn-xs",
+        "onclick": "clearLogs()",
+        "title": "Clear activity logs",
+        "data_attrs": {},
+        "label": "Clear"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "pill-tab active",
+        "onclick": "setEditRole('farm')",
+        "title": "",
+        "data_attrs": {
+          "data-edit-role": "farm"
+        },
+        "label": "Farm Accounts"
+      },
+      {
+        "section": "view-bots",
+        "id": "",
+        "class": "pill-tab",
+        "onclick": "setEditRole('main')",
+        "title": "",
+        "data_attrs": {
+          "data-edit-role": "main"
+        },
+        "label": "Main Account"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "refreshInventoryView(true)",
+        "title": "",
+        "data_attrs": {},
+        "label": "Sync Live from Game"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "doAction('open_inventory_excel')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Export Excel"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "inv-pill active",
+        "onclick": "setInventoryCategory('all')",
+        "title": "",
+        "data_attrs": {
+          "data-cat": "all"
+        },
+        "label": "All Items 0"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "inv-pill",
+        "onclick": "setInventoryCategory('speedups')",
+        "title": "",
+        "data_attrs": {
+          "data-cat": "speedups"
+        },
+        "label": "Speedups 0"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "inv-pill",
+        "onclick": "setInventoryCategory('chests')",
+        "title": "",
+        "data_attrs": {
+          "data-cat": "chests"
+        },
+        "label": "Crates & Chests 0"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "inv-pill",
+        "onclick": "setInventoryCategory('heroes')",
+        "title": "",
+        "data_attrs": {
+          "data-cat": "heroes"
+        },
+        "label": "Heroes & Shards 0"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "inv-pill",
+        "onclick": "setInventoryCategory('gear')",
+        "title": "",
+        "data_attrs": {
+          "data-cat": "gear"
+        },
+        "label": "Gear & Badges 0"
+      },
+      {
+        "section": "view-inventory",
+        "id": "",
+        "class": "inv-pill",
+        "onclick": "setInventoryCategory('other')",
+        "title": "",
+        "data_attrs": {
+          "data-cat": "other"
+        },
+        "label": "Utilities & Passes 0"
+      },
+      {
+        "section": "view-calculators",
+        "id": "btn-calc-subtab-tech",
+        "class": "calc-subtab-btn active",
+        "onclick": "switchCalcSubTab('tech')",
+        "title": "",
+        "data_attrs": {},
+        "label": "Tech Tree & Courage Badges"
+      },
+      {
+        "section": "view-calculators",
+        "id": "btn-calc-subtab-migration",
+        "class": "calc-subtab-btn",
+        "onclick": "switchCalcSubTab('migration')",
+        "title": "",
+        "data_attrs": {},
+        "label": "State Migration & Passes"
+      },
+      {
+        "section": "view-calculators",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "refreshTechCalculator(true)",
+        "title": "",
+        "data_attrs": {},
+        "label": "Sync Live from Game"
+      },
+      {
+        "section": "root",
+        "id": "",
+        "class": "console-filter-btn active",
+        "onclick": "setConsoleFilter('all')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "all"
+        },
+        "label": "All"
+      },
+      {
+        "section": "root",
+        "id": "",
+        "class": "console-filter-btn",
+        "onclick": "setConsoleFilter('errors_tips')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "errors_tips"
+        },
+        "label": "Errors & Tips"
+      },
+      {
+        "section": "root",
+        "id": "",
+        "class": "console-filter-btn",
+        "onclick": "setConsoleFilter('steps')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "steps"
+        },
+        "label": "Steps"
+      },
+      {
+        "section": "root",
+        "id": "",
+        "class": "console-filter-btn",
+        "onclick": "setConsoleFilter('details')",
+        "title": "",
+        "data_attrs": {
+          "data-console-filter": "details"
+        },
+        "label": "Details"
+      },
+      {
+        "section": "root",
+        "id": "",
+        "class": "btn btn-xs btn-autoscroll-on",
+        "onclick": "toggleConsoleAutoScroll()",
+        "title": "Toggle auto-scrolling to newest line",
+        "data_attrs": {
+          "data-autoscroll-btn": null
+        },
+        "label": "Auto-Scroll: ON"
+      },
+      {
+        "section": "root",
+        "id": "",
+        "class": "btn btn-ghost btn-xs",
+        "onclick": "copyConsoleLogs(this)",
+        "title": "Copy visible diagnostic logs to clipboard",
+        "data_attrs": {},
+        "label": "Copy Log"
+      },
+      {
+        "section": "root",
+        "id": "",
+        "class": "btn btn-ghost btn-xs",
+        "onclick": "clearLogs()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Clear"
+      },
+      {
+        "section": "root",
+        "id": "btn-drawer-tall",
+        "class": "btn btn-ghost btn-xs",
+        "onclick": "toggleConsoleTall()",
+        "title": "Toggle taller diagnostic drawer",
+        "data_attrs": {},
+        "label": "Tall"
+      },
+      {
+        "section": "root",
+        "id": "btn-drawer-toggle",
+        "class": "btn btn-ghost btn-xs",
+        "onclick": "toggleLogDrawer()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Collapse"
+      },
+      {
+        "section": "setup-modal",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "closeSetupModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Close"
+      },
+      {
+        "section": "setup-modal",
+        "id": "",
+        "class": "btn btn-blue btn-sm",
+        "onclick": "recheckSetupStatus()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Auto-Detect"
+      },
+      {
+        "section": "setup-modal",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "browseSetupBase()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Browse"
+      },
+      {
+        "section": "setup-modal",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "closeSetupModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Close"
+      },
+      {
+        "section": "setup-modal",
+        "id": "",
+        "class": "btn btn-purple",
+        "onclick": "closeSetupModal(); openProvisionModal();",
+        "title": "",
+        "data_attrs": {},
+        "label": "+ Add 2nd / 3rd Account..."
+      },
+      {
+        "section": "setup-modal",
+        "id": "",
+        "class": "btn btn-gold",
+        "onclick": "runBaseSetupInstall()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Install / Mend Base Game Setup"
+      },
+      {
+        "section": "provision-modal",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "closeProvisionModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Close"
+      },
+      {
+        "section": "provision-modal",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "browseProvFolder()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Browse"
+      },
+      {
+        "section": "provision-modal",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "closeProvisionModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Cancel"
+      },
+      {
+        "section": "provision-modal",
+        "id": "",
+        "class": "btn btn-purple",
+        "onclick": "submitProvision()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Create Account Instance"
+      },
+      {
+        "section": "rules-modal",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "closeRulesModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Close"
+      },
+      {
+        "section": "rules-modal-body",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "closeRulesModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Cancel"
+      },
+      {
+        "section": "rules-modal-body",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "saveRulesModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Save All Rules"
+      },
+      {
+        "section": "troops-modal",
+        "id": "",
+        "class": "btn btn-ghost btn-sm",
+        "onclick": "closeTroopsModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Close"
+      },
+      {
+        "section": "troops-modal",
+        "id": "",
+        "class": "btn btn-ghost",
+        "onclick": "closeTroopsModal()",
+        "title": "",
+        "data_attrs": {},
+        "label": "Close"
+      },
+      {
+        "section": "troops-modal",
+        "id": "",
+        "class": "btn btn-green",
+        "onclick": "refreshTroopsOverview(true)",
+        "title": "",
+        "data_attrs": {},
+        "label": "🔄 Sync Live from Game"
+      }
+    ],
+    "inputs": [
+      {
+        "section": "view-map",
+        "id": "map-search-input",
+        "type": "text",
+        "placeholder": "Search player name, tag, or coords...",
+        "onchange": "",
+        "oninput": "onMapSearchChanged()",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-bots",
+        "id": "chk-auto-launch",
+        "type": "checkbox",
+        "placeholder": "",
+        "onchange": "saveBotSettings(true)",
+        "oninput": "",
+        "class": ""
+      },
+      {
+        "section": "view-bots",
+        "id": "chk-main-enabled",
+        "type": "checkbox",
+        "placeholder": "",
+        "onchange": "saveBotSettings(true)",
+        "oninput": "",
+        "class": ""
+      },
+      {
+        "section": "view-bots",
+        "id": "inp-cycle-sec",
+        "type": "number",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": "clean-input num-input"
+      },
+      {
+        "section": "view-bots",
+        "id": "inp-task-min",
+        "type": "number",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": "clean-input num-input"
+      },
+      {
+        "section": "view-bots",
+        "id": "task-search",
+        "type": "text",
+        "placeholder": "Search feature...",
+        "onchange": "",
+        "oninput": "renderTaskCards()",
+        "class": "clean-input"
+      },
+      {
+        "section": "view-inventory",
+        "id": "inv-search-input",
+        "type": "text",
+        "placeholder": "Search item name, ID, or type...",
+        "onchange": "",
+        "oninput": "onInventorySearchChanged()",
+        "class": "input-base"
+      },
+      {
+        "section": "view-calculators",
+        "id": "calc-tech-hide-maxed",
+        "type": "checkbox",
+        "placeholder": "",
+        "onchange": "toggleHideMaxedTiers(this.checked)",
+        "oninput": "",
+        "class": ""
+      },
+      {
+        "section": "view-calculators",
+        "id": "calc-mig-search-input",
+        "type": "text",
+        "placeholder": "Search commander name or tag...",
+        "onchange": "",
+        "oninput": "onMigrationSearchInput()",
+        "class": "input-base"
+      },
+      {
+        "section": "view-calculators",
+        "id": "calc-mig-held-input",
+        "type": "number",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "onHeldPassesChanged()",
+        "class": "input-base num-input"
+      },
+      {
+        "section": "setup-modal",
+        "id": "setup-base-dir",
+        "type": "text",
+        "placeholder": "Auto-detecting C:\\...\\Last Z\\Game",
+        "onchange": "",
+        "oninput": "",
+        "class": "clean-input"
+      },
+      {
+        "section": "provision-modal",
+        "id": "prov-label",
+        "type": "text",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": "clean-input"
+      },
+      {
+        "section": "provision-modal",
+        "id": "prov-prof",
+        "type": "text",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": "clean-input"
+      },
+      {
+        "section": "provision-modal",
+        "id": "prov-root",
+        "type": "text",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": "clean-input"
+      },
+      {
+        "section": "provision-modal",
+        "id": "prov-exe",
+        "type": "text",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": "clean-input"
+      },
+      {
+        "section": "provision-modal",
+        "id": "prov-launch-after",
+        "type": "checkbox",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": ""
+      },
+      {
+        "section": "provision-modal",
+        "id": "prov-shortcut",
+        "type": "checkbox",
+        "placeholder": "",
+        "onchange": "",
+        "oninput": "",
+        "class": ""
+      }
+    ],
+    "selects": [
+      {
+        "section": "header",
+        "id": "hdr-target",
+        "onchange": "",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-alliances",
+        "id": "sel-delta-state",
+        "onchange": "loadAllianceDeltas()",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-alliances",
+        "id": "sel-bracket-state",
+        "onchange": "",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-map",
+        "id": "sel-res-type",
+        "onchange": "",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-map",
+        "id": "sel-res-lvl",
+        "onchange": "",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-map",
+        "id": "map-category-select",
+        "onchange": "onMapSearchChanged()",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-bots",
+        "id": "sel-bot-presets",
+        "onchange": "",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-bots",
+        "id": "sel-launch-mode",
+        "onchange": "saveBotSettings(true)",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-bots",
+        "id": "sel-cycle-scope",
+        "onchange": "",
+        "class": "clean-select"
+      },
+      {
+        "section": "view-inventory",
+        "id": "inv-sort-select",
+        "onchange": "onInventorySortChanged()",
+        "class": "input-base"
+      },
+      {
+        "section": "view-calculators",
+        "id": "calc-tech-tree-select",
+        "onchange": "onTechTreeSelectChanged(this.value)",
+        "class": "input-base"
+      },
+      {
+        "section": "view-calculators",
+        "id": "calc-mig-state-select",
+        "onchange": "onMigrationStateSelectChanged(this.value)",
+        "class": "input-base"
+      }
+    ],
+    "dom_ids_count": 150,
+    "js_functions_count": 98,
+    "js_functions": [
+      {
+        "name": "api",
+        "params": "",
+        "line": 2552
+      },
+      {
+        "name": "callApi",
+        "params": "method, ...args",
+        "line": 2556
+      },
+      {
+        "name": "esc",
+        "params": "s",
+        "line": 2567
+      },
+      {
+        "name": "switchView",
+        "params": "viewId",
+        "line": 2573
+      },
+      {
+        "name": "toggleLogDrawer",
+        "params": "",
+        "line": 2588
+      },
+      {
+        "name": "toggleConsoleTall",
+        "params": "",
+        "line": 2599
+      },
+      {
+        "name": "normalizeLogKind",
+        "params": "entry",
+        "line": 2609
+      },
+      {
+        "name": "normalizeLogCat",
+        "params": "entry, kindClass",
+        "line": 2619
+      },
+      {
+        "name": "matchesConsoleFilter",
+        "params": "entry, filterMode",
+        "line": 2624
+      },
+      {
+        "name": "buildLogEntryEl",
+        "params": "entry",
+        "line": 2651
+      },
+      {
+        "name": "updateConsoleCountPills",
+        "params": "visibleCount, totalCount",
+        "line": 2666
+      },
+      {
+        "name": "renderAllLogsFromBuffer",
+        "params": "",
+        "line": 2676
+      },
+      {
+        "name": "setConsoleFilter",
+        "params": "mode",
+        "line": 2707
+      },
+      {
+        "name": "toggleConsoleAutoScroll",
+        "params": "",
+        "line": 2715
+      },
+      {
+        "name": "copyConsoleLogs",
+        "params": "btnEl",
+        "line": 2730
+      },
+      {
+        "name": "clearLogs",
+        "params": "",
+        "line": 2760
+      },
+      {
+        "name": "syncLogs",
+        "params": "logs",
+        "line": 2775
+      },
+      {
+        "name": "cfgLaunchMode",
+        "params": "",
+        "line": 2844
+      },
+      {
+        "name": "doAction",
+        "params": "actionId, payload",
+        "line": 2849
+      },
+      {
+        "name": "doResourceNav",
+        "params": "dispatch",
+        "line": 2855
+      },
+      {
+        "name": "runCycleClick",
+        "params": "dryRun",
+        "line": 2862
+      },
+      {
+        "name": "showToast",
+        "params": "msg, kind = \"info\"",
+        "line": 2876
+      },
+      {
+        "name": "resolveCurrentScopeTarget",
+        "params": "",
+        "line": 2882
+      },
+      {
+        "name": "applyAlwaysOnResponse",
+        "params": "res",
+        "line": 2903
+      },
+      {
+        "name": "toggleAlwaysOnDaemon",
+        "params": "enabled",
+        "line": 2922
+      },
+      {
+        "name": "toggleHospitalWatcher",
+        "params": "enabled",
+        "line": 2937
+      },
+      {
+        "name": "toggleAllianceHelpWatcher",
+        "params": "enabled",
+        "line": 2954
+      },
+      {
+        "name": "toggleAllianceTechWatcher",
+        "params": "enabled",
+        "line": 2969
+      },
+      {
+        "name": "triggerAlwaysOnSweepNow",
+        "params": "",
+        "line": 2984
+      },
+      {
+        "name": "triggerAllianceHelpNow",
+        "params": "",
+        "line": 2989
+      },
+      {
+        "name": "runSingleTask",
+        "params": "taskKey, dryRun",
+        "line": 2994
+      },
+      {
+        "name": "setOverviewRole",
+        "params": "r",
+        "line": 3036
+      },
+      {
+        "name": "setEditRole",
+        "params": "r",
+        "line": 3042
+      },
+      {
+        "name": "setCategory",
+        "params": "cat",
+        "line": 3048
+      },
+      {
+        "name": "toggleTask",
+        "params": "key, role, checked",
+        "line": 3054
+      },
+      {
+        "name": "saveBotSettings",
+        "params": "quiet",
+        "line": 3069
+      },
+      {
+        "name": "loadBotPresets",
+        "params": "",
+        "line": 3086
+      },
+      {
+        "name": "applySelectedPreset",
+        "params": "",
+        "line": 3111
+      },
+      {
+        "name": "saveCurrentAsPreset",
+        "params": "",
+        "line": 3132
+      },
+      {
+        "name": "deleteSelectedPreset",
+        "params": "",
+        "line": 3154
+      },
+      {
+        "name": "toggleFleetToolsMenu",
+        "params": "event",
+        "line": 3168
+      },
+      {
+        "name": "populateBracketDropdown",
+        "params": "serverId",
+        "line": 3184
+      },
+      {
+        "name": "renderOverviewFleet",
+        "params": "",
+        "line": 3197
+      },
+      {
+        "name": "getAlwaysOnSig",
+        "params": "s",
+        "line": 3275
+      },
+      {
+        "name": "renderAlwaysOnPanelHtml",
+        "params": "s",
+        "line": 3301
+      },
+      {
+        "name": "renderAlwaysOnPanels",
+        "params": "",
+        "line": 3483
+      },
+      {
+        "name": "updateAlwaysOnSidebar",
+        "params": "s",
+        "line": 3495
+      },
+      {
+        "name": "renderTaskCardHtml",
+        "params": "t, role, enabled",
+        "line": 3563
+      },
+      {
+        "name": "renderOverviewHighlights",
+        "params": "",
+        "line": 3589
+      },
+      {
+        "name": "renderCategoryFilters",
+        "params": "",
+        "line": 3600
+      },
+      {
+        "name": "renderTaskCards",
+        "params": "",
+        "line": 3609
+      },
+      {
+        "name": "renderState",
+        "params": "s",
+        "line": 3622
+      },
+      {
+        "name": "refreshState",
+        "params": "",
+        "line": 3717
+      },
+      {
+        "name": "renderSetupModalBody",
+        "params": "su",
+        "line": 3725
+      },
+      {
+        "name": "openSetupModal",
+        "params": "",
+        "line": 3753
+      },
+      {
+        "name": "closeSetupModal",
+        "params": "",
+        "line": 3758
+      },
+      {
+        "name": "recheckSetupStatus",
+        "params": "",
+        "line": 3761
+      },
+      {
+        "name": "browseSetupBase",
+        "params": "",
+        "line": 3768
+      },
+      {
+        "name": "runBaseSetupInstall",
+        "params": "",
+        "line": 3776
+      },
+      {
+        "name": "openProvisionModal",
+        "params": "",
+        "line": 3783
+      },
+      {
+        "name": "closeProvisionModal",
+        "params": "",
+        "line": 3796
+      },
+      {
+        "name": "browseProvFolder",
+        "params": "",
+        "line": 3799
+      },
+      {
+        "name": "submitProvision",
+        "params": "",
+        "line": 3804
+      },
+      {
+        "name": "openRulesModal",
+        "params": "",
+        "line": 3825
+      },
+      {
+        "name": "closeRulesModal",
+        "params": "",
+        "line": 3927
+      },
+      {
+        "name": "saveRulesModal",
+        "params": "",
+        "line": 3930
+      },
+      {
+        "name": "onMapSearchChanged",
+        "params": "",
+        "line": 4012
+      },
+      {
+        "name": "refreshMapTable",
+        "params": "",
+        "line": 4019
+      },
+      {
+        "name": "snapToCoords",
+        "params": "x, y, serverId",
+        "line": 4067
+      },
+      {
+        "name": "refreshInventoryView",
+        "params": "forceLive = false",
+        "line": 4101
+      },
+      {
+        "name": "renderInventoryDashboard",
+        "params": "",
+        "line": 4117
+      },
+      {
+        "name": "getRaritySvg",
+        "params": "category, rarity",
+        "line": 4181
+      },
+      {
+        "name": "renderInventoryGrid",
+        "params": "",
+        "line": 4194
+      },
+      {
+        "name": "setInventoryCategory",
+        "params": "cat",
+        "line": 4278
+      },
+      {
+        "name": "onInventorySearchChanged",
+        "params": "",
+        "line": 4287
+      },
+      {
+        "name": "onInventorySortChanged",
+        "params": "",
+        "line": 4296
+      },
+      {
+        "name": "switchCalcSubTab",
+        "params": "tab",
+        "line": 4310
+      },
+      {
+        "name": "loadCalculatorsView",
+        "params": "",
+        "line": 4323
+      },
+      {
+        "name": "refreshTechCalculator",
+        "params": "forceLive = false",
+        "line": 4332
+      },
+      {
+        "name": "renderTechCalculator",
+        "params": "",
+        "line": 4345
+      },
+      {
+        "name": "onTechTreeSelectChanged",
+        "params": "val",
+        "line": 4390
+      },
+      {
+        "name": "toggleHideMaxedTiers",
+        "params": "checked",
+        "line": 4395
+      },
+      {
+        "name": "renderSelectedTechTree",
+        "params": "",
+        "line": 4400
+      },
+      {
+        "name": "refreshMigrationCalculator",
+        "params": "stateId = 694, playerQuery = \"\"",
+        "line": 4499
+      },
+      {
+        "name": "renderMigrationCalculator",
+        "params": "",
+        "line": 4506
+      },
+      {
+        "name": "onHeldPassesChanged",
+        "params": "",
+        "line": 4603
+      },
+      {
+        "name": "onMigrationStateSelectChanged",
+        "params": "val",
+        "line": 4619
+      },
+      {
+        "name": "onMigrationSearchInput",
+        "params": "",
+        "line": 4623
+      },
+      {
+        "name": "selectSearchedCommander",
+        "params": "idx",
+        "line": 4659
+      },
+      {
+        "name": "doQuickShield",
+        "params": "pid",
+        "line": 4670
+      },
+      {
+        "name": "doQuickRecall",
+        "params": "pid",
+        "line": 4678
+      },
+      {
+        "name": "openTroopsModal",
+        "params": "pid",
+        "line": 4690
+      },
+      {
+        "name": "closeTroopsModal",
+        "params": "",
+        "line": 4696
+      },
+      {
+        "name": "refreshTroopsOverview",
+        "params": "forceLive = false",
+        "line": 4700
+      },
+      {
+        "name": "renderTroopsModal",
+        "params": "d",
+        "line": 4713
+      },
+      {
+        "name": "initDeltaStateDropdown",
+        "params": "",
+        "line": 4819
+      },
+      {
+        "name": "loadAllianceDeltas",
+        "params": "forceSnapshot = false",
+        "line": 4833
+      },
+      {
+        "name": "renderAllianceDeltas",
+        "params": "d",
+        "line": 4856
+      }
+    ],
+    "doAction_routes_called": [
+      "apply_engine",
+      "export_alliance_members",
+      "export_elite_radar",
+      "export_inventory",
+      "export_map",
+      "export_mines",
+      "export_radar",
+      "export_roster",
+      "export_tech",
+      "export_top10",
+      "export_vs",
+      "flush_ram",
+      "install_bot_task",
+      "launch_all_farms",
+      "launch_single_client",
+      "open_active_migration",
+      "open_all_bases",
+      "open_all_resources",
+      "open_bracket_folder",
+      "open_data_folder",
+      "open_google_roster",
+      "open_inventory_excel",
+      "open_map_summary",
+      "open_scratch_folder",
+      "open_selected_bracket_state",
+      "open_unshielded_excel",
+      "open_vs_excel",
+      "provision_farm",
+      "restart_daemon",
+      "run_alliance_help_now",
+      "run_always_on_sweep_now",
+      "run_bot_cycle",
+      "run_single_task",
+      "scan_fleet",
+      "setup_base_install",
+      "start_bot_daemon",
+      "stop_all_farms",
+      "stop_bot_daemon",
+      "stop_single_client",
+      "sync_farm_builds",
+      "sync_google_bracket",
+      "uninstall_bot_task"
+    ],
+    "pywebview_api_calls": [
+      "browse_folder",
+      "clear_logs",
+      "inspect_setup",
+      "jump_to_coordinate",
+      "query_map_targets",
+      "run_action",
+      "save_bot_config",
+      "save_event_rules",
+      "select_target_client"
+    ],
+    "direct_runSingleTask_calls": [
+      "${esc(t.key)}",
+      "daily_tasks_complete"
+    ]
+  },
+  "bot_and_repo": {
+    "bot_actions_file": "tools/bot actions.py",
+    "bot_actions_lines": 13398,
+    "bot_actions_functions_count": 74,
+    "bot_actions_functions": [
+      {
+        "name": "_clean_in_game_tips",
+        "line": 21,
+        "end_line": 36,
+        "args": [
+          "tips"
+        ],
+        "doc": "Filter out Unity RichText hex color strings (e.g. E000000) and deduplicate consecutive/repeated tips.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_load_english_dialog",
+        "line": 44,
+        "end_line": 76,
+        "args": [],
+        "doc": "Lazily load launcher/assets/english-dialog.txt as a Python localization fallback.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_localize_id",
+        "line": 79,
+        "end_line": 86,
+        "args": [
+          "val"
+        ],
+        "doc": "Resolve a numeric localization key via english-dialog.txt fallback.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_used_formations_lua",
+        "line": 725,
+        "end_line": 729,
+        "args": [
+          "context",
+          "pid"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_record_used_formations",
+        "line": 732,
+        "end_line": 739,
+        "args": [
+          "context",
+          "pid",
+          "uuids"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_normalize_eval_payload",
+        "line": 742,
+        "end_line": 772,
+        "args": [
+          "payload"
+        ],
+        "doc": "Normalize in_game_tips, popped_modals, and send_errors across Lua eval results.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_build_detail_lines",
+        "line": 775,
+        "end_line": 1186,
+        "args": [
+          "task_name",
+          "res"
+        ],
+        "doc": "Build structured, in-depth telemetry detail_lines for any of the 30 bot actions.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_finalize_task_result",
+        "line": 1189,
+        "end_line": 1206,
+        "args": [
+          "task_name",
+          "res"
+        ],
+        "doc": "Ensure every task result includes normalized tips, popped_modals, send_errors, and detail_lines.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_with_task_telemetry",
+        "line": 1209,
+        "end_line": 1217,
+        "args": [
+          "task_name"
+        ],
+        "doc": "Decorator guaranteeing structured detail_lines, popped_modals, and send_errors on any task return.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_eval_json",
+        "line": 1220,
+        "end_line": 1234,
+        "args": [
+          "cd",
+          "pid",
+          "lua_body",
+          "timeout"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "snapshot_client",
+        "line": 1237,
+        "end_line": 1256,
+        "args": [
+          "cd",
+          "pid"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "StatusManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "dismiss_all_popups",
+        "line": 1259,
+        "end_line": 1278,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Auto-dismiss any active modal popups (CommonDialog, UIGiftPackageRewardGet, etc.).",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "ensure_world_scene",
+        "line": 1281,
+        "end_line": 1304,
+        "args": [
+          "cd",
+          "pid",
+          "wait_seconds"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_lua_claim_alliance_gifts_block",
+        "line": 1307,
+        "end_line": 1499,
+        "args": [
+          "dry_run_var",
+          "flag_var"
+        ],
+        "doc": "Shared Lua snippet to claim Alliance Gifts & Rare Chests across BOTH Tab 1 and Tab 2.",
+        "msg_defines_used": [
+          "AllianceGiftGetReward",
+          "AllianceReceiveAllGift",
+          "ReceiveGiftDailyReward",
+          "ReceiveGiftLevReward"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceGiftDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_auto_help",
+        "line": 1502,
+        "end_line": 1687,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "AlHelpAll",
+          "AllianceCallHelp",
+          "AllianceGiftList"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceGiftDataManager",
+          "AllianceHelpDataManager",
+          "BuildManager",
+          "QueueDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_rf_hq_under_attack",
+        "line": 1690,
+        "end_line": 1889,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "ItemUse"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceAlertDataManager",
+          "ItemData",
+          "ItemTemplateManager",
+          "RadarAlarmDataManager",
+          "StatusManager",
+          "WorldMarchDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_treasure_helicopter",
+        "line": 1892,
+        "end_line": 2103,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "GetDigTreasureReward",
+          "WorldGetDetail"
+        ],
+        "datacenter_mgrs_used": [
+          "DigTreasureDataManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_now_dt",
+        "line": 2106,
+        "end_line": 2109,
+        "args": [
+          "context"
+        ],
+        "doc": "Return current local datetime, honoring optional test injection in context.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_daily_state_path",
+        "line": 2112,
+        "end_line": 2114,
+        "args": [
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_client_key",
+        "line": 2117,
+        "end_line": 2119,
+        "args": [
+          "client_state",
+          "pid"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_load_daily_state",
+        "line": 2122,
+        "end_line": 2129,
+        "args": [
+          "path"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_get_daily_count",
+        "line": 2132,
+        "end_line": 2146,
+        "args": [
+          "context",
+          "client_state",
+          "pid",
+          "metric",
+          "now_dt"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_increment_daily_count",
+        "line": 2149,
+        "end_line": 2176,
+        "args": [
+          "context",
+          "client_state",
+          "pid",
+          "metric",
+          "delta",
+          "now_dt"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_probe_preparedness_phase",
+        "line": 2179,
+        "end_line": 2523,
+        "args": [
+          "cd",
+          "pid"
+        ],
+        "doc": "Query active Full Preparedness / Personal Arms phase, Alliance Duel (VS) phase, & incomplete Daily Quests.",
+        "msg_defines_used": [
+          "ActivityEventInfoGet"
+        ],
+        "datacenter_mgrs_used": [
+          "ActPersonalArmsInfo",
+          "ActTimeCompeDataManager",
+          "ActivityListDataManager",
+          "AllianceCompeteDataManager",
+          "DailyTaskManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_detect_training_event_boost",
+        "line": 2526,
+        "end_line": 2630,
+        "args": [
+          "cd",
+          "pid",
+          "probe"
+        ],
+        "doc": "Detect if Full Preparedness and/or Alliance Duel currently rewards Training Troops or Training Speedups.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_try_start_research",
+        "line": 2633,
+        "end_line": 2699,
+        "args": [
+          "cd",
+          "pid",
+          "dry_run"
+        ],
+        "doc": "Start an available Tech Lab research item if no research is currently running.",
+        "msg_defines_used": [
+          "ScienceResearchNew"
+        ],
+        "datacenter_mgrs_used": [
+          "BuildManager",
+          "ScienceManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_match_preparedness_actions",
+        "line": 2715,
+        "end_line": 2753,
+        "args": [
+          "probe"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_run_scoped_speedup",
+        "line": 2756,
+        "end_line": 2773,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "category",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_execute_preparedness_actions",
+        "line": 2776,
+        "end_line": 2822,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context",
+          "probe"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_full_preparedness",
+        "line": 2825,
+        "end_line": 2879,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_claim_full_preparedness",
+        "line": 2882,
+        "end_line": 3029,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "AcceptPersonalReward",
+          "AcceptPersonalRewardBatch"
+        ],
+        "datacenter_mgrs_used": [
+          "ActPersonalArmsInfo",
+          "ActivityController",
+          "ActivityListDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_speedups",
+        "line": 3032,
+        "end_line": 3311,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "BuildCcdMNew",
+          "QueueCcdMNew",
+          "QueueFinish"
+        ],
+        "datacenter_mgrs_used": [
+          "ActPersonalArmsInfo",
+          "ActivityListDataManager",
+          "AllianceCompeteDataManager",
+          "ArmyManager",
+          "BuildManager",
+          "ItemData",
+          "QueueDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_troop_training",
+        "line": 3314,
+        "end_line": 3863,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "ArmyAdd",
+          "QueueCcdMNew",
+          "QueueFinish"
+        ],
+        "datacenter_mgrs_used": [
+          "ArmyManager",
+          "BuildManager",
+          "ItemData",
+          "ItemTemplateManager",
+          "QueueDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_building_upgrades",
+        "line": 3866,
+        "end_line": 4124,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "AllianceCallHelp",
+          "FreeBuildingUpNew"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceHelpDataManager",
+          "BuildManager",
+          "BuildQueueManager",
+          "BuildTemplateManager",
+          "QueueDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_tyrant_event",
+        "line": 4127,
+        "end_line": 4308,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "ReceiveAllianceBossAllianceReward"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceBossManager",
+          "AllianceWarDataManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_boomer_runs",
+        "line": 4311,
+        "end_line": 4454,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "FindMonster"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceWarDataManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "Monster"
+        ]
+      },
+      {
+        "name": "run_auto_gather",
+        "line": 4457,
+        "end_line": 4615,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "GatherResource"
+        ]
+      },
+      {
+        "name": "run_furylord",
+        "line": 4618,
+        "end_line": 4770,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Attack Furylord at 03:00 exact with Formation 1 (F1) up to 4 times daily.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "ActRoamingBossManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_bounties",
+        "line": 4773,
+        "end_line": 5242,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Unified 3-in-1 Gold Bounties: Lock Orange + Claim/Dispatch Gold + Help Allies Gold + Plunder Bounties.",
+        "msg_defines_used": [
+          "DispatchAssist",
+          "DispatchRewardAll",
+          "DispatchStart",
+          "DispatchTaskRefresh"
+        ],
+        "datacenter_mgrs_used": [
+          "ActDispatchTaskDataManager",
+          "ActivityListDataManager",
+          "ItemData"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "LwDispatchTask"
+        ]
+      },
+      {
+        "name": "run_bounty_steal",
+        "line": 5245,
+        "end_line": 5551,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Jump/scan another state and steal ONLY Golden Lv5+ bounties.",
+        "msg_defines_used": [
+          "DispatchSteal"
+        ],
+        "datacenter_mgrs_used": [
+          "ActDispatchTaskDataManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "LwDispatchTask"
+        ]
+      },
+      {
+        "name": "run_trucks",
+        "line": 5554,
+        "end_line": 6027,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Claim all finished/golden trucks first, wait for server sync, reroll & dispatch up to slots, and raid cross-state trucks.",
+        "msg_defines_used": [
+          "CollectTrainReward",
+          "GetMyStationData"
+        ],
+        "datacenter_mgrs_used": [
+          "ArmyFormationDataManager",
+          "ArmyManager",
+          "HeroDataManager",
+          "ItemData",
+          "LWMyStationDataManager",
+          "LWTrainDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_mining_event",
+        "line": 6030,
+        "end_line": 6541,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Mon/Tue Mine Melee (MineCaveManager, ActMineCave=25) executed in 4 asynchronous Python-paced stages:",
+        "msg_defines_used": [
+          "BeginPvpCaveFight",
+          "ClaimMineCaveReward",
+          "GetMineCaveInfo",
+          "RefreshMineCaveList"
+        ],
+        "datacenter_mgrs_used": [
+          "ActivityListDataManager",
+          "ArmyFormationDataManager",
+          "MineCaveManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_vip_store_rewards",
+        "line": 6547,
+        "end_line": 6682,
+        "args": [
+          "cd",
+          "pid",
+          "snapshot",
+          "ccfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Claim VIP daily points chest, VIP daily freebie, Store 2nd-tab (VIP Shop) free items, and free weekly pack.",
+        "msg_defines_used": [
+          "BuyCommonShopGoods",
+          "BuyFreeWeeklyPackage"
+        ],
+        "datacenter_mgrs_used": [
+          "CommonShopManager",
+          "VIPManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "snapshot_formations_and_gear",
+        "line": 6685,
+        "end_line": 6877,
+        "args": [
+          "cd",
+          "pid"
+        ],
+        "doc": "Capture snapshot of all formation layouts and hero gear loadouts for safety.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "ArmyFormationDataManager",
+          "ArmyFormationManager",
+          "HeroDataManager",
+          "HeroEquipManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "restore_formations_and_gear",
+        "line": 6880,
+        "end_line": 6937,
+        "args": [
+          "cd",
+          "pid"
+        ],
+        "doc": "Restore all hero gear back to original owners and formation layouts from snapshot.",
+        "msg_defines_used": [
+          "HeroEquipInstall"
+        ],
+        "datacenter_mgrs_used": [
+          "HeroDataManager",
+          "HeroEquipManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_hero_battlefield",
+        "line": 6940,
+        "end_line": 7489,
+        "args": [
+          "cd",
+          "pid",
+          "snapshot",
+          "ccfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Pre-fill each of the 3 Campervan factions strictly with strongest faction heroes, borrow F1 gear, and push highest stage with >=90% win-rate.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "ArmyFormationDataManager",
+          "ArmyFormationManager",
+          "BattleLevel",
+          "CarChipManager",
+          "HeroDataManager",
+          "HeroEquipManager",
+          "LandingOperationsDataManager",
+          "OverlordManager",
+          "PveLevelTemplateManager",
+          "TowerClimbingManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_arena_round_win_prob",
+        "line": 7492,
+        "end_line": 7499,
+        "args": [
+          "my_pwr",
+          "opp_pwr"
+        ],
+        "doc": "Estimate single-squad PvP win probability from combat powers.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_arena_best_matchup",
+        "line": 7502,
+        "end_line": 7570,
+        "args": [
+          "is_3v3",
+          "pure_camps",
+          "opp"
+        ],
+        "doc": "Select optimal pure-faction slot order against an opponent and compute win odds.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_arena",
+        "line": 7573,
+        "end_line": 8097,
+        "args": [
+          "cd",
+          "pid",
+          "snapshot",
+          "ccfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Run daily Arena battles (auto-detects 1v1 vs 3v3, pure faction top-5 teams, >win-odds filter).",
+        "msg_defines_used": [
+          "GetArenaInfo",
+          "GetCrossArenaInfo",
+          "RefreshArenaChallenge",
+          "RefreshCrossArenaChallenge",
+          "StartArena3V3Battle",
+          "StartArenaBattle",
+          "StartCrossArena3V3Battle",
+          "StartCrossArenaBattle"
+        ],
+        "datacenter_mgrs_used": [
+          "ArenaManager",
+          "BattleLevel",
+          "CrossArenaManager",
+          "HeroDataManager",
+          "TowerClimbingManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_area_exploration",
+        "line": 8100,
+        "end_line": 8410,
+        "args": [
+          "cd",
+          "pid",
+          "snapshot",
+          "ccfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Claim Exploration idle chest, execute available Batch Jump, and auto-battle solo stages until fail.",
+        "msg_defines_used": [
+          "UserStartBarrelPushBatch"
+        ],
+        "datacenter_mgrs_used": [
+          "BattleLevel",
+          "LWBattleManager",
+          "StoryManager",
+          "TowerClimbingManager"
+        ],
+        "ui_windows_used": [
+          "UIJeepAdventureMain",
+          "UIPVEResult",
+          "UIPVEScene",
+          "UIParkourBattleWin",
+          "UIPveBattleWin"
+        ],
+        "tables_used": []
+      },
+      {
+        "name": "run_war_safety",
+        "line": 8487,
+        "end_line": 8644,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "ItemUse"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceAlertDataManager",
+          "ItemData",
+          "ItemTemplateManager",
+          "RadarAlarmDataManager",
+          "StatusManager",
+          "WorldMarchDataManager",
+          "WorldMyMarchDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_hospital_heal",
+        "line": 8647,
+        "end_line": 9805,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context",
+          "use_speedups",
+          "max_speedup_mins"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "HospitalCure",
+          "QueueCcdMNew"
+        ],
+        "datacenter_mgrs_used": [
+          "ArmyManager",
+          "ArmyTemplateManager",
+          "HospitalManager",
+          "ItemData",
+          "QueueDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_alliance_daily",
+        "line": 9811,
+        "end_line": 10046,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context",
+          "tech_only"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "AlHelpAll",
+          "AlScienceDonate",
+          "AlScienceGoldDonate",
+          "AllianceGiftList",
+          "ClaimAllianceTaskReward"
+        ],
+        "datacenter_mgrs_used": [
+          "AlContributeManager",
+          "AllianceGiftDataManager",
+          "AllianceHelpDataManager",
+          "AllianceRedPacketManager",
+          "AllianceScienceDataManager",
+          "AllianceTaskManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_research_queue",
+        "line": 10049,
+        "end_line": 10176,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "FreeSpeedQueue",
+          "ScienceResearchNew"
+        ],
+        "datacenter_mgrs_used": [
+          "QueueDataManager",
+          "ScienceManager",
+          "ScienceTemplateManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_lua_trigger_pve_skip_snippet",
+        "line": 10179,
+        "end_line": 10270,
+        "args": [],
+        "doc": "Shared verified Lua helper to skip an active PVE battle safely.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "BattleLevel",
+          "LWBattleManager"
+        ],
+        "ui_windows_used": [
+          "UIPVEScene"
+        ],
+        "tables_used": []
+      },
+      {
+        "name": "_ensure_exited_pve_cleanly",
+        "line": 10273,
+        "end_line": 10326,
+        "args": [
+          "cd",
+          "pid",
+          "only_if_stuck"
+        ],
+        "doc": "Safely back out of an active PVE result/scene using ONLY the game's real UI button callbacks (never DestroyWindow or raw SceneManager scene resets).",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "BattleLevel",
+          "LWBattleManager"
+        ],
+        "ui_windows_used": [
+          "UIJeepAdventureMain",
+          "UIPVEResult",
+          "UIPVEScene",
+          "UIParkourBattleLose",
+          "UIParkourBattleWin",
+          "UIPveBattleLose",
+          "UIPveBattleWin",
+          "UITowerupBattleLose"
+        ],
+        "tables_used": []
+      },
+      {
+        "name": "_skip_active_pve_after_delay",
+        "line": 10329,
+        "end_line": 10342,
+        "args": [
+          "cd",
+          "pid",
+          "delay_sec"
+        ],
+        "doc": "Wait briefly for PVE transition, invoke verified prod-safe skip, and verify clean exit.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_radar_events",
+        "line": 10345,
+        "end_line": 11148,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "AutoFinishDetectEvent",
+          "BatchDetectEventRewardReceive",
+          "ClickCreateTreasureDetect",
+          "DetectEventHelpEnd",
+          "DetectEventHelpStart",
+          "DetectEventLauraRewardReceive",
+          "DetectEventPveBatch",
+          "DetectEventRescueEnd",
+          "DetectEventRescueStart",
+          "DetectEventRewardReceive",
+          "DetectPurkoutStart",
+          "FinishSampling",
+          "ReceiveDetectLevelReward",
+          "SU_DetectDialog",
+          "SU_DetectSummon",
+          "StartPickGarbage",
+          "UseHeroEffectSkill"
+        ],
+        "datacenter_mgrs_used": [
+          "BuildManager",
+          "DetectEventTemplateManager",
+          "FakeHelperMarchManager",
+          "FakeRescueMarchManager",
+          "HeroEffectSkillManager",
+          "MonsterTemplateManager",
+          "RadarCenterDataManager",
+          "TowerClimbingManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [
+          "UIDetectEvent"
+        ],
+        "tables_used": []
+      },
+      {
+        "name": "run_daily_claims",
+        "line": 11151,
+        "end_line": 11648,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "AchievementRewardGet",
+          "AllClaimWeekCardReward",
+          "ClaimAllSeasonPassReward",
+          "ClaimGolloesDailyReward",
+          "ClaimWeekCardFreeReward",
+          "DailyQuestGetAllReward",
+          "DailyQuestReward",
+          "DailyTaskReward",
+          "GetHeroMonthCardAllReward",
+          "ReceiveBattlePassAllReward",
+          "ReceiveSeasonWeekCardReward",
+          "TaskRewardBatch"
+        ],
+        "datacenter_mgrs_used": [
+          "AchievementManager",
+          "ActBattlePassData",
+          "ActSeasonWeekCardData",
+          "ActivityListDataManager",
+          "ChapterTaskManager",
+          "DailyTaskManager",
+          "DayRechargeMonthCardManager",
+          "GroundPassManager",
+          "HeroMonthCardManager",
+          "MonthCardNewManager",
+          "MonthMsgCardManager",
+          "SeasonPassManager",
+          "TaskManager",
+          "WeekCardManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_scan_daily_tasks_live",
+        "line": 11651,
+        "end_line": 11752,
+        "args": [
+          "cd",
+          "pid"
+        ],
+        "doc": "Read all Daily Tasks, XML metadata, activity score, and milestone chests from DataCenter.DailyTaskManager.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "DailyTaskManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "DailyQuest"
+        ]
+      },
+      {
+        "name": "_classify_daily_task_kind",
+        "line": 11755,
+        "end_line": 11805,
+        "args": [
+          "t"
+        ],
+        "doc": "Map a live DailyTaskManager row to a deterministic action kind.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_do_daily_social_likes",
+        "line": 11808,
+        "end_line": 11880,
+        "args": [
+          "cd",
+          "pid",
+          "needed",
+          "dry_run"
+        ],
+        "doc": "Like `needed` different Moment posts via DataCenter.MomentManager:SendLoveMoment(uid, uuid).",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [
+          "MomentManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_do_daily_hero_exp",
+        "line": 11883,
+        "end_line": 11947,
+        "args": [
+          "cd",
+          "pid",
+          "needed",
+          "dry_run"
+        ],
+        "doc": "Use `needed` smallest Hero EXP items (e.g., itemId=200394 = 1 EXP) on lowest-level non-maxed hero via HeroLvUp.",
+        "msg_defines_used": [
+          "HeroLvUp"
+        ],
+        "datacenter_mgrs_used": [
+          "HeroDataManager",
+          "ItemData",
+          "ItemTemplateManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_do_daily_ticket_recruit",
+        "line": 11950,
+        "end_line": 12027,
+        "args": [
+          "cd",
+          "pid",
+          "needed",
+          "dry_run"
+        ],
+        "doc": "Use Recruitment Tickets (never diamonds) via LotteryHeroCard(id, isTen=0, useFree=0, itemId, 0).",
+        "msg_defines_used": [
+          "LotteryHeroCard"
+        ],
+        "datacenter_mgrs_used": [
+          "ItemData",
+          "LotteryDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_do_daily_boss_rally",
+        "line": 12030,
+        "end_line": 12218,
+        "args": [
+          "cd",
+          "pid",
+          "needed",
+          "target_keyword",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Start (or join) up to `needed` rally marches against Frostbane / Boomer / Stegosaur bosses.",
+        "msg_defines_used": [
+          "FindMonster",
+          "FindMonsterBoss"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceWarDataManager",
+          "MonsterManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "Monster"
+        ]
+      },
+      {
+        "name": "_do_daily_gather_acts",
+        "line": 12221,
+        "end_line": 12352,
+        "args": [
+          "cd",
+          "pid",
+          "needed",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "Dispatch up to `needed` free squads to lowest-level (fast Lv1-3) unoccupied resource tiles via FindResourcePoint + COLLECT.",
+        "msg_defines_used": [
+          "FindResourcePoint"
+        ],
+        "datacenter_mgrs_used": [
+          "CollectResourceManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "GatherResource"
+        ]
+      },
+      {
+        "name": "_claim_all_daily_tasks_and_boxes",
+        "line": 12355,
+        "end_line": 12423,
+        "args": [
+          "cd",
+          "pid",
+          "dry_run"
+        ],
+        "doc": "Claim ALL completed Daily Tasks (state==1) AND ALL unlocked Daily Milestone Chests (30..150).",
+        "msg_defines_used": [
+          "DailyQuestGetAllReward",
+          "DailyQuestReward",
+          "DailyTaskReward"
+        ],
+        "datacenter_mgrs_used": [
+          "DailyTaskManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_daily_tasks_complete",
+        "line": 12426,
+        "end_line": 12740,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "One-go Daily Tasks Orchestrator: scans all listed Daily Tasks in DataCenter.DailyTaskManager,",
+        "msg_defines_used": [
+          "FindMonster"
+        ],
+        "datacenter_mgrs_used": [
+          "BuildManager",
+          "DailyTaskManager",
+          "WorldPointManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": [
+          "Monster"
+        ]
+      },
+      {
+        "name": "run_free_recruits",
+        "line": 12743,
+        "end_line": 12843,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "ItemUse",
+          "LotteryHeroCard"
+        ],
+        "datacenter_mgrs_used": [
+          "ItemData",
+          "ItemTemplateManager",
+          "LotteryDataManager",
+          "SmallPeopleRecruitDataManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_garage_upgrades",
+        "line": 12846,
+        "end_line": 12959,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "CarComponInstallAll",
+          "CarComponUpgradeAll",
+          "GarageRefit",
+          "GarageRefitNewAddExp"
+        ],
+        "datacenter_mgrs_used": [
+          "GarageComponManager",
+          "GarageRefitManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "run_alliance_boss_mine",
+        "line": 12962,
+        "end_line": 13085,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context"
+        ],
+        "doc": "",
+        "msg_defines_used": [
+          "ReceiveAllianceBossFreeReward"
+        ],
+        "datacenter_mgrs_used": [
+          "AllianceBossBearManager",
+          "AllianceMineManager"
+        ],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_load_bot_mine_melee_module",
+        "line": 13088,
+        "end_line": 13104,
+        "args": [],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "action_mine_melee_refresh",
+        "line": 13107,
+        "end_line": 13176,
+        "args": [
+          "cd",
+          "pid",
+          "client_state",
+          "cfg",
+          "dry_run",
+          "context",
+          "refresh_threshold_sec",
+          "min_payload_pct",
+          "reserve_formations"
+        ],
+        "doc": "Wrapper in bot actions.py that imports and calls action_mine_melee_refresh from bot_mine_melee.py.",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      },
+      {
+        "name": "_cli_main",
+        "line": 13256,
+        "end_line": 13394,
+        "args": [],
+        "doc": "",
+        "msg_defines_used": [],
+        "datacenter_mgrs_used": [],
+        "ui_windows_used": [],
+        "tables_used": []
+      }
+    ],
+    "stage_definitions": [
+      {
+        "stage_id": 1,
+        "key": "stage_1_war_safety",
+        "name": "War Safety & Emergency Shields",
+        "tasks": [
+          "war_safety",
+          "rf_hq_under_attack"
+        ],
+        "extended_tasks": [],
+        "default_cooldown_sec": 0.0,
+        "pacing_delay_sec": 0.6,
+        "critical_preempt": true
+      },
+      {
+        "stage_id": 2,
+        "key": "stage_2_casualty_recovery",
+        "name": "Casualty Recovery & Hospital",
+        "tasks": [
+          "hospital_heal"
+        ],
+        "extended_tasks": [],
+        "default_cooldown_sec": 15.0,
+        "pacing_delay_sec": 0.6,
+        "critical_preempt": false
+      },
+      {
+        "stage_id": 3,
+        "key": "stage_3_resource_gathering",
+        "name": "Resource Gathering & Mine Melee Refresh",
+        "tasks": [
+          "mine_melee_refresh",
+          "mining_event",
+          "alliance_boss_mine"
+        ],
+        "extended_tasks": [
+          "auto_gather"
+        ],
+        "default_cooldown_sec": 30.0,
+        "pacing_delay_sec": 0.8,
+        "critical_preempt": false
+      },
+      {
+        "stage_id": 4,
+        "key": "stage_4_base_production",
+        "name": "Base Production & Upgrades",
+        "tasks": [
+          "troop_training",
+          "building_upgrades",
+          "research_queue",
+          "garage_upgrades",
+          "speedups"
+        ],
+        "extended_tasks": [],
+        "default_cooldown_sec": 20.0,
+        "pacing_delay_sec": 0.8,
+        "critical_preempt": false
+      },
+      {
+        "stage_id": 5,
+        "key": "stage_5_alliance_dailies",
+        "name": "Alliance & Dailies",
+        "tasks": [
+          "auto_help",
+          "alliance_daily",
+          "radar_events",
+          "treasure_helicopter",
+          "trucks",
+          "bounties",
+          "bounty_steal",
+          "arena",
+          "hero_battlefield",
+          "area_exploration",
+          "boomer_runs",
+          "furylord",
+          "tyrant_event",
+          "full_preparedness",
+          "vip_store_rewards",
+          "free_recruits",
+          "daily_tasks_complete",
+          "daily_claims"
+        ],
+        "extended_tasks": [
+          "dismiss_popups"
+        ],
+        "default_cooldown_sec": 30.0,
+        "pacing_delay_sec": 0.5,
+        "critical_preempt": false
+      }
+    ],
+    "stage_task_order": [
+      "war_safety",
+      "rf_hq_under_attack",
+      "hospital_heal",
+      "mine_melee_refresh",
+      "mining_event",
+      "alliance_boss_mine",
+      "troop_training",
+      "building_upgrades",
+      "research_queue",
+      "garage_upgrades",
+      "speedups",
+      "auto_help",
+      "alliance_daily",
+      "radar_events",
+      "treasure_helicopter",
+      "trucks",
+      "bounties",
+      "bounty_steal",
+      "arena",
+      "hero_battlefield",
+      "area_exploration",
+      "boomer_runs",
+      "furylord",
+      "tyrant_event",
+      "full_preparedness",
+      "vip_store_rewards",
+      "free_recruits",
+      "daily_tasks_complete",
+      "daily_claims"
+    ],
+    "default_config": {
+      "version": 2,
+      "cycle_interval_seconds": 180,
+      "inter_client_delay_seconds": 1.5,
+      "auto_launch_stopped_clients": false,
+      "auto_launch_mode": "eco",
+      "discovered_protected_uids": [],
+      "stage_machine": {
+        "enabled": true,
+        "enforce_cooldowns": true,
+        "preempt_on_attack": true,
+        "strict_emergency_preempt": true,
+        "inter_stage_delay_seconds": 0.6,
+        "inter_task_delay_seconds": 0.25,
+        "verify_client_between_stages": true,
+        "include_extended_tasks": false,
+        "stage_cooldowns_seconds": {
+          "1": 0.0,
+          "2": 15.0,
+          "3": 30.0,
+          "4": 20.0,
+          "5": 30.0
+        }
+      },
+      "schedule": {
+        "task_name": "LastZ_MultiClient_Bot",
+        "legacy_task_names": [],
+        "interval_minutes": 15,
+        "auto_launch_in_task": true,
+        "launch_mode": "hidden"
+      },
+      "client_defaults": {
+        "main": {
+          "enabled": true,
+          "role": "main",
+          "launch_mode": "windowed",
+          "formation_reserve": 1,
+          "min_stamina": 120,
+          "tasks": {
+            "auto_help": true,
+            "rf_hq_under_attack": true,
+            "treasure_helicopter": true,
+            "full_preparedness": true,
+            "speedups": true,
+            "troop_training": true,
+            "building_upgrades": true,
+            "tyrant_event": true,
+            "boomer_runs": true,
+            "auto_gather": true,
+            "mine_melee_refresh": true,
+            "furylord": true,
+            "bounties": true,
+            "bounty_steal": true,
+            "trucks": true,
+            "mining_event": true,
+            "vip_store_rewards": true,
+            "sync_ruby_shop": true,
+            "area_exploration": true,
+            "hero_battlefield": true,
+            "arena": true,
+            "war_safety": true,
+            "hospital_heal": true,
+            "alliance_daily": true,
+            "research_queue": false,
+            "radar_events": true,
+            "daily_tasks_complete": true,
+            "daily_claims": true,
+            "free_recruits": false,
+            "garage_upgrades": false,
+            "alliance_boss_mine": true
+          },
+          "always_on_daemon": {
+            "enabled": true,
+            "interval_sec": 15
+          },
+          "auto_help": {
+            "always_on": true,
+            "interval_sec": 15,
+            "help_allies": true,
+            "call_help_queues": true,
+            "claim_alliance_chests": true
+          },
+          "speedups": {
+            "use_free_speed": true,
+            "collect_finished": true,
+            "use_items": false,
+            "align_with_preparedness": true,
+            "reserve_minutes": 600,
+            "max_items_per_cycle": 5,
+            "categories": {
+              "build": true,
+              "research": true,
+              "train": false,
+              "heal": true
+            }
+          },
+          "troop_training": {
+            "collect_finished": true,
+            "train_highest_tier": true,
+            "barracks": [
+              "CarSoldier",
+              "FootSoldier",
+              "BowSoldier"
+            ],
+            "batch_count": 0,
+            "event_speed_zoom": true,
+            "max_zoom_batches": 50,
+            "zoom_use_universal_speedups": false
+          },
+          "building_upgrades": {
+            "collect_resources": true,
+            "hq_priority": true,
+            "auto_prerequisites": true,
+            "call_alliance_help": true,
+            "priority_building_types": [
+              400000,
+              403000,
+              423000,
+              424000,
+              425000,
+              411000
+            ]
+          },
+          "auto_gather": {
+            "resource_priority": [
+              "Oil",
+              "Metal",
+              "Wood",
+              "Electricity"
+            ],
+            "min_level": 3,
+            "max_level": 9,
+            "max_distance": 150,
+            "formation_index": 0
+          },
+          "mine_melee_refresh": {
+            "refresh_threshold_sec": 300,
+            "min_payload_pct": 10.0,
+            "reserve_formations": 1,
+            "alliance_mine_priority": true,
+            "recall_depleted": true
+          },
+          "boomer_runs": {
+            "join_open_rallies": true,
+            "auto_start_rally": true,
+            "min_level": 1,
+            "max_level": 5,
+            "rally_wait_minutes": 5,
+            "stamina_cost": 20,
+            "min_stamina": 120
+          },
+          "tyrant_event": {
+            "claim_free_reward": true,
+            "claim_alliance_reward": true,
+            "join_or_attack": true,
+            "prefer_rally": true,
+            "f1_always_host_rally": true,
+            "other_formations_join_rallies": true,
+            "repeat_when_free": true,
+            "fast_repeat_sec": 10
+          },
+          "rf_hq_under_attack": {
+            "reinforce_protected_uids": true,
+            "reinforce_alliance_members": true,
+            "alert_on_self_attack": true,
+            "auto_shield_on_self_attack": false,
+            "max_incoming_eta_seconds": 900
+          },
+          "treasure_helicopter": {
+            "march_to_dig": true,
+            "auto_claim_chat_treasures": true,
+            "jitter_min_ms": 110,
+            "jitter_max_ms": 240,
+            "burst_clicks": 6,
+            "lead_window_seconds": 2.0
+          },
+          "full_preparedness": {
+            "execute_tasks": true,
+            "claim_boxes": true,
+            "claim_daily_quests": true,
+            "claim_daily_chests": true
+          },
+          "furylord": {
+            "exact_hour": 3,
+            "exact_minute": 0,
+            "window_minutes": 20,
+            "max_attacks": 4,
+            "formation_index": 1,
+            "prefer_rally": true,
+            "claim_rewards": true
+          },
+          "bounties": {
+            "only_golden": true,
+            "lock_orange": true,
+            "help_allies_golden": true,
+            "plunder_bounties": true,
+            "min_color": 4,
+            "use_free": true,
+            "use_tickets": true,
+            "use_diamonds": false,
+            "stop_when_no_free_or_ticket": true,
+            "claim_completed": true,
+            "max_refreshes_per_cycle": 8,
+            "cross_state_only": true,
+            "min_level": 5,
+            "max_daily_steals": 5,
+            "max_servers_scan": 16
+          },
+          "bounty_steal": {
+            "cross_state_only": true,
+            "only_golden": true,
+            "min_color": 4,
+            "min_level": 5,
+            "max_daily_steals": 5,
+            "max_servers_scan": 16
+          },
+          "trucks": {
+            "daily_sends": 4,
+            "slots": [
+              {
+                "quality": 5,
+                "formation": 1
+              },
+              {
+                "quality": 5,
+                "formation": 2
+              },
+              {
+                "quality": 5,
+                "formation": 3
+              },
+              {
+                "quality": 5,
+                "formation": 4
+              }
+            ],
+            "reroll_with_items": true,
+            "reroll_with_diamonds": false,
+            "max_rerolls_per_truck": 6,
+            "claim_completed": true,
+            "attack_enabled": true,
+            "attack_daily_limit": 4,
+            "attack_cross_state_only": true,
+            "attack_power_margin_below_f1": 20000000
+          },
+          "mining_event": {
+            "weekdays": [
+              0,
+              1
+            ],
+            "mine_type": 2,
+            "mine_reward": "xp",
+            "mine_level": 7,
+            "skip_occupied_players": true,
+            "claim_finished": true,
+            "max_refreshes": 3
+          },
+          "vip_store_rewards": {
+            "claim_vip_points": true,
+            "claim_vip_daily_freebie": true,
+            "claim_store_vip_tab_free": true,
+            "claim_weekly_gift_freebie": true
+          },
+          "area_exploration": {
+            "claim_hangup_rewards": true,
+            "auto_jump": true,
+            "auto_battle": true,
+            "auto_skip_battle": true,
+            "max_battles_per_cycle": 5,
+            "stop_on_fail": true
+          },
+          "hero_battlefield": {
+            "auto_prefill_strongest_faction": true,
+            "use_quick_deploy": true,
+            "auto_skip_battle": true,
+            "max_battles_per_faction": 5,
+            "stop_on_fail": true,
+            "skip_if_failed_this_period": true
+          },
+          "arena": {
+            "max_battles_per_cycle": 5,
+            "refresh_opponents": true,
+            "auto_free_refresh": true,
+            "pure_faction_teams": true,
+            "pick_weakest": true,
+            "min_win_odds_pct": 70,
+            "min_power_advantage_ratio": 1.0
+          },
+          "war_safety": {
+            "auto_shield_on_attack": true,
+            "respect_war_fever": true,
+            "recall_gatherers_on_attack": true,
+            "max_eta_seconds": 300
+          },
+          "hospital_heal": {
+            "collect_finished": true,
+            "batch_minutes": 30,
+            "min_batch_troops": 25,
+            "max_batch_troops": 1500,
+            "call_alliance_help": true,
+            "use_speedups": false,
+            "max_speedup_mins": 0,
+            "max_chain_batches": 5,
+            "persistent_watcher_enabled": false
+          },
+          "alliance_daily": {
+            "donate_tech": true,
+            "auto_tech_always_on": true,
+            "use_gold_donate": false,
+            "claim_gifts": true,
+            "claim_red_packets": true,
+            "claim_tasks": true
+          },
+          "research_queue": {
+            "prefer_recommended": true,
+            "call_alliance_help": true,
+            "use_free_speed": true,
+            "priority_tabs": [
+              5,
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "radar_events": {
+            "trigger_scan": true,
+            "claim_finished": true,
+            "auto_dispatch": true,
+            "auto_skip_battle": true,
+            "max_dispatches_per_cycle": 20
+          },
+          "daily_tasks_complete": {
+            "allow_pvp_hq_attack": false
+          },
+          "daily_claims": {
+            "claim_daily_tasks": true,
+            "claim_achievements": true,
+            "claim_battle_pass": true,
+            "claim_chapter_tasks": true
+          },
+          "free_recruits": {
+            "claim_hero_recruits": true,
+            "claim_small_people": true,
+            "open_safe_chests": true,
+            "max_chests_per_cycle": 20
+          },
+          "garage_upgrades": {
+            "only_monday": true,
+            "upgrade_refit": true,
+            "use_refit_free_only": true,
+            "install_better_components": true,
+            "merge_components": true,
+            "max_refit_steps_per_cycle": 5
+          },
+          "alliance_boss_mine": {
+            "bear_claim_rewards": true,
+            "bear_donate": false,
+            "bear_join_or_rally": true,
+            "alliance_mine_dispatch": true
+          }
+        },
+        "farm": {
+          "enabled": true,
+          "role": "farm",
+          "launch_mode": "eco",
+          "formation_reserve": 0,
+          "min_stamina": 60,
+          "tasks": {
+            "auto_help": true,
+            "rf_hq_under_attack": true,
+            "treasure_helicopter": true,
+            "full_preparedness": true,
+            "speedups": true,
+            "troop_training": true,
+            "building_upgrades": true,
+            "tyrant_event": true,
+            "boomer_runs": true,
+            "auto_gather": true,
+            "mine_melee_refresh": true,
+            "furylord": true,
+            "bounties": true,
+            "bounty_steal": true,
+            "trucks": true,
+            "mining_event": true,
+            "vip_store_rewards": true,
+            "sync_ruby_shop": true,
+            "area_exploration": true,
+            "hero_battlefield": true,
+            "arena": true,
+            "war_safety": true,
+            "hospital_heal": true,
+            "alliance_daily": true,
+            "research_queue": true,
+            "radar_events": true,
+            "daily_tasks_complete": true,
+            "daily_claims": true,
+            "free_recruits": true,
+            "garage_upgrades": true,
+            "alliance_boss_mine": true
+          },
+          "always_on_daemon": {
+            "enabled": true,
+            "interval_sec": 15
+          },
+          "auto_help": {
+            "always_on": true,
+            "interval_sec": 15,
+            "help_allies": true,
+            "call_help_queues": true,
+            "claim_alliance_chests": true
+          },
+          "speedups": {
+            "use_free_speed": true,
+            "collect_finished": true,
+            "use_items": true,
+            "align_with_preparedness": true,
+            "reserve_minutes": 120,
+            "max_items_per_cycle": 10,
+            "categories": {
+              "build": true,
+              "research": true,
+              "train": false,
+              "heal": true
+            }
+          },
+          "troop_training": {
+            "collect_finished": true,
+            "train_highest_tier": true,
+            "barracks": [
+              "CarSoldier",
+              "FootSoldier",
+              "BowSoldier"
+            ],
+            "batch_count": 0,
+            "event_speed_zoom": true,
+            "max_zoom_batches": 50,
+            "zoom_use_universal_speedups": false
+          },
+          "building_upgrades": {
+            "collect_resources": true,
+            "hq_priority": true,
+            "auto_prerequisites": true,
+            "call_alliance_help": true,
+            "priority_building_types": [
+              400000,
+              403000,
+              423000,
+              424000,
+              425000,
+              411000
+            ]
+          },
+          "auto_gather": {
+            "resource_priority": [
+              "Oil",
+              "Metal",
+              "Wood",
+              "Electricity"
+            ],
+            "min_level": 3,
+            "max_level": 9,
+            "max_distance": 150,
+            "formation_index": 0
+          },
+          "mine_melee_refresh": {
+            "refresh_threshold_sec": 300,
+            "min_payload_pct": 10.0,
+            "reserve_formations": 0,
+            "alliance_mine_priority": true,
+            "recall_depleted": true
+          },
+          "boomer_runs": {
+            "join_open_rallies": true,
+            "auto_start_rally": true,
+            "min_level": 1,
+            "max_level": 5,
+            "rally_wait_minutes": 5,
+            "stamina_cost": 20,
+            "min_stamina": 120
+          },
+          "tyrant_event": {
+            "claim_free_reward": true,
+            "claim_alliance_reward": true,
+            "join_or_attack": true,
+            "prefer_rally": true,
+            "f1_always_host_rally": true,
+            "other_formations_join_rallies": true,
+            "repeat_when_free": true,
+            "fast_repeat_sec": 10
+          },
+          "rf_hq_under_attack": {
+            "reinforce_protected_uids": true,
+            "reinforce_alliance_members": true,
+            "alert_on_self_attack": true,
+            "auto_shield_on_self_attack": true,
+            "max_incoming_eta_seconds": 900
+          },
+          "treasure_helicopter": {
+            "march_to_dig": true,
+            "auto_claim_chat_treasures": true,
+            "jitter_min_ms": 110,
+            "jitter_max_ms": 240,
+            "burst_clicks": 6,
+            "lead_window_seconds": 2.0
+          },
+          "full_preparedness": {
+            "execute_tasks": true,
+            "claim_boxes": true,
+            "claim_daily_quests": true,
+            "claim_daily_chests": true
+          },
+          "furylord": {
+            "exact_hour": 3,
+            "exact_minute": 0,
+            "window_minutes": 20,
+            "max_attacks": 4,
+            "formation_index": 1,
+            "prefer_rally": true,
+            "claim_rewards": true
+          },
+          "bounties": {
+            "only_golden": true,
+            "lock_orange": true,
+            "help_allies_golden": true,
+            "plunder_bounties": true,
+            "min_color": 4,
+            "use_free": true,
+            "use_tickets": true,
+            "use_diamonds": false,
+            "stop_when_no_free_or_ticket": true,
+            "claim_completed": true,
+            "max_refreshes_per_cycle": 8,
+            "cross_state_only": true,
+            "min_level": 5,
+            "max_daily_steals": 5,
+            "max_servers_scan": 16
+          },
+          "bounty_steal": {
+            "cross_state_only": true,
+            "only_golden": true,
+            "min_color": 4,
+            "min_level": 5,
+            "max_daily_steals": 5,
+            "max_servers_scan": 16
+          },
+          "trucks": {
+            "daily_sends": 4,
+            "slots": [
+              {
+                "quality": 5,
+                "formation": 1
+              },
+              {
+                "quality": 5,
+                "formation": 2
+              },
+              {
+                "quality": 5,
+                "formation": 3
+              },
+              {
+                "quality": 5,
+                "formation": 4
+              }
+            ],
+            "reroll_with_items": true,
+            "reroll_with_diamonds": false,
+            "max_rerolls_per_truck": 6,
+            "claim_completed": true,
+            "attack_enabled": true,
+            "attack_daily_limit": 4,
+            "attack_cross_state_only": true,
+            "attack_power_margin_below_f1": 20000000
+          },
+          "mining_event": {
+            "weekdays": [
+              0,
+              1
+            ],
+            "mine_type": 2,
+            "mine_reward": "xp",
+            "mine_level": 7,
+            "skip_occupied_players": true,
+            "claim_finished": true,
+            "max_refreshes": 3
+          },
+          "vip_store_rewards": {
+            "claim_vip_points": true,
+            "claim_vip_daily_freebie": true,
+            "claim_store_vip_tab_free": true,
+            "claim_weekly_gift_freebie": true
+          },
+          "area_exploration": {
+            "claim_hangup_rewards": true,
+            "auto_jump": true,
+            "auto_battle": true,
+            "auto_skip_battle": true,
+            "max_battles_per_cycle": 5,
+            "stop_on_fail": true
+          },
+          "hero_battlefield": {
+            "auto_prefill_strongest_faction": true,
+            "use_quick_deploy": true,
+            "auto_skip_battle": true,
+            "max_battles_per_faction": 5,
+            "stop_on_fail": true,
+            "skip_if_failed_this_period": true
+          },
+          "arena": {
+            "max_battles_per_cycle": 5,
+            "refresh_opponents": true,
+            "auto_free_refresh": true,
+            "pure_faction_teams": true,
+            "pick_weakest": true,
+            "min_win_odds_pct": 70,
+            "min_power_advantage_ratio": 1.0
+          },
+          "war_safety": {
+            "auto_shield_on_attack": true,
+            "respect_war_fever": true,
+            "recall_gatherers_on_attack": true,
+            "max_eta_seconds": 300
+          },
+          "hospital_heal": {
+            "collect_finished": true,
+            "batch_minutes": 30,
+            "min_batch_troops": 25,
+            "max_batch_troops": 1500,
+            "call_alliance_help": true,
+            "use_speedups": false,
+            "max_speedup_mins": 0,
+            "max_chain_batches": 5,
+            "persistent_watcher_enabled": false
+          },
+          "alliance_daily": {
+            "donate_tech": true,
+            "auto_tech_always_on": true,
+            "use_gold_donate": false,
+            "claim_gifts": true,
+            "claim_red_packets": true,
+            "claim_tasks": true
+          },
+          "research_queue": {
+            "prefer_recommended": true,
+            "call_alliance_help": true,
+            "use_free_speed": true,
+            "priority_tabs": [
+              5,
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "radar_events": {
+            "trigger_scan": true,
+            "claim_finished": true,
+            "auto_dispatch": true,
+            "auto_skip_battle": true,
+            "max_dispatches_per_cycle": 20
+          },
+          "daily_tasks_complete": {
+            "allow_pvp_hq_attack": false
+          },
+          "daily_claims": {
+            "claim_daily_tasks": true,
+            "claim_achievements": true,
+            "claim_battle_pass": true,
+            "claim_chapter_tasks": true
+          },
+          "free_recruits": {
+            "claim_hero_recruits": true,
+            "claim_small_people": true,
+            "open_safe_chests": true,
+            "max_chests_per_cycle": 20
+          },
+          "garage_upgrades": {
+            "only_monday": true,
+            "upgrade_refit": true,
+            "use_refit_free_only": true,
+            "install_better_components": true,
+            "merge_components": true,
+            "max_refit_steps_per_cycle": 5
+          },
+          "alliance_boss_mine": {
+            "bear_claim_rewards": true,
+            "bear_donate": false,
+            "bear_join_or_rally": true,
+            "alliance_mine_dispatch": true
+          }
+        }
+      },
+      "profiles": {}
+    },
+    "repo_files_count": 123,
+    "repo_files": [
+      {
+        "path": "tools/all_inventory_with_tpl.json",
+        "folder": "tools",
+        "bytes": 12535,
+        "ext": ".json"
+      },
+      {
+        "path": "tools/analyze gear vehicle.py",
+        "folder": "tools",
+        "bytes": 2290,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/analyze science progress.py",
+        "folder": "tools",
+        "bytes": 3587,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/analyze session.py",
+        "folder": "tools",
+        "bytes": 2444,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/analyze traffic log.py",
+        "folder": "tools",
+        "bytes": 1290,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/apply remediation.py",
+        "folder": "tools",
+        "bytes": 20378,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/auto detect environment.py",
+        "folder": "tools",
+        "bytes": 8209,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_get_cd",
+          "_read_cached_env",
+          "_resolve_target_pid",
+          "detect_environment"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/bot actions.py",
+        "folder": "tools",
+        "bytes": 596821,
+        "ext": ".py",
+        "doc": "Modular per-client Last Z automation actions executed via Frida Lua bridge.",
+        "functions": [
+          "_clean_in_game_tips",
+          "_load_english_dialog",
+          "_localize_id",
+          "_used_formations_lua",
+          "_record_used_formations",
+          "_normalize_eval_payload",
+          "_build_detail_lines",
+          "_finalize_task_result",
+          "_with_task_telemetry",
+          "_eval_json",
+          "snapshot_client",
+          "dismiss_all_popups",
+          "ensure_world_scene",
+          "_lua_claim_alliance_gifts_block",
+          "run_auto_help",
+          "run_rf_hq_under_attack",
+          "run_treasure_helicopter",
+          "_now_dt",
+          "_daily_state_path",
+          "_client_key",
+          "_load_daily_state",
+          "_get_daily_count",
+          "_increment_daily_count",
+          "_probe_preparedness_phase",
+          "_detect_training_event_boost"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/bot_mine_melee.py",
+        "folder": "tools",
+        "bytes": 51357,
+        "ext": ".py",
+        "doc": "Standalone Mine Melee Refresh & Resource Gathering pipeline for Last Z bot engine.",
+        "functions": [
+          "_eval_mine_lua",
+          "_used_formations_lua",
+          "_record_used_formations",
+          "action_mine_melee_refresh",
+          "_build_mine_melee_detail_lines",
+          "run_mine_melee_refresh",
+          "_load_client_discovery",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/build all bracket native sheets.py",
+        "folder": "tools",
+        "bytes": 28127,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "role_str",
+          "get_tier_and_passes",
+          "generate_state_master_excel",
+          "upload_native_sheet",
+          "clean_old_files",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/build top10 excel.py",
+        "folder": "tools",
+        "bytes": 20948,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "role_str"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/client discovery.py",
+        "folder": "tools",
+        "bytes": 41057,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_hidden_subproc_kwargs",
+          "_decode_reg_bytes",
+          "read_readygo_registry",
+          "_read_app_info",
+          "_read_game_version",
+          "_extract_lnk_candidate_paths",
+          "_scan_shortcut_dirs",
+          "_fixed_drive_letters",
+          "_scan_uninstall_registry",
+          "_scan_filesystem_roots",
+          "detect_vanilla_base_install",
+          "_is_same_target",
+          "_detect_primary_exe",
+          "_get_pid_lock",
+          "load_saved_profiles",
+          "save_profiles",
+          "discover_clients",
+          "is_lastz_process",
+          "find_running_processes",
+          "_xlua_loaded",
+          "_make_detached_handler",
+          "close_frida_session",
+          "frida_eval_lua",
+          "resolve_target_pid",
+          "discover_running_clients"
+        ],
+        "classes": [
+          "_FridaSessionHolder"
+        ]
+      },
+      {
+        "path": "tools/create styled excel.py",
+        "folder": "tools",
+        "bytes": 8401,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/detected_environment.json",
+        "folder": "tools",
+        "bytes": 646,
+        "ext": ".json"
+      },
+      {
+        "path": "tools/disasm monster.py",
+        "folder": "tools",
+        "bytes": 2891,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/disasm wmo full.py",
+        "folder": "tools",
+        "bytes": 2691,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/disasm wpo.py",
+        "folder": "tools",
+        "bytes": 3123,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/disassemble wpm.py",
+        "folder": "tools",
+        "bytes": 4877,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "parse54",
+          "disasm54"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/dump all buildings.py",
+        "folder": "tools",
+        "bytes": 4925,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/dump all inventory.py",
+        "folder": "tools",
+        "bytes": 5204,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/dump all player assets complete.py",
+        "folder": "tools",
+        "bytes": 13339,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/dump extra wpm.py",
+        "folder": "tools",
+        "bytes": 2273,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/dump heroes armies.py",
+        "folder": "tools",
+        "bytes": 7277,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_m"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/dump optizone.py",
+        "folder": "tools",
+        "bytes": 2321,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/dump science full.py",
+        "folder": "tools",
+        "bytes": 5808,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/dump wpm functions.py",
+        "folder": "tools",
+        "bytes": 4423,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export alliance members excel.py",
+        "folder": "tools",
+        "bytes": 4973,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "build_alliance_members_excel"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export alliance roster excel.py",
+        "folder": "tools",
+        "bytes": 3921,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "build_roster_excel"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export high tier resources.py",
+        "folder": "tools",
+        "bytes": 4121,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "export_high_tier_resources"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export inventory excel.py",
+        "folder": "tools",
+        "bytes": 5855,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "export_inventory"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export map intelligence.py",
+        "folder": "tools",
+        "bytes": 14651,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_resolve_target_pid",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export map summary excel.py",
+        "folder": "tools",
+        "bytes": 4474,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "build_map_summary_excel"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export tech tree excel.py",
+        "folder": "tools",
+        "bytes": 8020,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "build_tech_tree_excel"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export unshielded targets.py",
+        "folder": "tools",
+        "bytes": 4523,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "export_unshielded_targets"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export vs duel excel.py",
+        "folder": "tools",
+        "bytes": 10635,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_resolve_target_pid",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/export vs rankings.py",
+        "folder": "tools",
+        "bytes": 9951,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/fetch all bracket alliances.py",
+        "folder": "tools",
+        "bytes": 8420,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/fetch all bracket rosters.py",
+        "folder": "tools",
+        "bytes": 9674,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/fetch top10 rosters.py",
+        "folder": "tools",
+        "bytes": 8132,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/flush game memory.py",
+        "folder": "tools",
+        "bytes": 3837,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_resolve_pid",
+          "flush_memory"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/generate bracket sheets.py",
+        "folder": "tools",
+        "bytes": 20460,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "get_tier_and_passes",
+          "role_str",
+          "generate_state_workbook",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/heinz_diagnostics.py",
+        "folder": "tools",
+        "bytes": 32230,
+        "ext": ".py",
+        "doc": "Heavy pre-flight diagnostic & redacted crash-report utility for HeinZ Command Hub.",
+        "functions": [
+          "_norm_tokens",
+          "redact_text",
+          "resolve_desktop_dir",
+          "_dir_writable",
+          "_is_admin",
+          "_scan_zone_identifiers",
+          "_netfx_info",
+          "_webview2_info",
+          "_repo_or_bundle_root",
+          "_resolve_data_dir",
+          "_load_mod",
+          "run_heavy_diagnostics",
+          "write_desktop_crash_report"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect adjusters.py",
+        "folder": "tools",
+        "bytes": 3188,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect autoadjustlod.py",
+        "folder": "tools",
+        "bytes": 2419,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect buildasync upvalues.py",
+        "folder": "tools",
+        "bytes": 3748,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect deep urp and timers.py",
+        "folder": "tools",
+        "bytes": 6046,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect fow details.py",
+        "folder": "tools",
+        "bytes": 3392,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect input ui boomers.py",
+        "folder": "tools",
+        "bytes": 1886,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect lights fow.py",
+        "folder": "tools",
+        "bytes": 3351,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect lod methods.py",
+        "folder": "tools",
+        "bytes": 3204,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect monster.py",
+        "folder": "tools",
+        "bytes": 2207,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect optizone and close.py",
+        "folder": "tools",
+        "bytes": 4532,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect visibility gates.py",
+        "folder": "tools",
+        "bytes": 5358,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect wbo.py",
+        "folder": "tools",
+        "bytes": 2192,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect wir.py",
+        "folder": "tools",
+        "bytes": 1971,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/inspect wpm internals.py",
+        "folder": "tools",
+        "bytes": 6851,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/jump to target.py",
+        "folder": "tools",
+        "bytes": 2368,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "jump_camera"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/launch_game.py",
+        "folder": "tools",
+        "bytes": 536,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/list wpm fns.py",
+        "folder": "tools",
+        "bytes": 2034,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/multi client bot.py",
+        "folder": "tools",
+        "bytes": 86557,
+        "ext": ".py",
+        "doc": "Multi-client Last Z orchestrator, scheduler, and status reporter.",
+        "functions": [
+          "_hidden_subproc_kwargs",
+          "_clean_tips_list",
+          "_load_module",
+          "_configure_logging",
+          "_deep_merge",
+          "default_config",
+          "load_config",
+          "save_config",
+          "resolve_client_config",
+          "_update_protected_uids",
+          "_wait_client_ready",
+          "_normalize_target_token",
+          "_matches_target",
+          "_ensure_targets_running",
+          "_format_task_summary",
+          "_load_stage_state",
+          "_save_stage_state",
+          "_resolve_stage_cooldown_sec",
+          "_resolve_task_callable",
+          "_invoke_stage_task",
+          "_resolve_stage_tasks",
+          "_evaluate_stage_entry_guard",
+          "_evaluate_stage1_emergency",
+          "_evaluate_stage_exit_guard",
+          "run_client_stage_machine"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/navigate to resource.py",
+        "folder": "tools",
+        "bytes": 14626,
+        "ext": ".py",
+        "doc": "Find, navigate to, and optionally gather the nearest unoccupied resource node.",
+        "functions": [
+          "_load_cd",
+          "_lua_safe_encoder",
+          "scan_live_viewport_nodes",
+          "ensure_world_scene",
+          "find_via_server_search",
+          "find_and_go_resource",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/print full tech trees.py",
+        "folder": "tools",
+        "bytes": 2936,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/print heroes.py",
+        "folder": "tools",
+        "bytes": 563,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/print resolved inventory.py",
+        "folder": "tools",
+        "bytes": 1376,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/probe world camera.py",
+        "folder": "tools",
+        "bytes": 3446,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_msg"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/run enhanced diagnostics.py",
+        "folder": "tools",
+        "bytes": 29939,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/sync all bracket states.py",
+        "folder": "tools",
+        "bytes": 1919,
+        "ext": ".py",
+        "doc": "Sync all 16 bracket states (689-704) to Google Drive Native Spreadsheets.",
+        "functions": [
+          "_load_sync_module",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/sync bracket drive sheets.py",
+        "folder": "tools",
+        "bytes": 48822,
+        "ext": ".py",
+        "doc": "Sync all 16 bracket state Native Google Spreadsheets (689-704) cleanly via gsheets.",
+        "functions": [
+          "_load_cd",
+          "_gsheets_bin",
+          "_run_gsheets",
+          "load_manifest",
+          "load_profile_cache",
+          "_atomic_write_json",
+          "save_profile_cache",
+          "role_str",
+          "get_tier_and_passes",
+          "_clean_abbr",
+          "_clean_tab_name",
+          "_quote_sheet",
+          "_resolve_active_pid",
+          "fetch_live_state_alliances",
+          "fetch_live_alliance_rosters",
+          "fetch_live_player_profiles",
+          "_load_rosters_from_xlsx",
+          "build_state_model",
+          "_ensure_local_xlsx",
+          "_formula_cells_in_range",
+          "_cell_ref",
+          "sync_single_state_to_drive",
+          "sync_states",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/sync farm clients.py",
+        "folder": "tools",
+        "bytes": 42368,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_load_module",
+          "file_sha256",
+          "get_main_client",
+          "client_needs_sync",
+          "patch_unity_identity",
+          "_hidden_subproc_kwargs",
+          "ensure_data_junction",
+          "is_client_running",
+          "sync_client",
+          "_same_dir",
+          "sync_all_clients",
+          "check_gpu_high_performance",
+          "apply_gpu_high_performance",
+          "ensure_base_backup",
+          "_resolve_desktop_dir",
+          "_is_writable_dir",
+          "create_account_shortcut",
+          "_suggest_next_account",
+          "inspect_setup_status",
+          "setup_base_installation",
+          "provision_new_client",
+          "_signed_dword",
+          "repair_unity_window_position",
+          "show_process_windows",
+          "hide_process_windows"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/test relief.py",
+        "folder": "tools",
+        "bytes": 4548,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/test tile math.py",
+        "folder": "tools",
+        "bytes": 2303,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tools/test urp patch.py",
+        "folder": "tools",
+        "bytes": 4438,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tools/trace wpm build.py",
+        "folder": "tools",
+        "bytes": 4202,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "launcher/app.py",
+        "folder": "launcher",
+        "bytes": 121754,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "log_crash",
+          "_resolve_repo_root",
+          "_resolve_python_cli",
+          "_hidden_startupinfo",
+          "_load_tool_module"
+        ],
+        "classes": [
+          "HeinZ"
+        ]
+      },
+      {
+        "path": "launcher/assets/tech_badge_matrix.json",
+        "folder": "launcher",
+        "bytes": 75881,
+        "ext": ".json"
+      },
+      {
+        "path": "launcher/Check LastZ Engine Status.bat",
+        "folder": "launcher",
+        "bytes": 412,
+        "ext": ".bat"
+      },
+      {
+        "path": "launcher/HeinZ Control Hub.py",
+        "folder": "launcher",
+        "bytes": 121754,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "log_crash",
+          "_resolve_repo_root",
+          "_resolve_python_cli",
+          "_hidden_startupinfo",
+          "_load_tool_module"
+        ],
+        "classes": [
+          "HeinZ"
+        ]
+      },
+      {
+        "path": "launcher/HeinZ.spec",
+        "folder": "launcher",
+        "bytes": 2670,
+        "ext": ".spec"
+      },
+      {
+        "path": "launcher/heinz_hub_web.py",
+        "folder": "launcher",
+        "bytes": 271702,
+        "ext": ".py",
+        "doc": "HeinZ Command Hub - Modern Dark-Glass Desktop UI powered by pywebview.",
+        "functions": [
+          "_dir_is_writable",
+          "_resolve_data_dir",
+          "_migrate_legacy_data",
+          "_ensure_std_streams",
+          "_maybe_run_bundled_script",
+          "_unblock_bundle_zone_identifiers",
+          "_diagnostics_module",
+          "_write_redacted_desktop_crash",
+          "_maybe_run_diagnostics",
+          "_resource_root",
+          "_resolve_repo_root",
+          "_resolve_python_cli",
+          "_build_script_cmd",
+          "_redact_text",
+          "_filter_in_game_tips",
+          "_safe_load_json_file",
+          "_load_json_cached",
+          "_atomic_write_json",
+          "log_crash",
+          "_hidden_startupinfo",
+          "_load_tool_module",
+          "_get_dialog_dict",
+          "_parse_speedup_info",
+          "_format_duration_mins",
+          "_format_count_num"
+        ],
+        "classes": [
+          "HubBackend"
+        ]
+      },
+      {
+        "path": "launcher/Launch HeinZ.bat",
+        "folder": "launcher",
+        "bytes": 1497,
+        "ext": ".bat"
+      },
+      {
+        "path": "launcher/Run Diagnostics.bat",
+        "folder": "launcher",
+        "bytes": 847,
+        "ext": ".bat"
+      },
+      {
+        "path": "launcher/Start LastZ Watcher.bat",
+        "folder": "launcher",
+        "bytes": 444,
+        "ext": ".bat"
+      },
+      {
+        "path": "launcher/web/index.html",
+        "folder": "launcher",
+        "bytes": 220232,
+        "ext": ".html"
+      },
+      {
+        "path": "api/batch fetch migration scores.py",
+        "folder": "api",
+        "bytes": 11444,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "get_tier_and_passes",
+          "on_message"
+        ],
+        "classes": []
+      },
+      {
+        "path": "api/batch fetch top10 scores.py",
+        "folder": "api",
+        "bytes": 12743,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "get_tier_and_passes",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "api/call dorequest.py",
+        "folder": "api",
+        "bytes": 1879,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/dump dorequest.py",
+        "folder": "api",
+        "bytes": 2428,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/GoogleAppsScript_SyncReceiver.js",
+        "folder": "api",
+        "bytes": 7333,
+        "ext": ".js"
+      },
+      {
+        "path": "api/inspect cs sfsnetwork.py",
+        "folder": "api",
+        "bytes": 2782,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/inspect network assistant.py",
+        "folder": "api",
+        "bytes": 2792,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/inspect network callers.py",
+        "folder": "api",
+        "bytes": 3057,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "on_msg"
+        ],
+        "classes": []
+      },
+      {
+        "path": "api/inspect sfs network.py",
+        "folder": "api",
+        "bytes": 2356,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/inspect sfs network2.py",
+        "folder": "api",
+        "bytes": 2815,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/sync state deep profiles.py",
+        "folder": "api",
+        "bytes": 33207,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_resolve_active_pid",
+          "load_cache",
+          "save_cache",
+          "get_tier_and_passes",
+          "role_str",
+          "fetch_profiles_for_state",
+          "build_state_master_workbook",
+          "sync_state"
+        ],
+        "classes": []
+      },
+      {
+        "path": "api/test call dorequest.py",
+        "folder": "api",
+        "bytes": 1881,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/test network assistant keys.py",
+        "folder": "api",
+        "bytes": 2329,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/test network assistant methods.py",
+        "folder": "api",
+        "bytes": 2542,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/trace protocal caller.py",
+        "folder": "api",
+        "bytes": 1771,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "api/trigger helicopter help.py",
+        "folder": "api",
+        "bytes": 4164,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_resolve_pid",
+          "trigger_help"
+        ],
+        "classes": []
+      },
+      {
+        "path": "daemon/apply widescreen smooth map.py",
+        "folder": "daemon",
+        "bytes": 72331,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "_resolve_target",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "daemon/lastz auto engine daemon.py",
+        "folder": "daemon",
+        "bytes": 77481,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "log",
+          "attempt_patch",
+          "_load_client_discovery",
+          "attempt_farm_eco_patch",
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "telemetry/check update and ui.py",
+        "folder": "telemetry",
+        "bytes": 1791,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "telemetry/check v7 status.py",
+        "folder": "telemetry",
+        "bytes": 3444,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "telemetry/diag map preload.py",
+        "folder": "telemetry",
+        "bytes": 4956,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "telemetry/diag perf.py",
+        "folder": "telemetry",
+        "bytes": 3510,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "telemetry/inspect cam and renderers.py",
+        "folder": "telemetry",
+        "bytes": 4694,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "telemetry/inspect overlay state.py",
+        "folder": "telemetry",
+        "bytes": 2126,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "telemetry/inspect scenes.py",
+        "folder": "telemetry",
+        "bytes": 3187,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "telemetry/inspect tm.py",
+        "folder": "telemetry",
+        "bytes": 3712,
+        "ext": ".py",
+        "doc": "",
+        "functions": [
+          "main"
+        ],
+        "classes": []
+      },
+      {
+        "path": "telemetry/inspect uimanager.py",
+        "folder": "telemetry",
+        "bytes": 1824,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "telemetry/inspect windows.py",
+        "folder": "telemetry",
+        "bytes": 2151,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "telemetry/profile frame bottlenecks.py",
+        "folder": "telemetry",
+        "bytes": 2202,
+        "ext": ".py",
+        "doc": "",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tests/__init__.py",
+        "folder": "tests",
+        "bytes": 272,
+        "ext": ".py",
+        "doc": "LastZ PC Master Overhaul - Automated Test Suite.",
+        "functions": [],
+        "classes": []
+      },
+      {
+        "path": "tests/run_all_tests.py",
+        "folder": "tests",
+        "bytes": 5238,
+        "ext": ".py",
+        "doc": "LastZ PC Master Overhaul - Unified Automated Test Runner.",
+        "functions": [
+          "run_all_tests"
+        ],
+        "classes": []
+      },
+      {
+        "path": "tests/test_adversarial_probes.py",
+        "folder": "tests",
+        "bytes": 44215,
+        "ext": ".py",
+        "doc": "Adversarial Verification & Failure Injection Test Suite.",
+        "functions": [
+          "_create_adversarial_lua_environment",
+          "_get_lua_sent_messages"
+        ],
+        "classes": [
+          "LupaBridgeCD",
+          "TestFridaSessionHolderAndPopupDismissal",
+          "TestHospitalCureAdversarialProbes",
+          "TestRadarQueueAdversarialProbes",
+          "TestPreparednessAndDailyClaimsAdversarialProbes"
+        ]
+      },
+      {
+        "path": "tests/test_boundary_corner_cases.py",
+        "folder": "tests",
+        "bytes": 9850,
+        "ext": ".py",
+        "doc": "Tier 2: Boundary & Corner Cases Test Suite.",
+        "functions": [],
+        "classes": [
+          "TestBoundaryCornerCases"
+        ]
+      },
+      {
+        "path": "tests/test_cross_feature_combinations.py",
+        "folder": "tests",
+        "bytes": 7337,
+        "ext": ".py",
+        "doc": "Tier 3: Cross-Feature Combinations & State Transitions Test Suite.",
+        "functions": [],
+        "classes": [
+          "TestCrossFeatureCombinations"
+        ]
+      },
+      {
+        "path": "tests/test_dialog_dismissal.py",
+        "folder": "tests",
+        "bytes": 5031,
+        "ext": ".py",
+        "doc": "Tier 1 & Tier 2: Modal Dialog Interception & Auto-Dismissal Tests.",
+        "functions": [],
+        "classes": [
+          "TestDialogDismissal"
+        ]
+      },
+      {
+        "path": "tests/test_empirical_challenger.py",
+        "folder": "tests",
+        "bytes": 14826,
+        "ext": ".py",
+        "doc": "Empirical Challenger Test Suite for Milestone 4.",
+        "functions": [
+          "_load_module"
+        ],
+        "classes": [
+          "MockFridaBridge",
+          "TestEmpiricalChallenger"
+        ]
+      },
+      {
+        "path": "tests/test_harness.py",
+        "folder": "tests",
+        "bytes": 30505,
+        "ext": ".py",
+        "doc": "LastZ PC Master Overhaul - Automated Test Harness & Protocol Contract Validators.",
+        "functions": [],
+        "classes": [
+          "ProtocolContractViolation",
+          "SFSMessageValidator",
+          "ServerResponseSimulator",
+          "MockGameClient",
+          "LuaTemplateInspector",
+          "MockCD"
+        ]
+      },
+      {
+        "path": "tests/test_packet_contracts.py",
+        "folder": "tests",
+        "bytes": 31324,
+        "ext": ".py",
+        "doc": "Tier 1: Network Packet Contracts & Payload Format Tests.",
+        "functions": [],
+        "classes": [
+          "TestPacketContracts"
+        ]
+      },
+      {
+        "path": "tests/test_radar_hospital_logic.py",
+        "folder": "tests",
+        "bytes": 12092,
+        "ext": ".py",
+        "doc": "Tier 1 & Tier 2: Radar Missions & Hospital Healing Logic Tests.",
+        "functions": [],
+        "classes": [
+          "TestRadarHospitalLogic"
+        ]
+      },
+      {
+        "path": "tests/test_real_world_scenarios.py",
+        "folder": "tests",
+        "bytes": 8921,
+        "ext": ".py",
+        "doc": "Tier 4: Real-World Application Scenarios Test Suite.",
+        "functions": [],
+        "classes": [
+          "TestRealWorldScenarios"
+        ]
+      }
+    ]
+  }
+}

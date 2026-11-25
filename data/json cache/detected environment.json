@@ -1,0 +1,30 @@
+{
+  "playerHq": 0,
+  "allianceId": "5934f66dc858499fbbce8044d50cd555",
+  "fightAllianceId": "",
+  "isLive": true,
+  "bracketId": 200164,
+  "serverName": "State#702",
+  "playerUid": "1483575381000694",
+  "alliancePower": 0,
+  "fightServerId": 700,
+  "playerPower": 254584737,
+  "rushDay": 0,
+  "allianceName": "",
+  "vsIsOpen": true,
+  "allianceTag": "WARG",
+  "bracketServers": [
+    701,
+    699,
+    704,
+    702
+  ],
+  "season": 1,
+  "allianceMembers": 0,
+  "playerName": "Heinzy",
+  "serverId": 702,
+  "fightAllianceTag": "",
+  "armyKill": 3620725,
+  "vsInCompete": true,
+  "pid": 28016
+}

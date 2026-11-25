@@ -1,0 +1,1 @@
+{"xml":"building_direction","table_keys":["TableName.BuildingDirection"],"columns":["id","name","icon","description","new_build"],"row_count":3,"rows":{"3":["3","130452","UIStationed_img_harmonious","130455","400000;401000"],"1":["1","130450","UIStationed_img_chigo","130453","400000;401000"],"2":["2","130451","UIStationed_img_pure","130454","400000;401000"]}}

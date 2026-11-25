@@ -1,0 +1,190 @@
+{
+  "index": {
+    "radius": {
+      "1": 3,
+      "2": "number"
+    },
+    "dead_vfx": {
+      "1": 8,
+      "2": "string"
+    },
+    "end_line_size": {
+      "1": 4,
+      "2": "array"
+    },
+    "shoot_anim": {
+      "1": 13,
+      "2": "string"
+    },
+    "aim_anim": {
+      "1": 12,
+      "2": "string"
+    },
+    "prefab": {
+      "1": 7,
+      "2": "string"
+    },
+    "move_anim": {
+      "1": 10,
+      "2": "string"
+    },
+    "id": {
+      "1": 1,
+      "2": "number"
+    },
+    "weapon": {
+      "1": 5,
+      "2": "string"
+    },
+    "idle_anim": {
+      "1": 14,
+      "2": "string"
+    },
+    "muzzle_bone": {
+      "1": 6,
+      "2": "string"
+    },
+    "point": {
+      "1": 2,
+      "2": "number"
+    },
+    "march_anim": {
+      "1": 9,
+      "2": "string"
+    },
+    "contact_anim": {
+      "1": 11,
+      "2": "string"
+    }
+  },
+  "data": {
+    "10001": {
+      "14": "idle",
+      "10": "move_attack",
+      "12": "idle",
+      "11": "move_attack",
+      "9": "move_attack",
+      "13": "count_idle",
+      "7": "Assets/Main/Prefabs/Barrel/Hero/Hero_baseballplayer_game.prefab",
+      "8": "",
+      "5": "Flamethrower",
+      "6": "Model/To_unity/DeformationSystem/Root/guadian_R/hero_Pistol/atkEffect",
+      "3": 400,
+      "4": "table: 000001F05ECDAB50",
+      "1": 10001,
+      "2": 10
+    },
+    "1002": {
+      "14": "idle",
+      "10": "run",
+      "12": "idle",
+      "11": "run",
+      "9": "attack_move",
+      "13": "attack",
+      "7": "Assets/Main/Prefabs/LWCountBattle/Units/JeepUnit.prefab",
+      "8": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_Aiyinsitan_attack_hit_cm.prefab",
+      "5": "Shotgun",
+      "6": "A_Hero_David_01_skin/To_unity/Root/base/All_M/jiqiang1/up/point/jiqiang2/fire_point",
+      "3": 1000,
+      "4": "table: 000001F05ECDB590",
+      "1": 1002,
+      "2": 20
+    },
+    "1001": {
+      "14": "idle",
+      "10": "run",
+      "12": "attack",
+      "11": "attack_move",
+      "9": "attack_move",
+      "13": "attack",
+      "7": "Assets/Main/Prefabs/LWCountBattle/Units/FlameUnit.prefab",
+      "8": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_shiti_boom_cm.prefab",
+      "5": "Flamethrower",
+      "6": "Hero@bubing05_skin (1)/To_unity/DeformationSystem/Root/joint4/fire_point",
+      "3": 800,
+      "4": "table: 000001F05ECDAAD0",
+      "1": 1001,
+      "2": 10
+    },
+    "10003": {
+      "14": "idle",
+      "10": "move_attack",
+      "12": "idle",
+      "11": "move_attack",
+      "9": "move_attack",
+      "13": "count_idle",
+      "7": "Assets/Main/Prefabs/Barrel/Hero/Hero_Crowbar_girl_game.prefab",
+      "8": "",
+      "5": "Shotgun",
+      "6": "Model/To_unity/DeformationSystem/Root/guadian_R/ak47/atkEffect",
+      "3": 400,
+      "4": "table: 000001F05ECDB990",
+      "1": 10003,
+      "2": 5
+    },
+    "10000": {
+      "14": "idle",
+      "10": "move_attack",
+      "12": "idle",
+      "11": "move_attack",
+      "9": "move_attack",
+      "13": "count_idle",
+      "7": "Assets/Main/Prefabs/Barrel/Hero/Hero_Akman_game.prefab",
+      "8": "",
+      "5": "Rifle",
+      "6": "Model/To_unity/DeformationSystem/Root/guadian_R/ak47/atkEffect",
+      "3": 400,
+      "4": "table: 000001F05ECDAC90",
+      "1": 10000,
+      "2": 1
+    },
+    "1000": {
+      "14": "idle",
+      "10": "run",
+      "12": "ready",
+      "11": "stab",
+      "9": "Default",
+      "13": "fire",
+      "7": "Assets/Main/Prefabs/LWCountBattle/Units/SoilderUnit.prefab",
+      "8": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_xinshou_shiti_boom_cm.prefab",
+      "5": "Rifle",
+      "6": "Hero@bubing02_skin/To_unity/DeformationSystem/Root/gun/firepoint",
+      "3": 400,
+      "4": "table: 000001F05ECDB510",
+      "1": 1000,
+      "2": 1
+    },
+    "1003": {
+      "14": "idle",
+      "10": "run",
+      "12": "idle",
+      "11": "run",
+      "9": "attack_move",
+      "13": "attack",
+      "7": "Assets/_Art_LastWar/Models/Cars/A_Hero_Kilian_01/prefab/A_Hero_Kilian_01_battle.prefab",
+      "8": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_Aiyinsitan_attack_hit_cm.prefab",
+      "5": "Shotgun",
+      "6": "A_Hero_Kilian_01_low_skin/To_unity/DeformationSystem/Root/Root_M/Body_M/up/point/paota_M/fire_point",
+      "3": 1000,
+      "4": "table: 000001F05ECDB290",
+      "1": 1003,
+      "2": 5
+    },
+    "1004": {
+      "14": "idle",
+      "10": "run",
+      "12": "idle",
+      "11": "run",
+      "9": "attack_move",
+      "13": "attack",
+      "7": "Assets/_Art_LastWar/Models/Cars/tanke/prefab/A_vehicle_tanke.prefab",
+      "8": "Assets/Main/Prefabs/LWCountBattle/DeadVfx/Eff_Aiyinsitan_attack_hit_cm.prefab",
+      "5": "RocketLauncher",
+      "6": "vehicle_tanke_skin/To_unity/Root/gun_a/gun/gun_c/gun_d/guadian",
+      "3": 1000,
+      "4": "table: 000001F05ECDAB90",
+      "1": 1004,
+      "2": 5
+    }
+  }
+}

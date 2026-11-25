@@ -1,0 +1,4576 @@
+{
+  "timestamp": 1794730146.9106307,
+  "formatted_time": "Prior Scan (24h ago)",
+  "alliances": [
+    {
+      "alliancename": "Legacy of Chaos",
+      "wearFlagItem": 0,
+      "uid": "fab04a8671c742b3ac71604ad39b91eb",
+      "fightpower": 18441997422,
+      "curMember": 95,
+      "abbr": "LECS",
+      "rank": 1,
+      "maxMember": 100,
+      "icon": "7;8;5;1",
+      "leader": "\u842c\u5ff5\u4ff1\u7070",
+      "country": "UN",
+      "serverId": 704,
+      "like": 0
+    },
+    {
+      "alliancename": "VoZo Legends",
+      "wearFlagItem": 0,
+      "uid": "6149af4198944f14ac24b4aa38d06bd9",
+      "fightpower": 17015004742,
+      "curMember": 97,
+      "abbr": "VZO",
+      "rank": 2,
+      "maxMember": 100,
+      "icon": "1;1;1;1",
+      "leader": "CeeJay1909",
+      "country": "UN",
+      "serverId": 704,
+      "like": 0
+    },
+    {
+      "alliancename": "Immortal GuardS",
+      "wearFlagItem": 0,
+      "uid": "c049b616fcde41408ef2de5dd414e1de",
+      "fightpower": 16894914856,
+      "curMember": 90,
+      "abbr": "IMGs",
+      "rank": 3,
+      "maxMember": 100,
+      "icon": "1;4;5;4",
+      "leader": "Natasaurus",
+      "country": "UN",
+      "serverId": 704,
+      "like": 0
+    },
+    {
+      "alliancename": "JLoveJ",
+      "wearFlagItem": 0,
+      "fightpower": 16442851545,
+      "curMember": 89,
+      "abbr": "JNJ",
+      "rank": 4,
+      "maxMember": 100,
+      "icon": "1;1;1;1",
+      "leader": "JHusband",
+      "country": "SG",
+      "uid": "fe6677af04924bb0a8d2adc94d6628fe",
+      "serverId": 704
+    },
+    {
+      "alliancename": "TrustCoreUnion",
+      "wearFlagItem": 0,
+      "fightpower": 16346150787,
+      "curMember": 91,
+      "abbr": "TCUN",
+      "rank": 5,
+      "maxMember": 100,
+      "icon": "8;5;3;5",
+      "leader": "\u00c4\u0274\u043c\u025b\u2113",
+      "country": "JP",
+      "uid": "ac1ac3a5f6bc4c888439bcdba0243289",
+      "serverId": 704
+    },
+    {
+      "alliancename": "PINOY SQUADRON",
+      "wearFlagItem": 0,
+      "fightpower": 14059194958,
+      "curMember": 97,
+      "abbr": "PSQD",
+      "rank": 6,
+      "maxMember": 100,
+      "icon": "2;1;5;1",
+      "leader": "R \u00e0 r a",
+      "country": "PH",
+      "uid": "aaaf6708a7e54cd485aeecb13fb497bf",
+      "serverId": 704
+    },
+    {
+      "alliancename": "JLOVEJ2",
+      "wearFlagItem": 0,
+      "fightpower": 12994630730,
+      "curMember": 99,
+      "abbr": "JNJ2",
+      "rank": 7,
+      "maxMember": 100,
+      "icon": "1;1;1;1",
+      "leader": "JWife2",
+      "country": "SG",
+      "uid": "e53d79d4e07a4cc0ac6b9f6fb710ebc4",
+      "serverId": 704
+    },
+    {
+      "alliancename": "LINK",
+      "wearFlagItem": 0,
+      "fightpower": 11025697662,
+      "curMember": 85,
+      "abbr": "Link",
+      "rank": 8,
+      "maxMember": 100,
+      "icon": "1;1;1;1",
+      "leader": "Zohan chen",
+      "country": "UN",
+      "uid": "a949ab14df094019809e55fe10c7fb4a",
+      "serverId": 704
+    },
+    {
+      "alliancename": "832S",
+      "wearFlagItem": 0,
+      "fightpower": 8747467328,
+      "curMember": 70,
+      "abbr": "832S",
+      "rank": 9,
+      "maxMember": 100,
+      "icon": "1;5;3;8",
+      "leader": "\uff11\uff16\uff11\uff10",
+      "country": "JP",
+      "uid": "15ccbc1276b2409b8ee4bc919512cc8f",
+      "serverId": 704
+    },
+    {
+      "alliancename": "IMGs Academy",
+      "wearFlagItem": 0,
+      "fightpower": 5869231261,
+      "curMember": 68,
+      "abbr": "IMG2",
+      "rank": 10,
+      "maxMember": 100,
+      "icon": "1;4;5;4",
+      "leader": "Dik Farm",
+      "country": "UN",
+      "uid": "cda8c1f21a674932be7b9d4af400e2b1",
+      "serverId": 704
+    }
+  ],
+  "rosters": {
+    "LECS": [
+      {
+        "uid": "1411692080000704",
+        "name": "\u842c\u5ff5\u4ff1\u7070",
+        "power": 265009938
+      },
+      {
+        "uid": "1056250654000699",
+        "name": "\u5c0f\u51759527",
+        "power": 245304657
+      },
+      {
+        "uid": "1729382407000704",
+        "name": "\u711a\u5316\u7210",
+        "power": 227750368
+      },
+      {
+        "uid": "2004539798000704",
+        "name": "\u9999\u6c34\u6587\u83c1",
+        "power": 192294892
+      },
+      {
+        "uid": "1277691183000704",
+        "name": "Angel Suzie",
+        "power": 245766432
+      },
+      {
+        "uid": "1642815565000704",
+        "name": "BAD Rinn",
+        "power": 151618153
+      },
+      {
+        "uid": "1099295767000704",
+        "name": "\u8001\u6155",
+        "power": 223494497
+      },
+      {
+        "uid": "1322293519000704",
+        "name": "vitaki",
+        "power": 178583580
+      },
+      {
+        "uid": "1453429391000704",
+        "name": "Darote",
+        "power": 282844816
+      },
+      {
+        "uid": "1521878497000704",
+        "name": "suprador",
+        "power": 148747514
+      },
+      {
+        "uid": "1658558280000704",
+        "name": "Itachi 92",
+        "power": 133324011
+      },
+      {
+        "uid": "1509578234000704",
+        "name": "Dionysus2",
+        "power": 211883602
+      },
+      {
+        "uid": "1054469055000704",
+        "name": "XxDYHxX",
+        "power": 216820600
+      },
+      {
+        "uid": "1197309700000704",
+        "name": "Katakuna 36",
+        "power": 156368570
+      },
+      {
+        "uid": "1578591468000704",
+        "name": "Harnasb2",
+        "power": 199254404
+      },
+      {
+        "uid": "1260747027000704",
+        "name": "Lt Gn Pikachu",
+        "power": 133845429
+      },
+      {
+        "uid": "1210146746000704",
+        "name": "\uff28\u039b\uff24\u039e\uff33",
+        "power": 187768295
+      },
+      {
+        "uid": "1226037628000704",
+        "name": "whatevers",
+        "power": 211569180
+      },
+      {
+        "uid": "1841380538000695",
+        "name": "LANNY",
+        "power": 152016648
+      },
+      {
+        "uid": "1860382377000704",
+        "name": "Docd",
+        "power": 158007818
+      },
+      {
+        "uid": "1669660838000704",
+        "name": "vio13",
+        "power": 139157283
+      },
+      {
+        "uid": "1248266848000704",
+        "name": "c\u00e1pp\u00ecp\u00e1ra",
+        "power": 238437658
+      },
+      {
+        "uid": "1117897661000704",
+        "name": "Predator pl",
+        "power": 140177535
+      },
+      {
+        "uid": "1890942993000704",
+        "name": "Bad Doggg",
+        "power": 147462173
+      },
+      {
+        "uid": "1316976663000699",
+        "name": "\u2022YuLii3\u2022",
+        "power": 157301275
+      },
+      {
+        "uid": "1170057395000704",
+        "name": "Mic mic",
+        "power": 358444655
+      },
+      {
+        "uid": "1199948593000704",
+        "name": "trump donal",
+        "power": 191109741
+      },
+      {
+        "uid": "1184034515000704",
+        "name": "Sleeping 321",
+        "power": 224995340
+      },
+      {
+        "uid": "1012856288000704",
+        "name": "Virus Chua",
+        "power": 201236122
+      },
+      {
+        "uid": "1683745206000699",
+        "name": "Luigi 88",
+        "power": 205550767
+      },
+      {
+        "uid": "1408631335000701",
+        "name": "Gr0nk",
+        "power": 216597826
+      },
+      {
+        "uid": "1621352782000704",
+        "name": "Bad Kittyy",
+        "power": 211418156
+      },
+      {
+        "uid": "1687084568000704",
+        "name": "BADKillerBee",
+        "power": 208278582
+      },
+      {
+        "uid": "1290374803000704",
+        "name": "MsVenom",
+        "power": 180549049
+      },
+      {
+        "uid": "1363660000000704",
+        "name": "SupernovA",
+        "power": 162939988
+      },
+      {
+        "uid": "1759959968000704",
+        "name": "\u20acBudWeiser\u20ac",
+        "power": 197637141
+      },
+      {
+        "uid": "1847047933000704",
+        "name": "Schumy Max",
+        "power": 177331218
+      },
+      {
+        "uid": "1033467671000704",
+        "name": "\u0f12 Anya \u0f12",
+        "power": 207417987
+      },
+      {
+        "uid": "1245038421000699",
+        "name": "3QHB",
+        "power": 209554950
+      },
+      {
+        "uid": "1124101851000699",
+        "name": "HowardKat",
+        "power": 240913909
+      },
+      {
+        "uid": "1026854757000704",
+        "name": "Billstine",
+        "power": 156488520
+      },
+      {
+        "uid": "1715858288000704",
+        "name": "Oreeo Cookiee",
+        "power": 348091311
+      },
+      {
+        "uid": "1666284878000704",
+        "name": "MR GENGAR",
+        "power": 157982772
+      },
+      {
+        "uid": "1238982194000699",
+        "name": "kingpinz",
+        "power": 163767063
+      },
+      {
+        "uid": "1273289992000704",
+        "name": "Fodz",
+        "power": 176007539
+      },
+      {
+        "uid": "1900982947000699",
+        "name": "bull1688",
+        "power": 217963874
+      },
+      {
+        "uid": "1300423007000704",
+        "name": "Ajsd",
+        "power": 166745117
+      },
+      {
+        "uid": "1075087878000704",
+        "name": "lubenten",
+        "power": 207922445
+      },
+      {
+        "uid": "1697645122000704",
+        "name": "Shadow G27",
+        "power": 154628133
+      },
+      {
+        "uid": "1099185924000704",
+        "name": "xZeed2x",
+        "power": 136023568
+      },
+      {
+        "uid": "1061791917000699",
+        "name": "HowardRoark",
+        "power": 340992429
+      },
+      {
+        "uid": "2048614340000699",
+        "name": "Yiiting",
+        "power": 214463211
+      },
+      {
+        "uid": "1321475036000704",
+        "name": "bang bao",
+        "power": 200772078
+      },
+      {
+        "uid": "1525642978000704",
+        "name": "SurvivorSole",
+        "power": 183274213
+      },
+      {
+        "uid": "1385695391000704",
+        "name": "BAD  fern33",
+        "power": 154998962
+      },
+      {
+        "uid": "1203126852000704",
+        "name": "LORD WOOLO",
+        "power": 130912425
+      },
+      {
+        "uid": "1042360807000704",
+        "name": "DTEE",
+        "power": 198076266
+      },
+      {
+        "uid": "2167156266000704",
+        "name": "BeeiiKiller",
+        "power": 158764876
+      },
+      {
+        "uid": "1223189062000699",
+        "name": "\u8c93\u8c93Jamie",
+        "power": 206188750
+      },
+      {
+        "uid": "1624325773000699",
+        "name": "\u00a7Only you\u00a7",
+        "power": 226639020
+      },
+      {
+        "uid": "1499681404000704",
+        "name": "Bhatsahab",
+        "power": 161421163
+      },
+      {
+        "uid": "1686643206000699",
+        "name": "Emo 3",
+        "power": 218878133
+      },
+      {
+        "uid": "1661613730000704",
+        "name": "Las tonas",
+        "power": 163779688
+      },
+      {
+        "uid": "1402207170000704",
+        "name": "sxxs",
+        "power": 129523262
+      },
+      {
+        "uid": "1607385046000704",
+        "name": "6767 Ssakk",
+        "power": 163714941
+      },
+      {
+        "uid": "1698205241000704",
+        "name": "Just Ale",
+        "power": 236625600
+      },
+      {
+        "uid": "1180213972000704",
+        "name": "DjPescador",
+        "power": 165727605
+      },
+      {
+        "uid": "1543193457000704",
+        "name": "--Comandante--",
+        "power": 262064525
+      },
+      {
+        "uid": "1897581006000691",
+        "name": "\ud55c \uac15",
+        "power": 183373903
+      },
+      {
+        "uid": "2082574056000704",
+        "name": "HappyNOW \u0e4b",
+        "power": 188240743
+      },
+      {
+        "uid": "1929370876000699",
+        "name": "steven 99",
+        "power": 205043712
+      },
+      {
+        "uid": "2176274187000699",
+        "name": "SShifuu",
+        "power": 230687501
+      },
+      {
+        "uid": "2124907258000704",
+        "name": "OG Granny \u4e97",
+        "power": 265169472
+      },
+      {
+        "uid": "1241715276000704",
+        "name": "Labuci11",
+        "power": 221338487
+      },
+      {
+        "uid": "1630124894000704",
+        "name": "Yasas1994",
+        "power": 168910721
+      },
+      {
+        "uid": "1769479418000699",
+        "name": "\u4e2d\u548cSkoda",
+        "power": 226921482
+      },
+      {
+        "uid": "1910023194000704",
+        "name": "E M  6",
+        "power": 152002703
+      },
+      {
+        "uid": "1138629347000704",
+        "name": "show time",
+        "power": 172714937
+      },
+      {
+        "uid": "1471376347000704",
+        "name": "G U N T U R",
+        "power": 173219304
+      },
+      {
+        "uid": "1112063562000704",
+        "name": "BlackCrystal",
+        "power": 175193396
+      },
+      {
+        "uid": "1829709526000704",
+        "name": "Shamandos",
+        "power": 141637771
+      },
+      {
+        "uid": "1911191377000704",
+        "name": "\u00b0 Annika\u00b0",
+        "power": 207470931
+      },
+      {
+        "uid": "1304933015000704",
+        "name": "Vlado Tommy",
+        "power": 174445863
+      },
+      {
+        "uid": "1578549243000704",
+        "name": "Master Chriss",
+        "power": 182772427
+      },
+      {
+        "uid": "1537818217000704",
+        "name": "\u2022E M\u2022MARRY",
+        "power": 222051775
+      },
+      {
+        "uid": "2092519070000704",
+        "name": "Tng2823",
+        "power": 191777764
+      },
+      {
+        "uid": "1419696730000704",
+        "name": "Baoloc2",
+        "power": 192992932
+      },
+      {
+        "uid": "1244158642000704",
+        "name": "nengs",
+        "power": 117031725
+      },
+      {
+        "uid": "1327670298000704",
+        "name": "SeanOOneal",
+        "power": 104909062
+      },
+      {
+        "uid": "2120356654000695",
+        "name": "\u85b0\u85b0\u70a9",
+        "power": 178722849
+      },
+      {
+        "uid": "1738470731000699",
+        "name": "Katrina-",
+        "power": 321228094
+      },
+      {
+        "uid": "1146517026000699",
+        "name": "DoG Lukiitas666",
+        "power": 131173353
+      },
+      {
+        "uid": "1787305050000704",
+        "name": "\u958b\u5fc3\u5bf6",
+        "power": 213794160
+      },
+      {
+        "uid": "1259464163000704",
+        "name": "\u61d2\u89c9\u543c\u91cc\u6dd1",
+        "power": 191084592
+      },
+      {
+        "uid": "1200882418000704",
+        "name": "Camelowsky",
+        "power": 166919493
+      }
+    ],
+    "VZO": [
+      {
+        "uid": "1687404195000704",
+        "name": "phkl1984",
+        "power": 168656512
+      },
+      {
+        "uid": "2001463511000699",
+        "name": "QQQ",
+        "power": 289119373
+      },
+      {
+        "uid": "1331983767000704",
+        "name": "Kid K",
+        "power": 209316534
+      },
+      {
+        "uid": "1389198596000697",
+        "name": "MAD - WOLF",
+        "power": 185367163
+      },
+      {
+        "uid": "1797074872000704",
+        "name": "PIpoca",
+        "power": 135274953
+      },
+      {
+        "uid": "2096340978000699",
+        "name": "classyvicky",
+        "power": 225823201
+      },
+      {
+        "uid": "1279615540000699",
+        "name": "Fenzy\u00b0-\u00b0",
+        "power": 228390825
+      },
+      {
+        "uid": "1881581532000704",
+        "name": "Ho\u00e0ng T\u00ecnh",
+        "power": 179281872
+      },
+      {
+        "uid": "1065666970000699",
+        "name": "Rokky fly",
+        "power": 214827517
+      },
+      {
+        "uid": "1653883842000699",
+        "name": "Revolfio",
+        "power": 187458877
+      },
+      {
+        "uid": "1803428855000704",
+        "name": "Julalak32",
+        "power": 132718172
+      },
+      {
+        "uid": "1970047640000699",
+        "name": "ArC1337",
+        "power": 168694956
+      },
+      {
+        "uid": "1668319228000699",
+        "name": "Inisoa",
+        "power": 170910840
+      },
+      {
+        "uid": "1560291904000699",
+        "name": "Haku \u767d",
+        "power": 215115414
+      },
+      {
+        "uid": "1479081889000699",
+        "name": "JoeJet",
+        "power": 248971866
+      },
+      {
+        "uid": "2034236600000704",
+        "name": "Michael352",
+        "power": 143799007
+      },
+      {
+        "uid": "1996957481000704",
+        "name": "K Thy",
+        "power": 158973356
+      },
+      {
+        "uid": "1886224785000699",
+        "name": "B\u00f4no",
+        "power": 197485460
+      },
+      {
+        "uid": "1209309835000704",
+        "name": "A L\u00f9",
+        "power": 215071439
+      },
+      {
+        "uid": "1053570445000704",
+        "name": "Sara\u0125",
+        "power": 185146149
+      },
+      {
+        "uid": "1273034037000699",
+        "name": "DeeMaou",
+        "power": 132078891
+      },
+      {
+        "uid": "1948350082000699",
+        "name": "\u4e97\u00d0\u0119v\u00ee\u013b\u0e5b",
+        "power": 178329195
+      },
+      {
+        "uid": "1515641800000704",
+        "name": "PaPa\uc2a4\uba38\ud504",
+        "power": 167613211
+      },
+      {
+        "uid": "1525644809000699",
+        "name": "LOUIS MUTTON",
+        "power": 255744252
+      },
+      {
+        "uid": "1648802117000699",
+        "name": "Dag1",
+        "power": 199840069
+      },
+      {
+        "uid": "1051147062000699",
+        "name": "Darth DaDDy",
+        "power": 207068852
+      },
+      {
+        "uid": "2149854420000699",
+        "name": "Busz",
+        "power": 211908419
+      },
+      {
+        "uid": "1354446263000699",
+        "name": "D\u00e3sy",
+        "power": 172625711
+      },
+      {
+        "uid": "1733161979000699",
+        "name": "K a y d e n",
+        "power": 146246160
+      },
+      {
+        "uid": "1509531680000704",
+        "name": "Chasu",
+        "power": 139277269
+      },
+      {
+        "uid": "1804398791000704",
+        "name": "Survivorpipi",
+        "power": 108347633
+      },
+      {
+        "uid": "1066776027000704",
+        "name": "huy1986",
+        "power": 137060611
+      },
+      {
+        "uid": "1587357950000704",
+        "name": "She devil",
+        "power": 187417996
+      },
+      {
+        "uid": "1356514999000699",
+        "name": "KST\u00d6RM",
+        "power": 200969432
+      },
+      {
+        "uid": "1259208960000704",
+        "name": "XavierTheSlayer",
+        "power": 101969977
+      },
+      {
+        "uid": "1888723452000699",
+        "name": "Haku s Bitcoin",
+        "power": 158127894
+      },
+      {
+        "uid": "1171729476000704",
+        "name": "V I E J T",
+        "power": 89675423
+      },
+      {
+        "uid": "1725383219000699",
+        "name": "Hi im tkui",
+        "power": 196070917
+      },
+      {
+        "uid": "1636901521000704",
+        "name": "Momon\u3082\u3082\u3093",
+        "power": 59973529
+      },
+      {
+        "uid": "1580410398000704",
+        "name": "Winxtale",
+        "power": 137733414
+      },
+      {
+        "uid": "2117341050000699",
+        "name": "akanksha7618",
+        "power": 174363170
+      },
+      {
+        "uid": "1001578537000699",
+        "name": "1KiwiBird3",
+        "power": 208684741
+      },
+      {
+        "uid": "2218956009000699",
+        "name": "OMGItDoesntFi",
+        "power": 325082813
+      },
+      {
+        "uid": "1064278960000699",
+        "name": "LuciferMrngStar",
+        "power": 187999668
+      },
+      {
+        "uid": "2079374691000699",
+        "name": "Linwaner",
+        "power": 136108481
+      },
+      {
+        "uid": "1202499749000704",
+        "name": "GGTS",
+        "power": 190399771
+      },
+      {
+        "uid": "1596564211000704",
+        "name": "Michael Khoai",
+        "power": 174714022
+      },
+      {
+        "uid": "1084210310000704",
+        "name": "prathi",
+        "power": 118244244
+      },
+      {
+        "uid": "1150264879000699",
+        "name": "Elzakzaky",
+        "power": 168414872
+      },
+      {
+        "uid": "1105323837000699",
+        "name": "T\u1ed1t \u0111\u1ecf",
+        "power": 181039356
+      },
+      {
+        "uid": "1050413741000704",
+        "name": "h\u1ed3 l\u00f4",
+        "power": 192505159
+      },
+      {
+        "uid": "1585509990000704",
+        "name": "Just a Guy",
+        "power": 191478378
+      },
+      {
+        "uid": "1813111783000704",
+        "name": "Th-Kim",
+        "power": 178426312
+      },
+      {
+        "uid": "2216094605000699",
+        "name": "Bally-HRC",
+        "power": 194735349
+      },
+      {
+        "uid": "1734654205000699",
+        "name": "Gossip2you",
+        "power": 155550733
+      },
+      {
+        "uid": "1374658633000699",
+        "name": "r4byt",
+        "power": 174612112
+      },
+      {
+        "uid": "1605254550000699",
+        "name": "\u0e25\u0e38\u0e07chai",
+        "power": 231747264
+      },
+      {
+        "uid": "1031803587000704",
+        "name": "Tr\u1ecdngnguy\u1ec7n",
+        "power": 170693430
+      },
+      {
+        "uid": "1263528018000699",
+        "name": "Elementary",
+        "power": 128586147
+      },
+      {
+        "uid": "1454853600000699",
+        "name": "Kervin02",
+        "power": 172601934
+      },
+      {
+        "uid": "1241936928000699",
+        "name": "\u0f12\u53e0\u0f12",
+        "power": 174983894
+      },
+      {
+        "uid": "1405036745000699",
+        "name": "AnosVold1goad",
+        "power": 198566888
+      },
+      {
+        "uid": "1636157970000699",
+        "name": "L e y w i n",
+        "power": 177832166
+      },
+      {
+        "uid": "1205890960000704",
+        "name": "VAE Gi\u00e1c Ng\u1ed9",
+        "power": 212868892
+      },
+      {
+        "uid": "1228071097000704",
+        "name": "B\u1ed1ngS2",
+        "power": 159292459
+      },
+      {
+        "uid": "1052388907000704",
+        "name": "Tri\u1ebft Nguy\u00ean",
+        "power": 125891337
+      },
+      {
+        "uid": "1990040487000699",
+        "name": "Skiritis",
+        "power": 173980119
+      },
+      {
+        "uid": "1928905422000699",
+        "name": "Rosso90",
+        "power": 164547363
+      },
+      {
+        "uid": "1404157286000699",
+        "name": "Sh\u00ee\u00f1\u00e7h\u00e3\u00f1",
+        "power": 202437374
+      },
+      {
+        "uid": "1365296967000699",
+        "name": "walang",
+        "power": 152258813
+      },
+      {
+        "uid": "1886256094000704",
+        "name": "sma fighter",
+        "power": 191575053
+      },
+      {
+        "uid": "2216626538000699",
+        "name": "DarthDaDDy Farm",
+        "power": 78544687
+      },
+      {
+        "uid": "1388897411000704",
+        "name": "JameJame",
+        "power": 136853415
+      },
+      {
+        "uid": "1924635562000704",
+        "name": "BRZJ2",
+        "power": 204373158
+      },
+      {
+        "uid": "1554672958000699",
+        "name": "AvengerS",
+        "power": 190998999
+      },
+      {
+        "uid": "2219502545000699",
+        "name": "Rokky F",
+        "power": 144461085
+      },
+      {
+        "uid": "1404039344000699",
+        "name": "ultra s",
+        "power": 165128950
+      },
+      {
+        "uid": "1277413708000704",
+        "name": "Julie vn",
+        "power": 141623799
+      },
+      {
+        "uid": "1204078205000699",
+        "name": "L A N G l T",
+        "power": 156688145
+      },
+      {
+        "uid": "1229568369000699",
+        "name": "CeeJay1909",
+        "power": 227896721
+      },
+      {
+        "uid": "1475644309000704",
+        "name": "M\u1ee5c nhi",
+        "power": 154898753
+      },
+      {
+        "uid": "1744229379000699",
+        "name": "Apex Dawn",
+        "power": 190847781
+      },
+      {
+        "uid": "1028342618000699",
+        "name": "-Ev",
+        "power": 160099465
+      },
+      {
+        "uid": "1433210314000704",
+        "name": "Kyla 93",
+        "power": 131799039
+      },
+      {
+        "uid": "1407648230000699",
+        "name": "ForceXxX",
+        "power": 165871502
+      },
+      {
+        "uid": "1352988143000699",
+        "name": "Chaizaa",
+        "power": 173467719
+      },
+      {
+        "uid": "2083407764000699",
+        "name": "Hienadmin",
+        "power": 146727709
+      },
+      {
+        "uid": "1582128616000699",
+        "name": "L\u00e3o T\u00f4n",
+        "power": 218012285
+      },
+      {
+        "uid": "2143658808000704",
+        "name": "Thuy\u00ean Kim",
+        "power": 161205405
+      },
+      {
+        "uid": "1501591902000704",
+        "name": "Hu\u1ef3nh Nhi\u1ec1u",
+        "power": 155330468
+      },
+      {
+        "uid": "2040870383000704",
+        "name": "sergio555",
+        "power": 122220287
+      },
+      {
+        "uid": "1077487626000704",
+        "name": "VAE Th\u00e1nh B\u00e1u",
+        "power": 163365294
+      },
+      {
+        "uid": "2127494267000699",
+        "name": "Skiwalker",
+        "power": 214049027
+      },
+      {
+        "uid": "1665647960000699",
+        "name": "beel",
+        "power": 227831575
+      },
+      {
+        "uid": "1165500764000699",
+        "name": "Kux cuz",
+        "power": 130288072
+      },
+      {
+        "uid": "2001934583000699",
+        "name": "7R1X",
+        "power": 205015308
+      },
+      {
+        "uid": "1290464092000699",
+        "name": "HTH05",
+        "power": 208697099
+      }
+    ],
+    "IMGs": [
+      {
+        "uid": "1176936380000704",
+        "name": "Darkaeopteryx",
+        "power": 222303977
+      },
+      {
+        "uid": "1517713145000704",
+        "name": "C\u00e9l\u00e9ste Fleur",
+        "power": 189833089
+      },
+      {
+        "uid": "2030979819000704",
+        "name": "Fighter One",
+        "power": 167167039
+      },
+      {
+        "uid": "2012521295000704",
+        "name": "Nvrd3ft",
+        "power": 187888920
+      },
+      {
+        "uid": "1101882541000689",
+        "name": "\u2020Ivaylo\u2020",
+        "power": 172581476
+      },
+      {
+        "uid": "1426685391000704",
+        "name": "Han L",
+        "power": 186830719
+      },
+      {
+        "uid": "1397488901000704",
+        "name": "DiKsOn",
+        "power": 218377836
+      },
+      {
+        "uid": "1245606488000704",
+        "name": "Welvis",
+        "power": 179084761
+      },
+      {
+        "uid": "2090552907000704",
+        "name": "Rhaegal 13",
+        "power": 211211304
+      },
+      {
+        "uid": "1550743036000704",
+        "name": "babilonia 5",
+        "power": 198664718
+      },
+      {
+        "uid": "1467832153000704",
+        "name": "A m e t h y s t",
+        "power": 205834725
+      },
+      {
+        "uid": "1001346309000704",
+        "name": "smileunhye",
+        "power": 194011041
+      },
+      {
+        "uid": "1211391831000704",
+        "name": "Fla Rez",
+        "power": 164282070
+      },
+      {
+        "uid": "1634618707000704",
+        "name": "phoenix01",
+        "power": 164123493
+      },
+      {
+        "uid": "2026405596000704",
+        "name": "Mikwar",
+        "power": 174223702
+      },
+      {
+        "uid": "1405681987000704",
+        "name": "BadAxel\u00b9",
+        "power": 165019302
+      },
+      {
+        "uid": "1731633130000704",
+        "name": "Lizkaax3",
+        "power": 160872611
+      },
+      {
+        "uid": "1283506095000704",
+        "name": "Zamuro",
+        "power": 138856648
+      },
+      {
+        "uid": "2067268945000704",
+        "name": "Dmark007",
+        "power": 192802442
+      },
+      {
+        "uid": "1210207898000704",
+        "name": "ReaperReXxx",
+        "power": 200653561
+      },
+      {
+        "uid": "2141256403000704",
+        "name": "Hp 86",
+        "power": 159392332
+      },
+      {
+        "uid": "1290078276000704",
+        "name": "\u4e97FOXZILLA\u4e97",
+        "power": 221147774
+      },
+      {
+        "uid": "1323151870000704",
+        "name": "\u2022 Ph\u00e0m \u2022",
+        "power": 206936260
+      },
+      {
+        "uid": "1432008512000704",
+        "name": "Uncle ICE",
+        "power": 181380953
+      },
+      {
+        "uid": "1274024919000704",
+        "name": "FireLili",
+        "power": 205051614
+      },
+      {
+        "uid": "1861610510000704",
+        "name": "Natasaurus",
+        "power": 215927284
+      },
+      {
+        "uid": "1503795356000704",
+        "name": "taka-taka-taka",
+        "power": 215100590
+      },
+      {
+        "uid": "1150651904000704",
+        "name": "\u2022D O N\u2022",
+        "power": 200623769
+      },
+      {
+        "uid": "1838497110000704",
+        "name": "O bir T\u00fcrk",
+        "power": 171859314
+      },
+      {
+        "uid": "1012782339000704",
+        "name": "Smoky345",
+        "power": 203681232
+      },
+      {
+        "uid": "1400816015000694",
+        "name": "TC ZAFER",
+        "power": 175404254
+      },
+      {
+        "uid": "1167388149000704",
+        "name": "Selling dm",
+        "power": 187710208
+      },
+      {
+        "uid": "2010272546000704",
+        "name": "Neroth",
+        "power": 172006873
+      },
+      {
+        "uid": "1157519314000704",
+        "name": "FunkyLucas",
+        "power": 193507310
+      },
+      {
+        "uid": "1323634687000704",
+        "name": "\u3000\u65ec\u3000",
+        "power": 205913548
+      },
+      {
+        "uid": "1003423992000692",
+        "name": "z\u0e4fz  \u02da \u0488",
+        "power": 167057320
+      },
+      {
+        "uid": "1377992141000704",
+        "name": "Survivor7XXX",
+        "power": 255575932
+      },
+      {
+        "uid": "1192740853000704",
+        "name": "M\u00e0is",
+        "power": 200500809
+      },
+      {
+        "uid": "1465198238000704",
+        "name": "Silvio-Santos",
+        "power": 192458714
+      },
+      {
+        "uid": "1467425775000704",
+        "name": "GETLMaCo",
+        "power": 202732357
+      },
+      {
+        "uid": "1036576782000704",
+        "name": "blossomscherry",
+        "power": 158461454
+      },
+      {
+        "uid": "1632306178000704",
+        "name": "BigKaHona47",
+        "power": 185569928
+      },
+      {
+        "uid": "2204399851000704",
+        "name": "\u713c\u305d\u3070",
+        "power": 192137938
+      },
+      {
+        "uid": "1413815735000704",
+        "name": "Rivon 7",
+        "power": 178717193
+      },
+      {
+        "uid": "1224410856000704",
+        "name": "Rexday",
+        "power": 173213044
+      },
+      {
+        "uid": "1448097307000704",
+        "name": "wuma",
+        "power": 175317295
+      },
+      {
+        "uid": "1306260272000704",
+        "name": "NTN-",
+        "power": 231131511
+      },
+      {
+        "uid": "1671063648000704",
+        "name": "SAAD      1",
+        "power": 160045309
+      },
+      {
+        "uid": "1070267613000704",
+        "name": "DoubleBlue",
+        "power": 164322976
+      },
+      {
+        "uid": "1849239564000704",
+        "name": "Iram s3",
+        "power": 190133066
+      },
+      {
+        "uid": "1008582513000704",
+        "name": "\u0f3aM e o o\u0f3b",
+        "power": 211978625
+      },
+      {
+        "uid": "1551557687000704",
+        "name": "Lonewolf2042",
+        "power": 189006659
+      },
+      {
+        "uid": "1893936731000704",
+        "name": "Cakciborsaurus",
+        "power": 214960773
+      },
+      {
+        "uid": "2161770419000704",
+        "name": "CaccolaITA",
+        "power": 151796535
+      },
+      {
+        "uid": "1286094611000704",
+        "name": "DarthBrito",
+        "power": 203062203
+      },
+      {
+        "uid": "1433209853000704",
+        "name": "Clive 08",
+        "power": 161216034
+      },
+      {
+        "uid": "1782431593000704",
+        "name": "Redisaurus",
+        "power": 200771273
+      },
+      {
+        "uid": "1290186368000704",
+        "name": "Ange-Goosh",
+        "power": 158780971
+      },
+      {
+        "uid": "1509520910000704",
+        "name": "Antonio2907",
+        "power": 187727404
+      },
+      {
+        "uid": "1949762496000704",
+        "name": "Dylandog",
+        "power": 234393610
+      },
+      {
+        "uid": "1005287629000704",
+        "name": "PandID",
+        "power": 164636012
+      },
+      {
+        "uid": "1854592696000704",
+        "name": "Hobittisaurus",
+        "power": 185494913
+      },
+      {
+        "uid": "2012882815000704",
+        "name": "Shahatit",
+        "power": 186026697
+      },
+      {
+        "uid": "1133870402000692",
+        "name": "\u060cBaghdad\u060c",
+        "power": 188884087
+      },
+      {
+        "uid": "1439486441000704",
+        "name": "Dheeraj96",
+        "power": 152793729
+      },
+      {
+        "uid": "1650192004000704",
+        "name": "Stebandido",
+        "power": 165593311
+      },
+      {
+        "uid": "1378454378000704",
+        "name": "\u2022Green\u2022",
+        "power": 201675210
+      },
+      {
+        "uid": "1337052282000704",
+        "name": "ALPHA GRiM",
+        "power": 166603200
+      },
+      {
+        "uid": "1356384184000704",
+        "name": "Asunasaurus",
+        "power": 204044834
+      },
+      {
+        "uid": "1849031776000704",
+        "name": "Sougid",
+        "power": 256659120
+      },
+      {
+        "uid": "1013556872000704",
+        "name": "Huy\u1ec1n Ho\u00e0ng",
+        "power": 153706069
+      },
+      {
+        "uid": "1252584379000704",
+        "name": "TOXIC HEENA",
+        "power": 161134912
+      },
+      {
+        "uid": "1626329610000704",
+        "name": "Tulsa kir\u00e1lya",
+        "power": 184856459
+      },
+      {
+        "uid": "1066788195000704",
+        "name": "Asian Dragon",
+        "power": 208629723
+      },
+      {
+        "uid": "1258107478000704",
+        "name": "Shuai99999",
+        "power": 129977564
+      },
+      {
+        "uid": "1129269991000704",
+        "name": "pompom nu",
+        "power": 166673361
+      },
+      {
+        "uid": "1670869871000704",
+        "name": "Agusgiova",
+        "power": 186811754
+      },
+      {
+        "uid": "1964824082000704",
+        "name": "BAD LORDFEM",
+        "power": 192635889
+      },
+      {
+        "uid": "1535864550000704",
+        "name": "venomREX",
+        "power": 182904579
+      },
+      {
+        "uid": "1911658971000704",
+        "name": "Summer313",
+        "power": 163440843
+      },
+      {
+        "uid": "1605874743000704",
+        "name": "Eojiraptor",
+        "power": 181346132
+      },
+      {
+        "uid": "1558154103000704",
+        "name": "\u0f04C i n\u0f06",
+        "power": 205898726
+      },
+      {
+        "uid": "1812346835000704",
+        "name": "RLT08TH",
+        "power": 200654183
+      },
+      {
+        "uid": "1801410975000704",
+        "name": "raely",
+        "power": 164785079
+      },
+      {
+        "uid": "1114152924000704",
+        "name": "GioDaf",
+        "power": 210477496
+      },
+      {
+        "uid": "1111352294000704",
+        "name": "aShhh",
+        "power": 178779377
+      },
+      {
+        "uid": "1257357213000704",
+        "name": "TomMixBala",
+        "power": 210415112
+      },
+      {
+        "uid": "1513163258000704",
+        "name": "Honnnnnnn",
+        "power": 203847099
+      },
+      {
+        "uid": "1562962218000704",
+        "name": "\u300eObanai\u300f\u200f",
+        "power": 187586364
+      },
+      {
+        "uid": "1415407299000704",
+        "name": "Y E M M A",
+        "power": 196696739
+      }
+    ],
+    "JNJ": [
+      {
+        "uid": "1807620715000704",
+        "name": "JHusband",
+        "power": 224614286
+      },
+      {
+        "uid": "2104990782000704",
+        "name": "Survivorasj",
+        "power": 215780088
+      },
+      {
+        "uid": "2043353197000704",
+        "name": "Minyggong",
+        "power": 220616034
+      },
+      {
+        "uid": "1824647071000704",
+        "name": "Yuurisan",
+        "power": 153638382
+      },
+      {
+        "uid": "1029913519000704",
+        "name": "M K G",
+        "power": 160072561
+      },
+      {
+        "uid": "1706884628000704",
+        "name": "\u7cfe\u7d50\u9435\u76d2",
+        "power": 188625272
+      },
+      {
+        "uid": "1969820951000704",
+        "name": "Vengeance-",
+        "power": 231921744
+      },
+      {
+        "uid": "2067444667000704",
+        "name": "RebBaron",
+        "power": 158214563
+      },
+      {
+        "uid": "2196558762000704",
+        "name": "vinomamba",
+        "power": 230078125
+      },
+      {
+        "uid": "1029025130000704",
+        "name": "The bulgarian",
+        "power": 161205221
+      },
+      {
+        "uid": "1231461243000704",
+        "name": "Shyyn",
+        "power": 117197192
+      },
+      {
+        "uid": "1312691453000704",
+        "name": "Domina",
+        "power": 222997703
+      },
+      {
+        "uid": "1236521837000704",
+        "name": "Cakcibor 555",
+        "power": 187261036
+      },
+      {
+        "uid": "1192418292000697",
+        "name": "6      6      6",
+        "power": 244387977
+      },
+      {
+        "uid": "1121510828000704",
+        "name": "ye\u591c\u591c\u591c\u221d",
+        "power": 259223841
+      },
+      {
+        "uid": "1713822183000694",
+        "name": "Son Of Satan",
+        "power": 404494764
+      },
+      {
+        "uid": "2182029565000704",
+        "name": "procrastinate",
+        "power": 166165987
+      },
+      {
+        "uid": "1984317616000704",
+        "name": "\uc57c\uad00\ubb38\uc8fcre",
+        "power": 180526583
+      },
+      {
+        "uid": "2041988119000704",
+        "name": "MELETOF",
+        "power": 163523578
+      },
+      {
+        "uid": "1670804247000704",
+        "name": "blue fox",
+        "power": 184111014
+      },
+      {
+        "uid": "1013698737000704",
+        "name": "D\u00e4rk KnighT Jr",
+        "power": 228239931
+      },
+      {
+        "uid": "1284376896000704",
+        "name": "NambaTu",
+        "power": 129099817
+      },
+      {
+        "uid": "1304480042000704",
+        "name": "Jenyggong",
+        "power": 190576410
+      },
+      {
+        "uid": "1445326145000704",
+        "name": "Steva02",
+        "power": 146366951
+      },
+      {
+        "uid": "2204447702000704",
+        "name": "MinyJeny",
+        "power": 179732769
+      },
+      {
+        "uid": "1888376658000704",
+        "name": "EzzyB",
+        "power": 185749860
+      },
+      {
+        "uid": "1905480890000704",
+        "name": "Tims19",
+        "power": 167857548
+      },
+      {
+        "uid": "1973943318000704",
+        "name": "LAST CALL",
+        "power": 157397356
+      },
+      {
+        "uid": "1240114289000704",
+        "name": "Sanki banda",
+        "power": 119843289
+      },
+      {
+        "uid": "1003659097000704",
+        "name": "SurvivorZombi",
+        "power": 168731727
+      },
+      {
+        "uid": "1320648477000704",
+        "name": "Kluay TL",
+        "power": 154682543
+      },
+      {
+        "uid": "1069922684000704",
+        "name": "Le hustte",
+        "power": 184931509
+      },
+      {
+        "uid": "1500070992000704",
+        "name": "D\u00e4rK KnighT Sr",
+        "power": 183811210
+      },
+      {
+        "uid": "2009556308000704",
+        "name": "NEGAN89",
+        "power": 168851649
+      },
+      {
+        "uid": "1155264700000692",
+        "name": "zhuo-fan",
+        "power": 191438773
+      },
+      {
+        "uid": "1926544466000704",
+        "name": "\u5982\u4f86\u795e\u6f32",
+        "power": 221674177
+      },
+      {
+        "uid": "1113994676000704",
+        "name": "Jenik4444",
+        "power": 173874643
+      },
+      {
+        "uid": "1682928997000704",
+        "name": "MikuKinoko",
+        "power": 173788948
+      },
+      {
+        "uid": "2036576461000704",
+        "name": "Tteo",
+        "power": 204812901
+      },
+      {
+        "uid": "1920174598000704",
+        "name": "kelinci kecil",
+        "power": 153556047
+      },
+      {
+        "uid": "1533394348000695",
+        "name": "Tech-niques",
+        "power": 189278552
+      },
+      {
+        "uid": "1978182897000704",
+        "name": "Sharinganjx",
+        "power": 176903973
+      },
+      {
+        "uid": "1445950749000704",
+        "name": "sexsi",
+        "power": 191823946
+      },
+      {
+        "uid": "2089294752000704",
+        "name": "Yanxin",
+        "power": 154557236
+      },
+      {
+        "uid": "1809901967000704",
+        "name": "Robin Hasan",
+        "power": 145231374
+      },
+      {
+        "uid": "2207797655000704",
+        "name": "JenyMiny",
+        "power": 101486091
+      },
+      {
+        "uid": "2031933833000704",
+        "name": "CaboReyes",
+        "power": 156374850
+      },
+      {
+        "uid": "1296407043000704",
+        "name": "Tu\u1ea5n c\u01b0\u1eddng",
+        "power": 231770916
+      },
+      {
+        "uid": "1713230933000704",
+        "name": "SuGi",
+        "power": 217502327
+      },
+      {
+        "uid": "1243557931000699",
+        "name": "Super Dog",
+        "power": 234435132
+      },
+      {
+        "uid": "1236250070000704",
+        "name": "Cutu5",
+        "power": 148508619
+      },
+      {
+        "uid": "1364875549000704",
+        "name": "Hooligan7Gr6v",
+        "power": 186201146
+      },
+      {
+        "uid": "2204074262000704",
+        "name": "ORDALIA\u00b0",
+        "power": 183284046
+      },
+      {
+        "uid": "1122452200000704",
+        "name": "J-essy",
+        "power": 203758430
+      },
+      {
+        "uid": "2026343555000704",
+        "name": "Framatti0706",
+        "power": 161467584
+      },
+      {
+        "uid": "1935836722000704",
+        "name": "RioDaddy",
+        "power": 198533265
+      },
+      {
+        "uid": "1794650285000704",
+        "name": "L\u00famina",
+        "power": 145075914
+      },
+      {
+        "uid": "2130887603000704",
+        "name": "ghostGL",
+        "power": 148649420
+      },
+      {
+        "uid": "1973292003000704",
+        "name": "Abbry20",
+        "power": 187655687
+      },
+      {
+        "uid": "2078802481000699",
+        "name": "Javax",
+        "power": 235983577
+      },
+      {
+        "uid": "1668582656000697",
+        "name": "\u9b54\u6cd5Eight",
+        "power": 319312366
+      },
+      {
+        "uid": "1722481260000704",
+        "name": "JWife",
+        "power": 231533035
+      },
+      {
+        "uid": "1612963670000704",
+        "name": "XxxpR",
+        "power": 162741631
+      },
+      {
+        "uid": "1687980527000704",
+        "name": "Yvenom",
+        "power": 165203413
+      },
+      {
+        "uid": "1790626845000704",
+        "name": "Ricky P Gamboa",
+        "power": 280412011
+      },
+      {
+        "uid": "1805464859000699",
+        "name": "Mamepoko01",
+        "power": 191287732
+      },
+      {
+        "uid": "2032719354000704",
+        "name": "\u9cf6\u9b45",
+        "power": 203182022
+      },
+      {
+        "uid": "1096224216000704",
+        "name": "Thanos K",
+        "power": 240762006
+      },
+      {
+        "uid": "2085698786000704",
+        "name": "Peter Tan",
+        "power": 125273121
+      },
+      {
+        "uid": "1563051279000704",
+        "name": "Didi Lioness",
+        "power": 233486542
+      },
+      {
+        "uid": "1777747020000704",
+        "name": "Paulor",
+        "power": 158856810
+      },
+      {
+        "uid": "1321994490000704",
+        "name": "ye\u591c\u591c\u591cNo1",
+        "power": 208536795
+      },
+      {
+        "uid": "1078493760000704",
+        "name": "vinz588",
+        "power": 183507212
+      },
+      {
+        "uid": "1464500932000704",
+        "name": "Tilak patel jsn",
+        "power": 175245577
+      },
+      {
+        "uid": "1648401454000704",
+        "name": "Bobbygi",
+        "power": 172410981
+      },
+      {
+        "uid": "1247986986000704",
+        "name": "Vietnam207",
+        "power": 150590819
+      },
+      {
+        "uid": "1012379249000704",
+        "name": "\u65b0\u5947\u7684\u96ea\u82b1",
+        "power": 126199621
+      },
+      {
+        "uid": "1660504346000704",
+        "name": "fire29",
+        "power": 151367506
+      },
+      {
+        "uid": "1820880416000704",
+        "name": "al\u0131en",
+        "power": 277706365
+      },
+      {
+        "uid": "1915596793000704",
+        "name": "poporipo",
+        "power": 163788177
+      },
+      {
+        "uid": "1572011323000704",
+        "name": "\u2022NEFERTITI\u2022",
+        "power": 217121032
+      },
+      {
+        "uid": "1928546245000704",
+        "name": "Red beard AU",
+        "power": 140932791
+      },
+      {
+        "uid": "1952271378000704",
+        "name": "TNT BUS",
+        "power": 124483992
+      },
+      {
+        "uid": "1439370877000704",
+        "name": "T\u00e2m T\u00edtt",
+        "power": 157371107
+      },
+      {
+        "uid": "1157295768000704",
+        "name": "ChipsAhooy",
+        "power": 82268481
+      },
+      {
+        "uid": "1091122945000704",
+        "name": "myhuy",
+        "power": 181877944
+      },
+      {
+        "uid": "1691085278000704",
+        "name": "k\u012btcat",
+        "power": 170866399
+      },
+      {
+        "uid": "1026906607000704",
+        "name": "DDKU",
+        "power": 174347071
+      },
+      {
+        "uid": "1571705989000704",
+        "name": "Diego-Col",
+        "power": 115905944
+      }
+    ],
+    "TCUN": [
+      {
+        "uid": "1590767021000704",
+        "name": "korean1177",
+        "power": 208279527
+      },
+      {
+        "uid": "1097641133000704",
+        "name": "\uc801\uc6b0-RED RAIN",
+        "power": 223918295
+      },
+      {
+        "uid": "2028428988000704",
+        "name": "a\u2113i",
+        "power": 177765506
+      },
+      {
+        "uid": "1031922934000704",
+        "name": "\u68ee\u5c1a\u9ef4\u53cb\u9257",
+        "power": 220546919
+      },
+      {
+        "uid": "1786264970000704",
+        "name": "corgi634",
+        "power": 233753247
+      },
+      {
+        "uid": "1627285336000704",
+        "name": "CharSiu",
+        "power": 228734350
+      },
+      {
+        "uid": "1351337090000704",
+        "name": "\u306f\u3041\u301c\u266a",
+        "power": 203713540
+      },
+      {
+        "uid": "1472789344000704",
+        "name": "Haru69",
+        "power": 212112628
+      },
+      {
+        "uid": "1198238661000704",
+        "name": "oxwood",
+        "power": 185009784
+      },
+      {
+        "uid": "1679441473000704",
+        "name": "\ud788\ud7a3\ud788",
+        "power": 234894995
+      },
+      {
+        "uid": "1569141460000704",
+        "name": "MoNeGrMpY",
+        "power": 197327403
+      },
+      {
+        "uid": "1523332865000704",
+        "name": "hideki0523",
+        "power": 197260412
+      },
+      {
+        "uid": "1305664409000704",
+        "name": "ponpokopon316",
+        "power": 161353841
+      },
+      {
+        "uid": "1721875578000704",
+        "name": "\u306a\u306a\u307e\u0293",
+        "power": 206787654
+      },
+      {
+        "uid": "1286336558000704",
+        "name": "F\u03c5\u2113\u2113S\u043d\u00d8",
+        "power": 201749787
+      },
+      {
+        "uid": "1904738346000704",
+        "name": "NyanStar\uff0a",
+        "power": 183810918
+      },
+      {
+        "uid": "1420006411000704",
+        "name": "k\u00eemmy",
+        "power": 160848879
+      },
+      {
+        "uid": "1321706024000704",
+        "name": "\u3044\u304a\u3082\u3061",
+        "power": 170284840
+      },
+      {
+        "uid": "1011445326000704",
+        "name": "Youhey",
+        "power": 90988530
+      },
+      {
+        "uid": "1363083031000704",
+        "name": "xXuNLuCkYxX",
+        "power": 108261168
+      },
+      {
+        "uid": "1823514236000704",
+        "name": "mekusohanakuso",
+        "power": 172386532
+      },
+      {
+        "uid": "1470438096000704",
+        "name": "CaBaLen",
+        "power": 162271009
+      },
+      {
+        "uid": "1878854696000704",
+        "name": "KURAJIRO",
+        "power": 238355347
+      },
+      {
+        "uid": "1234324694000704",
+        "name": "EriRiN",
+        "power": 223413234
+      },
+      {
+        "uid": "1033880214000704",
+        "name": "\u304b\u30fc\u3089\u3057",
+        "power": 185858006
+      },
+      {
+        "uid": "2141561543000704",
+        "name": "\u3046\u306b\u304d\u3061",
+        "power": 139736852
+      },
+      {
+        "uid": "1974983551000704",
+        "name": "SUPERME",
+        "power": 173798535
+      },
+      {
+        "uid": "1669885314000704",
+        "name": "onetree",
+        "power": 116550294
+      },
+      {
+        "uid": "1952798843000704",
+        "name": "Kostas131313",
+        "power": 198704523
+      },
+      {
+        "uid": "1333882420000704",
+        "name": "taroTaro",
+        "power": 193870322
+      },
+      {
+        "uid": "1982883335000704",
+        "name": "\uc548\uc911\uc774\uc694",
+        "power": 132474457
+      },
+      {
+        "uid": "1078051223000704",
+        "name": "lilith ismol",
+        "power": 97476552
+      },
+      {
+        "uid": "1341248462000704",
+        "name": "\uc9f1\ub6b1\uc774",
+        "power": 164798367
+      },
+      {
+        "uid": "1313095978000704",
+        "name": "Kungfu Pandaa",
+        "power": 178860122
+      },
+      {
+        "uid": "1799787123000704",
+        "name": "Rui0324",
+        "power": 132478318
+      },
+      {
+        "uid": "1281689533000704",
+        "name": "SPIKE J",
+        "power": 191896328
+      },
+      {
+        "uid": "1516472222000704",
+        "name": "Malee Jan",
+        "power": 167038262
+      },
+      {
+        "uid": "2049704653000704",
+        "name": "\u9ec3\u5973\u58eb",
+        "power": 145120688
+      },
+      {
+        "uid": "1167291283000704",
+        "name": "XCast",
+        "power": 184577476
+      },
+      {
+        "uid": "1560237510000704",
+        "name": "Y Leigh",
+        "power": 154538663
+      },
+      {
+        "uid": "1204571646000704",
+        "name": "OhtaniSinner",
+        "power": 202576615
+      },
+      {
+        "uid": "2095696052000704",
+        "name": "\u52c1\u6230",
+        "power": 193273258
+      },
+      {
+        "uid": "1239568484000704",
+        "name": "\u4eee\u9762N",
+        "power": 160478639
+      },
+      {
+        "uid": "1425375946000704",
+        "name": "bander snatch",
+        "power": 175481568
+      },
+      {
+        "uid": "1354266459000704",
+        "name": "Ka\u00ef\u01d0\u0129",
+        "power": 190133738
+      },
+      {
+        "uid": "2065213933000704",
+        "name": "Expert22",
+        "power": 156825540
+      },
+      {
+        "uid": "1855330904000704",
+        "name": "SilverWhite",
+        "power": 199961938
+      },
+      {
+        "uid": "1118615323000704",
+        "name": "\u307e\u3081\u3074",
+        "power": 163891521
+      },
+      {
+        "uid": "1542161151000704",
+        "name": "Rafale42",
+        "power": 144311386
+      },
+      {
+        "uid": "1636993880000704",
+        "name": "Acava",
+        "power": 229589805
+      },
+      {
+        "uid": "1938307086000704",
+        "name": "kn\ubd04\ub2ec",
+        "power": 232439261
+      },
+      {
+        "uid": "1161682733000704",
+        "name": "\u30c8\u30f3\u3053\u3064",
+        "power": 199412537
+      },
+      {
+        "uid": "1717064427000704",
+        "name": "Athena-",
+        "power": 172897186
+      },
+      {
+        "uid": "1830667740000704",
+        "name": "Jun2122",
+        "power": 154213003
+      },
+      {
+        "uid": "2099781442000704",
+        "name": "\u522b\u53eb\u6211\u9753\u4ed4",
+        "power": 178647706
+      },
+      {
+        "uid": "1240809234000704",
+        "name": "Phiroz",
+        "power": 159171835
+      },
+      {
+        "uid": "1037225262000704",
+        "name": "\uc544\uc784 Ssong",
+        "power": 223540290
+      },
+      {
+        "uid": "1603094831000704",
+        "name": "jack chatchai",
+        "power": 186738998
+      },
+      {
+        "uid": "1353946101000704",
+        "name": "Misnomer",
+        "power": 178929813
+      },
+      {
+        "uid": "1498728442000704",
+        "name": "\u6843\u5712\u8089\u9b06",
+        "power": 190485591
+      },
+      {
+        "uid": "2141559783000704",
+        "name": "sheenz",
+        "power": 186676000
+      },
+      {
+        "uid": "1211335055000704",
+        "name": "THE\u30fb\u30b7\u30e2",
+        "power": 214831406
+      },
+      {
+        "uid": "1013568652000704",
+        "name": "Peko",
+        "power": 142193016
+      },
+      {
+        "uid": "2188637339000704",
+        "name": "Yn spider",
+        "power": 144070841
+      },
+      {
+        "uid": "1757918873000704",
+        "name": "yuwii",
+        "power": 138583864
+      },
+      {
+        "uid": "1173497367000704",
+        "name": "shiv4L",
+        "power": 200067337
+      },
+      {
+        "uid": "1207647957000704",
+        "name": "\u3069\u3046",
+        "power": 187258243
+      },
+      {
+        "uid": "1452175109000704",
+        "name": "\u7d50\u3000\u6708",
+        "power": 116703863
+      },
+      {
+        "uid": "1889368134000704",
+        "name": "BLACKMOON0108",
+        "power": 183563758
+      },
+      {
+        "uid": "1141517704000704",
+        "name": "BorisY",
+        "power": 185692792
+      },
+      {
+        "uid": "1420069696000704",
+        "name": "iitomo",
+        "power": 204941100
+      },
+      {
+        "uid": "2139015822000704",
+        "name": "YAMATOCLASS",
+        "power": 123907143
+      },
+      {
+        "uid": "1866149388000704",
+        "name": "RfHunXaie",
+        "power": 216776599
+      },
+      {
+        "uid": "1350316487000701",
+        "name": "mahisasur",
+        "power": 126733232
+      },
+      {
+        "uid": "1042459961000704",
+        "name": "\u00c4\u0274\u043c\u025b\u2113",
+        "power": 205013938
+      },
+      {
+        "uid": "1993838137000704",
+        "name": "Pretty219 1",
+        "power": 132243043
+      },
+      {
+        "uid": "1737458847000704",
+        "name": "keizu",
+        "power": 167684699
+      },
+      {
+        "uid": "1970022493000704",
+        "name": "Sysy02\u2113\u025e",
+        "power": 140297053
+      },
+      {
+        "uid": "1439887178000704",
+        "name": "\u3055\u3044\u305f\u307ea",
+        "power": 205922542
+      },
+      {
+        "uid": "1808955665000704",
+        "name": "\u6276\u6447\u5b50",
+        "power": 237026443
+      },
+      {
+        "uid": "1702223074000704",
+        "name": "\u029f\u01df\u028f\u025b",
+        "power": 187695252
+      },
+      {
+        "uid": "1904782937000704",
+        "name": "BOMB\ub0e5\ud638",
+        "power": 153520138
+      },
+      {
+        "uid": "1668652678000704",
+        "name": "seraphimm",
+        "power": 173949388
+      },
+      {
+        "uid": "1103387960000704",
+        "name": "\ub358\ud790s",
+        "power": 190843651
+      },
+      {
+        "uid": "1864615861000704",
+        "name": "Orange\u59c9\u3055\u3093",
+        "power": 120625586
+      },
+      {
+        "uid": "1779683374000704",
+        "name": "Charles \ucd2c\uc2a4",
+        "power": 228220858
+      },
+      {
+        "uid": "2049525941000704",
+        "name": "J\u039f\u00a3L",
+        "power": 212492331
+      },
+      {
+        "uid": "1954239716000704",
+        "name": "\u30b8\u30a7\u30f3\u30de",
+        "power": 131938986
+      },
+      {
+        "uid": "1057490016000704",
+        "name": "\u00c5k\u1ef1",
+        "power": 231172736
+      },
+      {
+        "uid": "1263735036000704",
+        "name": "star name",
+        "power": 201423243
+      },
+      {
+        "uid": "2179213201000704",
+        "name": "\u300chimawari\u300d",
+        "power": 200973618
+      }
+    ],
+    "PSQD": [
+      {
+        "uid": "1210387276000704",
+        "name": "Lord Cucich",
+        "power": 198106983
+      },
+      {
+        "uid": "1996014061000704",
+        "name": "jackal-12",
+        "power": 144939389
+      },
+      {
+        "uid": "1623419810000701",
+        "name": "\u00c9arl Grey",
+        "power": 208493352
+      },
+      {
+        "uid": "1442606758000704",
+        "name": "\u82f1 BraveHeartX",
+        "power": 105513846
+      },
+      {
+        "uid": "2050568087000704",
+        "name": "KAO\u00a7",
+        "power": 230616955
+      },
+      {
+        "uid": "1203345824000704",
+        "name": "Jen\u0251",
+        "power": 352338693
+      },
+      {
+        "uid": "1654276312000704",
+        "name": "Nena meow",
+        "power": 179207323
+      },
+      {
+        "uid": "1278748877000704",
+        "name": "PIT AUSTRIA",
+        "power": 234019555
+      },
+      {
+        "uid": "1504044940000698",
+        "name": "Equilibirium",
+        "power": 219197846
+      },
+      {
+        "uid": "1533201555000704",
+        "name": "DrewRanger",
+        "power": 191890760
+      },
+      {
+        "uid": "1120471057000704",
+        "name": "\uc2e0\ucc38\uc2a4\uba38\ud504",
+        "power": 83284521
+      },
+      {
+        "uid": "1941401425000704",
+        "name": "Ynda",
+        "power": 54399681
+      },
+      {
+        "uid": "1405668487000704",
+        "name": "Alton1023",
+        "power": 164465708
+      },
+      {
+        "uid": "1509088877000704",
+        "name": "Lilith\u23fe",
+        "power": 245473644
+      },
+      {
+        "uid": "1577846488000704",
+        "name": "Black Axe",
+        "power": 143712072
+      },
+      {
+        "uid": "1687960285000704",
+        "name": "SAROKAWAR",
+        "power": 142946541
+      },
+      {
+        "uid": "2116898229000704",
+        "name": "PPEPPERR",
+        "power": 119514640
+      },
+      {
+        "uid": "1353287241000704",
+        "name": "Quynh Kalea",
+        "power": 148608293
+      },
+      {
+        "uid": "1152052376000692",
+        "name": "UnyKu",
+        "power": 209081561
+      },
+      {
+        "uid": "1388136484000704",
+        "name": "ArwenDale",
+        "power": 170089494
+      },
+      {
+        "uid": "1901894725000704",
+        "name": "mini rara",
+        "power": 158855816
+      },
+      {
+        "uid": "2026052258000704",
+        "name": "kaalunga",
+        "power": 180955679
+      },
+      {
+        "uid": "2155053193000704",
+        "name": "Ms Zara",
+        "power": 91983827
+      },
+      {
+        "uid": "1415068842000704",
+        "name": "Vincent 101",
+        "power": 99143137
+      },
+      {
+        "uid": "1065013843000704",
+        "name": "Calli\u00e9",
+        "power": 170393385
+      },
+      {
+        "uid": "1660580649000704",
+        "name": "Herwing Reyes",
+        "power": 118809172
+      },
+      {
+        "uid": "1700163840000704",
+        "name": "D\u0251e",
+        "power": 190395517
+      },
+      {
+        "uid": "2205597511000704",
+        "name": "KartikThakur",
+        "power": 101259966
+      },
+      {
+        "uid": "1961970193000704",
+        "name": "BurJouani",
+        "power": 126270427
+      },
+      {
+        "uid": "1530459167000704",
+        "name": "S2PIDO",
+        "power": 204087732
+      },
+      {
+        "uid": "1430597612000704",
+        "name": "AliSha",
+        "power": 175360968
+      },
+      {
+        "uid": "1747567317000704",
+        "name": "colasea",
+        "power": 161047993
+      },
+      {
+        "uid": "1957645752000704",
+        "name": "Tikus Berdasi",
+        "power": 153120323
+      },
+      {
+        "uid": "1920692313000704",
+        "name": "BOOCHACHA",
+        "power": 173803576
+      },
+      {
+        "uid": "1397613193000704",
+        "name": "Starscream854",
+        "power": 165483356
+      },
+      {
+        "uid": "1502240749000704",
+        "name": "R \u00e0 r a",
+        "power": 177763026
+      },
+      {
+        "uid": "1502389339000704",
+        "name": "\uff28\uff41\uff52\uff55",
+        "power": 183061348
+      },
+      {
+        "uid": "1676645014000704",
+        "name": "Stalker04",
+        "power": 201610010
+      },
+      {
+        "uid": "1714023149000704",
+        "name": "Cris56a",
+        "power": 141284078
+      },
+      {
+        "uid": "1674252891000704",
+        "name": "moregan naja",
+        "power": 132535793
+      },
+      {
+        "uid": "2205787387000704",
+        "name": "Userpsqd",
+        "power": 139281888
+      },
+      {
+        "uid": "1996998929000704",
+        "name": "Ba B",
+        "power": 88486409
+      },
+      {
+        "uid": "1395629434000704",
+        "name": "Erika Sendou",
+        "power": 157141492
+      },
+      {
+        "uid": "1887048867000704",
+        "name": "Bim3",
+        "power": 119611468
+      },
+      {
+        "uid": "1744511261000704",
+        "name": "xMars",
+        "power": 168219621
+      },
+      {
+        "uid": "1587167446000704",
+        "name": "ASMR1",
+        "power": 112613533
+      },
+      {
+        "uid": "1784057082000704",
+        "name": "\ud559\ub3cc\uc774",
+        "power": 127864876
+      },
+      {
+        "uid": "1495240466000704",
+        "name": "Bad Esther",
+        "power": 113409594
+      },
+      {
+        "uid": "1123986510000704",
+        "name": "SHGOYAL",
+        "power": 46418470
+      },
+      {
+        "uid": "2207340508000704",
+        "name": "Bosz\u00b0jhay",
+        "power": 133194192
+      },
+      {
+        "uid": "2040994023000704",
+        "name": "Camwen",
+        "power": 155038199
+      },
+      {
+        "uid": "1255717148000704",
+        "name": "oTCc",
+        "power": 196541262
+      },
+      {
+        "uid": "1288281269000704",
+        "name": "Ac\u00e9lsz\u00edv",
+        "power": 116676768
+      },
+      {
+        "uid": "2091895585000704",
+        "name": "\u304b\u305a\u3046\u3045",
+        "power": 126471696
+      },
+      {
+        "uid": "1683139701000704",
+        "name": "WeiChan",
+        "power": 172620581
+      },
+      {
+        "uid": "1079382842000704",
+        "name": "Danica\u2022\u2022",
+        "power": 158434209
+      },
+      {
+        "uid": "1153310572000704",
+        "name": "M2812",
+        "power": 173327588
+      },
+      {
+        "uid": "1294933442000704",
+        "name": "Louisa comfort",
+        "power": 134050287
+      },
+      {
+        "uid": "1767235053000704",
+        "name": "Ghhvhujvvjjjb",
+        "power": 119242729
+      },
+      {
+        "uid": "1680638475000704",
+        "name": "Jenin48",
+        "power": 122831641
+      },
+      {
+        "uid": "1642039430000704",
+        "name": "Gustavo1511",
+        "power": 148557456
+      },
+      {
+        "uid": "1447860952000704",
+        "name": "King ScorpionZ",
+        "power": 44540238
+      },
+      {
+        "uid": "1825886135000704",
+        "name": "Jd993",
+        "power": 141625410
+      },
+      {
+        "uid": "1290396217000704",
+        "name": "ORDEM",
+        "power": 133544792
+      },
+      {
+        "uid": "1709622451000704",
+        "name": "jay-Z",
+        "power": 186759577
+      },
+      {
+        "uid": "1207950932000704",
+        "name": "VICTOR JD",
+        "power": 143073800
+      },
+      {
+        "uid": "1279483719000704",
+        "name": "RDXx",
+        "power": 99980132
+      },
+      {
+        "uid": "2024678968000690",
+        "name": "\u2022Yovanni\u2022",
+        "power": 154414652
+      },
+      {
+        "uid": "1441084535000704",
+        "name": "Dabosssssssssss",
+        "power": 130446727
+      },
+      {
+        "uid": "1593681193000704",
+        "name": "kpofs",
+        "power": 201666811
+      },
+      {
+        "uid": "1343687256000704",
+        "name": "xMars F1",
+        "power": 73113418
+      },
+      {
+        "uid": "1681835923000704",
+        "name": "palabigasan",
+        "power": 85598896
+      },
+      {
+        "uid": "1863036010000704",
+        "name": "bee4692",
+        "power": 99942989
+      },
+      {
+        "uid": "1698175205000704",
+        "name": "jcampos1981",
+        "power": 50153273
+      },
+      {
+        "uid": "2196688481000704",
+        "name": "LiILY",
+        "power": 160909483
+      },
+      {
+        "uid": "1332397711000704",
+        "name": "r \u00e0 r a",
+        "power": 229143827
+      },
+      {
+        "uid": "1433347396000704",
+        "name": "Dae Care",
+        "power": 135157668
+      },
+      {
+        "uid": "1674883712000704",
+        "name": "ha-ne",
+        "power": 155609727
+      },
+      {
+        "uid": "2057784390000704",
+        "name": "jucecoli",
+        "power": 110180253
+      },
+      {
+        "uid": "1018372307000704",
+        "name": "J E R I C",
+        "power": 235710448
+      },
+      {
+        "uid": "1183929998000704",
+        "name": "MR TIGGER",
+        "power": 108818860
+      },
+      {
+        "uid": "1876513813000704",
+        "name": "hoteldelluna09",
+        "power": 149141306
+      },
+      {
+        "uid": "1607894569000704",
+        "name": "Ozztwin",
+        "power": 97859921
+      },
+      {
+        "uid": "1365080206000704",
+        "name": "Marcojhabel07",
+        "power": 47875754
+      },
+      {
+        "uid": "1087106487000704",
+        "name": "Conba",
+        "power": 123127566
+      },
+      {
+        "uid": "1274914480000704",
+        "name": "Drewranger31",
+        "power": 288071220
+      },
+      {
+        "uid": "2090391918000704",
+        "name": "7788566",
+        "power": 178825417
+      },
+      {
+        "uid": "2192804195000704",
+        "name": "tedhie",
+        "power": 50824714
+      },
+      {
+        "uid": "1991028636000704",
+        "name": "Cz\u0119pion",
+        "power": 22960365
+      },
+      {
+        "uid": "1471617614000704",
+        "name": "KhoaHuy",
+        "power": 162842372
+      },
+      {
+        "uid": "1331767757000704",
+        "name": "Huang  huang",
+        "power": 110173297
+      },
+      {
+        "uid": "1415089128000704",
+        "name": "I am Judas",
+        "power": 148740665
+      },
+      {
+        "uid": "1403477166000704",
+        "name": "Beas\u1e6d",
+        "power": 150499183
+      },
+      {
+        "uid": "2172154670000704",
+        "name": "Infernal7Gs26z",
+        "power": 105891761
+      },
+      {
+        "uid": "1206937505000704",
+        "name": "\ubb34\uc9c0\uac1c\uc810",
+        "power": 91510989
+      },
+      {
+        "uid": "1843479339000704",
+        "name": "Pastapants",
+        "power": 73868710
+      },
+      {
+        "uid": "1424367327000704",
+        "name": "\u00a3ove baby",
+        "power": 95193473
+      }
+    ],
+    "JNJ2": [
+      {
+        "uid": "1823087990000704",
+        "name": "Venor",
+        "power": 154268885
+      },
+      {
+        "uid": "1660261283000704",
+        "name": "Dennis - kings",
+        "power": 118796682
+      },
+      {
+        "uid": "1295959920000704",
+        "name": "Acadius",
+        "power": 220564543
+      },
+      {
+        "uid": "1032207294000704",
+        "name": "XBoris Kangen",
+        "power": 110382363
+      },
+      {
+        "uid": "1318759556000704",
+        "name": "\u304b\u306a\u306a\u3084\u3084",
+        "power": 149182132
+      },
+      {
+        "uid": "1024902678000704",
+        "name": "JSDAD 703",
+        "power": 105036700
+      },
+      {
+        "uid": "1630083141000704",
+        "name": "Le-K-LaChEnIkOv",
+        "power": 117521657
+      },
+      {
+        "uid": "2071851941000704",
+        "name": "Sattoute",
+        "power": 189253434
+      },
+      {
+        "uid": "1419794261000704",
+        "name": "AntasenA",
+        "power": 139506983
+      },
+      {
+        "uid": "1800834945000704",
+        "name": "\u962e\u660e\u9ec4-\ud669",
+        "power": 160706378
+      },
+      {
+        "uid": "1576728213000704",
+        "name": "Jod didi",
+        "power": 103273814
+      },
+      {
+        "uid": "1965867132000704",
+        "name": "Lisabell",
+        "power": 163994583
+      },
+      {
+        "uid": "2092244307000704",
+        "name": "Tener \u00e9xito",
+        "power": 119572930
+      },
+      {
+        "uid": "2167917483000704",
+        "name": "\u5c31\u662f\u90a3\u500b\u5c71",
+        "power": 152163292
+      },
+      {
+        "uid": "1158555728000704",
+        "name": "C4VEIR4",
+        "power": 136895444
+      },
+      {
+        "uid": "1542245189000704",
+        "name": "\u5c0f\u6b63 ChInG",
+        "power": 189799869
+      },
+      {
+        "uid": "1832086825000704",
+        "name": "DHRUV Singh",
+        "power": 96561466
+      },
+      {
+        "uid": "1064895413000704",
+        "name": "Hiemal",
+        "power": 84828150
+      },
+      {
+        "uid": "1297402728000704",
+        "name": "kar12345",
+        "power": 94136357
+      },
+      {
+        "uid": "1611039492000704",
+        "name": "NovaNox",
+        "power": 172691469
+      },
+      {
+        "uid": "1251427846000704",
+        "name": "\u2503MR\u3164ZAIN",
+        "power": 157275561
+      },
+      {
+        "uid": "1782741947000704",
+        "name": "Grumpy Ruzz",
+        "power": 125113347
+      },
+      {
+        "uid": "1858656923000704",
+        "name": "Af-Khan",
+        "power": 125222636
+      },
+      {
+        "uid": "2170971579000704",
+        "name": "BLACKANGELS",
+        "power": 177325179
+      },
+      {
+        "uid": "1588230614000704",
+        "name": "Karan23",
+        "power": 140412843
+      },
+      {
+        "uid": "2110470970000704",
+        "name": "fan321",
+        "power": 137552776
+      },
+      {
+        "uid": "2190119057000704",
+        "name": "\u860b\u679c\u679c\u679c",
+        "power": 100638915
+      },
+      {
+        "uid": "1857354635000704",
+        "name": "israel win",
+        "power": 92901859
+      },
+      {
+        "uid": "1206908057000704",
+        "name": "Babygoldfnger69",
+        "power": 131958482
+      },
+      {
+        "uid": "1571430650000704",
+        "name": "Shifth",
+        "power": 112227689
+      },
+      {
+        "uid": "1459012298000704",
+        "name": "Kacenice",
+        "power": 139489095
+      },
+      {
+        "uid": "1131125075000704",
+        "name": "LALADA",
+        "power": 183210438
+      },
+      {
+        "uid": "1558504304000704",
+        "name": "Johncenamohan",
+        "power": 123011830
+      },
+      {
+        "uid": "2076143546000704",
+        "name": "Gamastan",
+        "power": 113058756
+      },
+      {
+        "uid": "2203996035000704",
+        "name": "JHusband2",
+        "power": 166049230
+      },
+      {
+        "uid": "1919588798000704",
+        "name": "Kaung SI Thu",
+        "power": 130728848
+      },
+      {
+        "uid": "1945525015000704",
+        "name": "NhLau",
+        "power": 121492111
+      },
+      {
+        "uid": "1623548611000704",
+        "name": "Nimf",
+        "power": 133922890
+      },
+      {
+        "uid": "1731960664000704",
+        "name": "JWife2",
+        "power": 166716154
+      },
+      {
+        "uid": "1294585649000704",
+        "name": "Mr pickles",
+        "power": 133686025
+      },
+      {
+        "uid": "1695750836000704",
+        "name": "AlwaysCharan",
+        "power": 130210958
+      },
+      {
+        "uid": "1959491760000704",
+        "name": "666Slaughter",
+        "power": 76289263
+      },
+      {
+        "uid": "1375132641000704",
+        "name": "Romeo Jr",
+        "power": 120583395
+      },
+      {
+        "uid": "2157977262000704",
+        "name": "Chen Hansheng",
+        "power": 164516078
+      },
+      {
+        "uid": "1385862878000704",
+        "name": "Prince Dastan",
+        "power": 123229430
+      },
+      {
+        "uid": "1835256019000704",
+        "name": "michtmar",
+        "power": 150299732
+      },
+      {
+        "uid": "1616931309000704",
+        "name": "Megane21",
+        "power": 82932793
+      },
+      {
+        "uid": "1199043410000704",
+        "name": "Gpowerz",
+        "power": 107013955
+      },
+      {
+        "uid": "1833578994000704",
+        "name": "Raaag",
+        "power": 139824689
+      },
+      {
+        "uid": "2020581694000704",
+        "name": "PonyPasta1",
+        "power": 56571064
+      },
+      {
+        "uid": "1180815052000704",
+        "name": "Pedriux25",
+        "power": 142179425
+      },
+      {
+        "uid": "2205625769000704",
+        "name": "Aboelezz2",
+        "power": 89163313
+      },
+      {
+        "uid": "1822091788000704",
+        "name": "bubllebee",
+        "power": 137195684
+      },
+      {
+        "uid": "1254902660000704",
+        "name": "Sanclock",
+        "power": 150807865
+      },
+      {
+        "uid": "1488804582000704",
+        "name": "Phong Tran",
+        "power": 114629450
+      },
+      {
+        "uid": "1643458723000704",
+        "name": "Super woman",
+        "power": 140146148
+      },
+      {
+        "uid": "1208537468000704",
+        "name": "HOUYA",
+        "power": 141691189
+      },
+      {
+        "uid": "2152586152000704",
+        "name": "SKY 46",
+        "power": 136366024
+      },
+      {
+        "uid": "1439279848000704",
+        "name": "GriGo",
+        "power": 105671559
+      },
+      {
+        "uid": "1905740815000704",
+        "name": "mifra67",
+        "power": 141519862
+      },
+      {
+        "uid": "1649169347000704",
+        "name": "Maurizioo81",
+        "power": 171622819
+      },
+      {
+        "uid": "1672848079000704",
+        "name": "Bellecampos",
+        "power": 103208452
+      },
+      {
+        "uid": "1450468508000704",
+        "name": "Mad Mandy II",
+        "power": 132373565
+      },
+      {
+        "uid": "1258643251000704",
+        "name": "Penyintas8",
+        "power": 133579192
+      },
+      {
+        "uid": "1353646687000704",
+        "name": "ivancocus",
+        "power": 155896477
+      },
+      {
+        "uid": "1142012001000704",
+        "name": "Babayo-Zx",
+        "power": 129887477
+      },
+      {
+        "uid": "1540820945000704",
+        "name": "\u9b5a\u5152YuEr",
+        "power": 181950903
+      },
+      {
+        "uid": "1795164786000699",
+        "name": "xPennyWise",
+        "power": 132528347
+      },
+      {
+        "uid": "1265926995000704",
+        "name": "REYNA8",
+        "power": 97403629
+      },
+      {
+        "uid": "1919115908000704",
+        "name": "NinjaRedd",
+        "power": 156683158
+      },
+      {
+        "uid": "1033620555000704",
+        "name": "M A JOHIRUL",
+        "power": 200054094
+      },
+      {
+        "uid": "1671523871000704",
+        "name": "WarriorMehek",
+        "power": 102897473
+      },
+      {
+        "uid": "1821082705000704",
+        "name": "lalunarry",
+        "power": 78626481
+      },
+      {
+        "uid": "1480344473000704",
+        "name": "jmH",
+        "power": 149846340
+      },
+      {
+        "uid": "1441477758000704",
+        "name": "Sena x \u828b\u982d",
+        "power": 162589860
+      },
+      {
+        "uid": "1217239891000704",
+        "name": "\u5305\u5149\u5149",
+        "power": 142559775
+      },
+      {
+        "uid": "1561030987000704",
+        "name": "Bugkillerrrs",
+        "power": 108807444
+      },
+      {
+        "uid": "1027104583000704",
+        "name": "\u828b\u982d x Sena",
+        "power": 132808681
+      },
+      {
+        "uid": "1194510042000704",
+        "name": "bbchiu",
+        "power": 121720520
+      },
+      {
+        "uid": "1291776641000704",
+        "name": "luluturbine",
+        "power": 103999428
+      },
+      {
+        "uid": "2039742058000704",
+        "name": "Il Conte Zero",
+        "power": 140787909
+      },
+      {
+        "uid": "1571065970000704",
+        "name": "Sonia77",
+        "power": 111328202
+      },
+      {
+        "uid": "1100335600000704",
+        "name": "kong1029",
+        "power": 160976595
+      },
+      {
+        "uid": "1291585373000704",
+        "name": "OttoVonBlotto",
+        "power": 107913893
+      },
+      {
+        "uid": "1199466686000704",
+        "name": "Lhsurvivor",
+        "power": 107328805
+      },
+      {
+        "uid": "1454509804000704",
+        "name": "BEA89",
+        "power": 142608203
+      },
+      {
+        "uid": "1031610782000704",
+        "name": "Nightdream4Ever",
+        "power": 109561873
+      },
+      {
+        "uid": "2157870067000704",
+        "name": "Raja 4",
+        "power": 123510771
+      },
+      {
+        "uid": "1146581751000704",
+        "name": "Jamal421",
+        "power": 93064118
+      },
+      {
+        "uid": "1583248511000704",
+        "name": "hakime",
+        "power": 148838212
+      },
+      {
+        "uid": "1388633057000704",
+        "name": "Epol13",
+        "power": 115690492
+      },
+      {
+        "uid": "1847832513000704",
+        "name": "VonDrag0n",
+        "power": 92106077
+      },
+      {
+        "uid": "2180725067000704",
+        "name": "CostyT",
+        "power": 186756647
+      },
+      {
+        "uid": "1611496748000704",
+        "name": "T\u00e2m T\u00edtt JNJf",
+        "power": 91415769
+      },
+      {
+        "uid": "2205731586000704",
+        "name": "6767Ssaak",
+        "power": 124739805
+      },
+      {
+        "uid": "1643045837000704",
+        "name": "Po-Tay-Toe-Chip",
+        "power": 120255660
+      },
+      {
+        "uid": "1798474806000704",
+        "name": "Roiiiii",
+        "power": 140231770
+      },
+      {
+        "uid": "1661756012000704",
+        "name": "Alex B 1983",
+        "power": 118219173
+      },
+      {
+        "uid": "2207552878000704",
+        "name": "ke\u03c0ts",
+        "power": 118425905
+      }
+    ],
+    "Link": [
+      {
+        "uid": "1684425094000704",
+        "name": "Limited 13",
+        "power": 111311121
+      },
+      {
+        "uid": "1522101243000704",
+        "name": "ChikenCoup",
+        "power": 129542924
+      },
+      {
+        "uid": "2105284002000704",
+        "name": "\u041c\u0418\u041b\u041a\u041e",
+        "power": 116913787
+      },
+      {
+        "uid": "1667592939000704",
+        "name": "note bs",
+        "power": 130123200
+      },
+      {
+        "uid": "2005859147000704",
+        "name": "ALLYCAT",
+        "power": 182622556
+      },
+      {
+        "uid": "1260240289000704",
+        "name": "Barroso13",
+        "power": 203770877
+      },
+      {
+        "uid": "2053738888000692",
+        "name": "Ali Al Ahmde",
+        "power": 174240339
+      },
+      {
+        "uid": "1178674890000704",
+        "name": "Ferrariest",
+        "power": 112099615
+      },
+      {
+        "uid": "1329768455000704",
+        "name": "Suzuki Baleno",
+        "power": 118424669
+      },
+      {
+        "uid": "1920513849000704",
+        "name": "kobo777",
+        "power": 122860879
+      },
+      {
+        "uid": "1537293459000704",
+        "name": "SHAH\u2022\u00a3oRcE",
+        "power": 134706500
+      },
+      {
+        "uid": "1893382887000704",
+        "name": "Bumderas",
+        "power": 105695704
+      },
+      {
+        "uid": "1353530135000704",
+        "name": "\uce60\ubd09\uc7742",
+        "power": 109667292
+      },
+      {
+        "uid": "1034169618000704",
+        "name": "LEO LEO",
+        "power": 140549374
+      },
+      {
+        "uid": "1189967352000704",
+        "name": "\u30c1\u30e7\u30e2\u30b9",
+        "power": 113997199
+      },
+      {
+        "uid": "1845603802000704",
+        "name": "Ka\u00eblia",
+        "power": 160276599
+      },
+      {
+        "uid": "1398742606000704",
+        "name": "\ubfb0\ub85c\ub85c",
+        "power": 106327679
+      },
+      {
+        "uid": "2136988916000704",
+        "name": "Andyshuang",
+        "power": 135753741
+      },
+      {
+        "uid": "1128882243000704",
+        "name": "Tk esports",
+        "power": 73826785
+      },
+      {
+        "uid": "2180405684000704",
+        "name": "AN63L5",
+        "power": 78263561
+      },
+      {
+        "uid": "1648422525000704",
+        "name": "LOUK",
+        "power": 97236988
+      },
+      {
+        "uid": "1241795677000704",
+        "name": "Killar786",
+        "power": 145507129
+      },
+      {
+        "uid": "1380858474000704",
+        "name": "Osori",
+        "power": 157652575
+      },
+      {
+        "uid": "1401802618000704",
+        "name": "SPKY",
+        "power": 110338934
+      },
+      {
+        "uid": "1954952967000704",
+        "name": "Afmp",
+        "power": 110841998
+      },
+      {
+        "uid": "2131399354000704",
+        "name": "kibalija",
+        "power": 126186016
+      },
+      {
+        "uid": "2003204001000704",
+        "name": "megalobo",
+        "power": 113744276
+      },
+      {
+        "uid": "1350730574000704",
+        "name": "285 signature",
+        "power": 157770221
+      },
+      {
+        "uid": "1318235693000704",
+        "name": "TheBigBossJR",
+        "power": 108165189
+      },
+      {
+        "uid": "1441418004000704",
+        "name": "NAO-",
+        "power": 184347717
+      },
+      {
+        "uid": "2207534659000704",
+        "name": "seaft",
+        "power": 128687548
+      },
+      {
+        "uid": "1603438465000704",
+        "name": "SN WR",
+        "power": 161111236
+      },
+      {
+        "uid": "1349292767000704",
+        "name": "Kakane",
+        "power": 105400361
+      },
+      {
+        "uid": "1771831609000704",
+        "name": "\uc870\ucee41004",
+        "power": 88937893
+      },
+      {
+        "uid": "1728716871000704",
+        "name": "swhymf",
+        "power": 123811566
+      },
+      {
+        "uid": "1475321546000704",
+        "name": "K chen",
+        "power": 178330856
+      },
+      {
+        "uid": "1939502515000704",
+        "name": "\ud55c\uc2b9\uc9dd\ud2412",
+        "power": 158987469
+      },
+      {
+        "uid": "1275457161000704",
+        "name": "123456789ab",
+        "power": 68810036
+      },
+      {
+        "uid": "1742278488000704",
+        "name": "SurvivorSakura",
+        "power": 91316682
+      },
+      {
+        "uid": "1506719846000704",
+        "name": "KARN4554",
+        "power": 166296560
+      },
+      {
+        "uid": "1012905610000704",
+        "name": "me\u8001\u5be6\u4eba",
+        "power": 111424083
+      },
+      {
+        "uid": "1499537023000704",
+        "name": "StormDll",
+        "power": 131484693
+      },
+      {
+        "uid": "1530181327000704",
+        "name": "VIKAS BHATOA",
+        "power": 141005662
+      },
+      {
+        "uid": "1900445562000704",
+        "name": "Tdcm 889",
+        "power": 131569061
+      },
+      {
+        "uid": "1288527315000704",
+        "name": "Rio-1",
+        "power": 165099617
+      },
+      {
+        "uid": "1074525642000704",
+        "name": "WINGZero777",
+        "power": 155572163
+      },
+      {
+        "uid": "1072565357000704",
+        "name": "Haaat",
+        "power": 140344390
+      },
+      {
+        "uid": "1269890786000704",
+        "name": "DarkSun888",
+        "power": 85860943
+      },
+      {
+        "uid": "1628491866000704",
+        "name": "AFREA",
+        "power": 129893959
+      },
+      {
+        "uid": "1029925507000704",
+        "name": "SCHJess",
+        "power": 96405133
+      },
+      {
+        "uid": "1920950036000704",
+        "name": "O R C O",
+        "power": 160619410
+      },
+      {
+        "uid": "1269812905000704",
+        "name": "AS Amna",
+        "power": 85460370
+      },
+      {
+        "uid": "1649084191000704",
+        "name": "\u2116Criminal\u20b9",
+        "power": 150807604
+      },
+      {
+        "uid": "2132871267000704",
+        "name": "Demonton",
+        "power": 76093542
+      },
+      {
+        "uid": "1301575579000704",
+        "name": "AlejandroP",
+        "power": 86504698
+      },
+      {
+        "uid": "1097012824000704",
+        "name": "\u30cf\u30ea\u30b92\u4e16",
+        "power": 289228557
+      },
+      {
+        "uid": "1259243857000704",
+        "name": "SleepyKuma",
+        "power": 155852743
+      },
+      {
+        "uid": "1368467445000704",
+        "name": "Blackbutterfly3",
+        "power": 115161623
+      },
+      {
+        "uid": "1542670273000704",
+        "name": "Surviversimu",
+        "power": 165977914
+      },
+      {
+        "uid": "1539973467000704",
+        "name": "Mojiri",
+        "power": 162048402
+      },
+      {
+        "uid": "1633750115000704",
+        "name": "Mylo27",
+        "power": 103837168
+      },
+      {
+        "uid": "2036458880000704",
+        "name": "NeWBiE-Jr8612",
+        "power": 112468373
+      },
+      {
+        "uid": "1306140961000704",
+        "name": "\u0110\u1ea1iPhi",
+        "power": 87654339
+      },
+      {
+        "uid": "1304334050000704",
+        "name": "\ubbf8\ubbf8s",
+        "power": 66069046
+      },
+      {
+        "uid": "1686446351000704",
+        "name": "9\ud654\uacbd\ud615",
+        "power": 169611483
+      },
+      {
+        "uid": "1146768849000704",
+        "name": "\ub3c4\ud558Bro",
+        "power": 85786972
+      },
+      {
+        "uid": "1947376800000704",
+        "name": "NLFitfit",
+        "power": 121996686
+      },
+      {
+        "uid": "1315860348000704",
+        "name": "Ami-kehau",
+        "power": 112372165
+      },
+      {
+        "uid": "1907408577000704",
+        "name": "Darkness Zhang",
+        "power": 147598981
+      },
+      {
+        "uid": "1498580029000704",
+        "name": "jpnsvk86",
+        "power": 136059680
+      },
+      {
+        "uid": "1141438309000704",
+        "name": "alextuga",
+        "power": 134619017
+      },
+      {
+        "uid": "2204749181000704",
+        "name": "1 \ucd08",
+        "power": 132860661
+      },
+      {
+        "uid": "1023737454000704",
+        "name": "\uae84\ub974\ub028",
+        "power": 118173465
+      },
+      {
+        "uid": "1617031207000704",
+        "name": "EchoLife",
+        "power": 133680255
+      },
+      {
+        "uid": "2192401365000704",
+        "name": "Napolian",
+        "power": 91583263
+      },
+      {
+        "uid": "1158167327000704",
+        "name": "BoomMax",
+        "power": 132536481
+      },
+      {
+        "uid": "1123245995000704",
+        "name": "Nitsuga80",
+        "power": 163168329
+      },
+      {
+        "uid": "2029496391000704",
+        "name": "Zohan chen",
+        "power": 216227664
+      },
+      {
+        "uid": "1038546700000704",
+        "name": "Dark Lobo 007",
+        "power": 101169493
+      },
+      {
+        "uid": "1362660391000704",
+        "name": "zitzit99",
+        "power": 64451864
+      },
+      {
+        "uid": "1577139040000704",
+        "name": "sin nombre 54",
+        "power": 167004144
+      },
+      {
+        "uid": "1401551355000704",
+        "name": "Wing N Pink",
+        "power": 161116036
+      },
+      {
+        "uid": "1360014123000704",
+        "name": "Star RJ 04",
+        "power": 104541270
+      },
+      {
+        "uid": "1759103843000704",
+        "name": "Katm",
+        "power": 133629852
+      },
+      {
+        "uid": "2206194779000704",
+        "name": "timsp",
+        "power": 147862815
+      }
+    ],
+    "832S": [
+      {
+        "uid": "1479834035000704",
+        "name": "\u3072\u3051\u3063\u3057\u30fc",
+        "power": 193706470
+      },
+      {
+        "uid": "1508239704000704",
+        "name": "\u30a2\u30ea\u87fb\u3042\u308a",
+        "power": 113567827
+      },
+      {
+        "uid": "1550690419000704",
+        "name": "manriz1999",
+        "power": 105102380
+      },
+      {
+        "uid": "1103805305000704",
+        "name": "TUKIKOH",
+        "power": 204819555
+      },
+      {
+        "uid": "1469282264000704",
+        "name": "meiri8008",
+        "power": 240145202
+      },
+      {
+        "uid": "2060026932000704",
+        "name": "meyer001",
+        "power": 213212755
+      },
+      {
+        "uid": "1066790915000704",
+        "name": "ya--mada--",
+        "power": 113535596
+      },
+      {
+        "uid": "1635459468000704",
+        "name": "Vuqar AZE",
+        "power": 81539003
+      },
+      {
+        "uid": "1901594697000704",
+        "name": "\u771f\u9b5a\u9c39",
+        "power": 134479007
+      },
+      {
+        "uid": "1067062321000704",
+        "name": "Nyanko \u5148\u751f",
+        "power": 182194917
+      },
+      {
+        "uid": "1397921772000704",
+        "name": "\u304a\u306a\u306f\u3059",
+        "power": 111395584
+      },
+      {
+        "uid": "1706764555000704",
+        "name": "XxyxX",
+        "power": 97551971
+      },
+      {
+        "uid": "1721080543000704",
+        "name": "NAZZY",
+        "power": 21119656
+      },
+      {
+        "uid": "1415393877000704",
+        "name": "\u3055\u3042\u3042\u3055\u3093",
+        "power": 113921807
+      },
+      {
+        "uid": "2172221934000704",
+        "name": "PAN\u30c9\u30e9",
+        "power": 138336224
+      },
+      {
+        "uid": "1439908376000704",
+        "name": "mag1112",
+        "power": 184824124
+      },
+      {
+        "uid": "1344915436000704",
+        "name": "Rcbolt13",
+        "power": 78778441
+      },
+      {
+        "uid": "1321503306000704",
+        "name": "\u00d1engoWar",
+        "power": 135894045
+      },
+      {
+        "uid": "2202642625000704",
+        "name": "\u30ec\u30aa\u30b8\u30e5\u30cb",
+        "power": 211930997
+      },
+      {
+        "uid": "2148764322000704",
+        "name": "\u30b8\u30e3\u30f3\u30bd\u30e9",
+        "power": 170370785
+      },
+      {
+        "uid": "1536062989000704",
+        "name": "GANGLAND",
+        "power": 96320800
+      },
+      {
+        "uid": "1683412553000704",
+        "name": "Cu t\u1ee7n",
+        "power": 131609603
+      },
+      {
+        "uid": "1238752753000704",
+        "name": "\u0110\u00f4ng T\u00e0 75",
+        "power": 90312816
+      },
+      {
+        "uid": "2206064487000704",
+        "name": "Big Brown Cork",
+        "power": 123007513
+      },
+      {
+        "uid": "1002669799000704",
+        "name": "Jun1Jun2",
+        "power": 94650675
+      },
+      {
+        "uid": "1034770000000704",
+        "name": "\uc9c0\ub9ac\uc624\uc2dc\ub77c",
+        "power": 45267648
+      },
+      {
+        "uid": "2168268945000704",
+        "name": "\ub9c8\ub85c\uc720\ub85c",
+        "power": 185760248
+      },
+      {
+        "uid": "2011694582000704",
+        "name": "\u3044\u3076\u306b\u3043",
+        "power": 203273235
+      },
+      {
+        "uid": "1789827298000704",
+        "name": "TargaryenAegon",
+        "power": 65482749
+      },
+      {
+        "uid": "1799441596000704",
+        "name": "macapie",
+        "power": 168765709
+      },
+      {
+        "uid": "1975112846000704",
+        "name": "\ub77c\uc774\uc5b8\u63a8\u3057",
+        "power": 155710434
+      },
+      {
+        "uid": "1679812398000704",
+        "name": "Sony181921",
+        "power": 130048548
+      },
+      {
+        "uid": "1707080739000704",
+        "name": "take0777",
+        "power": 70895252
+      },
+      {
+        "uid": "1693761068000704",
+        "name": "Irving Pat",
+        "power": 139525255
+      },
+      {
+        "uid": "1238462010000704",
+        "name": "priyanhu080903",
+        "power": 100066430
+      },
+      {
+        "uid": "1932483740000704",
+        "name": "Prometeo Libert",
+        "power": 98770407
+      },
+      {
+        "uid": "1642939424000704",
+        "name": "\u30c7\u30a3\u30fc\u30c9",
+        "power": 160908329
+      },
+      {
+        "uid": "1545058340000704",
+        "name": "\u306f\u3080\u305f\u308d\u3059",
+        "power": 160556896
+      },
+      {
+        "uid": "1343948828000704",
+        "name": "Captain Bebeth",
+        "power": 85553323
+      },
+      {
+        "uid": "1964148503000704",
+        "name": "\ub8e8\ube44\ub355\uc2a4",
+        "power": 80483655
+      },
+      {
+        "uid": "1353876458000704",
+        "name": "K8tie",
+        "power": 124468382
+      },
+      {
+        "uid": "1464843347000704",
+        "name": "Thongsai 3",
+        "power": 148965011
+      },
+      {
+        "uid": "2085284376000704",
+        "name": "7GS",
+        "power": 150914381
+      },
+      {
+        "uid": "1059565884000704",
+        "name": "\u30b3\u30f3\u30c9\u30ed",
+        "power": 195199062
+      },
+      {
+        "uid": "1304098504000704",
+        "name": "SPINOZA",
+        "power": 168421757
+      },
+      {
+        "uid": "1679946606000704",
+        "name": "a\u2006k\u2006i",
+        "power": 50591840
+      },
+      {
+        "uid": "2039348280000704",
+        "name": "YUKACHIN",
+        "power": 187281569
+      },
+      {
+        "uid": "1152310501000704",
+        "name": "death torva",
+        "power": 165438559
+      },
+      {
+        "uid": "1827955518000704",
+        "name": "MaryGtr777",
+        "power": 114742138
+      },
+      {
+        "uid": "1561110757000704",
+        "name": "Marinette1201",
+        "power": 74218229
+      },
+      {
+        "uid": "1249472629000704",
+        "name": "osaf osii",
+        "power": 68960232
+      },
+      {
+        "uid": "1566242644000704",
+        "name": "waryors",
+        "power": 122998360
+      },
+      {
+        "uid": "1146453609000704",
+        "name": "bLUEPJ",
+        "power": 50842332
+      },
+      {
+        "uid": "1610449705000704",
+        "name": "SAHIL S24",
+        "power": 41741053
+      },
+      {
+        "uid": "2051116187000704",
+        "name": "Paoutaso",
+        "power": 120917664
+      },
+      {
+        "uid": "1714920370000704",
+        "name": "dkdkdk11",
+        "power": 120412143
+      },
+      {
+        "uid": "1080249455000704",
+        "name": "aona3201",
+        "power": 70350984
+      },
+      {
+        "uid": "1603748518000704",
+        "name": "Manupo23",
+        "power": 42633923
+      },
+      {
+        "uid": "1656513673000704",
+        "name": "\u3059\u3093\u3059\u3093\u3059",
+        "power": 77239816
+      },
+      {
+        "uid": "1258146029000704",
+        "name": "\u90a3\u5f1b",
+        "power": 133515945
+      },
+      {
+        "uid": "1215411239000704",
+        "name": "SAI  0916",
+        "power": 121163440
+      },
+      {
+        "uid": "1729158868000704",
+        "name": "\u307e\u3063\u3068\u307e\u3068",
+        "power": 69824698
+      },
+      {
+        "uid": "1304820666000704",
+        "name": "HERO1231",
+        "power": 110811863
+      },
+      {
+        "uid": "1947101088000704",
+        "name": "\uff11\uff16\uff11\uff10",
+        "power": 227658809
+      },
+      {
+        "uid": "1299809966000704",
+        "name": "\u30a2\u30fc\u30af\u30f3GG",
+        "power": 81930818
+      },
+      {
+        "uid": "1709243226000704",
+        "name": "bestars30",
+        "power": 165027026
+      },
+      {
+        "uid": "1914857039000704",
+        "name": "\u4ec1\u7fa9\u793c\u667a",
+        "power": 125711678
+      },
+      {
+        "uid": "1191051770000704",
+        "name": "satanicsurfers",
+        "power": 170988337
+      },
+      {
+        "uid": "1847585879000704",
+        "name": "huseyn3132022",
+        "power": 45453154
+      },
+      {
+        "uid": "1527452170000691",
+        "name": "\uff30\uff41\uff4e\uff44\uff41",
+        "power": 165648254
+      }
+    ],
+    "IMG2": [
+      {
+        "uid": "1693282788000704",
+        "name": "suraji",
+        "power": 144616252
+      },
+      {
+        "uid": "1518094806000704",
+        "name": "Cakcibor Farm",
+        "power": 116278333
+      },
+      {
+        "uid": "1665961735000704",
+        "name": "Canaan Master",
+        "power": 35245749
+      },
+      {
+        "uid": "1428372279000704",
+        "name": "Bugris Farm",
+        "power": 47507026
+      },
+      {
+        "uid": "1778335046000704",
+        "name": "Nata Jr",
+        "power": 175611443
+      },
+      {
+        "uid": "1339133936000704",
+        "name": "Survivor7GrGqZ",
+        "power": 33133398
+      },
+      {
+        "uid": "2059579220000704",
+        "name": "DarthBri2",
+        "power": 116194377
+      },
+      {
+        "uid": "1037050729000704",
+        "name": "Alexandraloz21",
+        "power": 64248047
+      },
+      {
+        "uid": "1778540852000704",
+        "name": "Electro\u00f1",
+        "power": 14491798
+      },
+      {
+        "uid": "1666651684000704",
+        "name": "Goosh Boosh II",
+        "power": 121014862
+      },
+      {
+        "uid": "1335670221000704",
+        "name": "Survvv",
+        "power": 40699463
+      },
+      {
+        "uid": "1120712550000704",
+        "name": "Ricky5967",
+        "power": 64949338
+      },
+      {
+        "uid": "1566638636000704",
+        "name": "Grannys Farm",
+        "power": 113968721
+      },
+      {
+        "uid": "2205124707000704",
+        "name": "Stebandido farm",
+        "power": 53969347
+      },
+      {
+        "uid": "1158471989000704",
+        "name": "YemaTot Farm",
+        "power": 135764730
+      },
+      {
+        "uid": "1084649004000704",
+        "name": "nv200",
+        "power": 97449283
+      },
+      {
+        "uid": "2101408661000704",
+        "name": "nicholasseven",
+        "power": 100219411
+      },
+      {
+        "uid": "2041334797000704",
+        "name": "Mcpp",
+        "power": 88233638
+      },
+      {
+        "uid": "1507346645000699",
+        "name": "\u9ed8\u9f8d",
+        "power": 170901424
+      },
+      {
+        "uid": "1256160206000704",
+        "name": "Survivor7GrEha",
+        "power": 22704117
+      },
+      {
+        "uid": "1284978327000704",
+        "name": "Ali19973",
+        "power": 85433385
+      },
+      {
+        "uid": "1667973708000704",
+        "name": "DanieeelsfcFarm",
+        "power": 68471294
+      },
+      {
+        "uid": "1475205538000704",
+        "name": "shahzada2",
+        "power": 11791695
+      },
+      {
+        "uid": "2218677749000699",
+        "name": "\u8c93Jamie\u2022Farm",
+        "power": 83378669
+      },
+      {
+        "uid": "2207278068000704",
+        "name": "C i n farm 2",
+        "power": 79344325
+      },
+      {
+        "uid": "1982444475000704",
+        "name": "Cz\u0119pion 1",
+        "power": 13268309
+      },
+      {
+        "uid": "2026069141000704",
+        "name": "Han Rui Rui",
+        "power": 49964715
+      },
+      {
+        "uid": "1985855241000704",
+        "name": "CSK2",
+        "power": 129065792
+      },
+      {
+        "uid": "2206176711000704",
+        "name": "Dik Farm",
+        "power": 126090259
+      },
+      {
+        "uid": "1007531598000704",
+        "name": "Family C\u00fan",
+        "power": 88310499
+      },
+      {
+        "uid": "1339441320000704",
+        "name": "Prince Rui",
+        "power": 130068890
+      },
+      {
+        "uid": "1312476486000704",
+        "name": "Mais daughter",
+        "power": 8331513
+      },
+      {
+        "uid": "1147000355000704",
+        "name": "AmethystFarm",
+        "power": 101198829
+      },
+      {
+        "uid": "2203970369000704",
+        "name": "Annika Farm",
+        "power": 53383100
+      },
+      {
+        "uid": "1524301144000704",
+        "name": "Survivor7GrLfE",
+        "power": 27790919
+      },
+      {
+        "uid": "1688009081000704",
+        "name": "Bad Mais farm",
+        "power": 13960746
+      },
+      {
+        "uid": "2002691043000704",
+        "name": "\u01cdnn\u00e4be\u0142\u0142e\u0119",
+        "power": 9623509
+      },
+      {
+        "uid": "1835054977000704",
+        "name": "War Heema - 6",
+        "power": 162846561
+      },
+      {
+        "uid": "1090594903000704",
+        "name": "Labuci Farm",
+        "power": 93528248
+      },
+      {
+        "uid": "2106116158000704",
+        "name": "Manish Singhal",
+        "power": 29857481
+      },
+      {
+        "uid": "2188112414000704",
+        "name": "kork farm",
+        "power": 8955876
+      },
+      {
+        "uid": "1823102531000704",
+        "name": "DOn badman",
+        "power": 36591353
+      },
+      {
+        "uid": "2067559836000704",
+        "name": "Jmantuano25",
+        "power": 52883574
+      },
+      {
+        "uid": "1910723995000704",
+        "name": "Kapten88",
+        "power": 153147611
+      },
+      {
+        "uid": "1448887420000704",
+        "name": "nate farm",
+        "power": 36068792
+      },
+      {
+        "uid": "1963547775000704",
+        "name": "Survivor7GrWG6",
+        "power": 12707398
+      },
+      {
+        "uid": "1298863892000704",
+        "name": "MOA yc",
+        "power": 154471342
+      },
+      {
+        "uid": "1564973764000704",
+        "name": "bonguosis",
+        "power": 23340934
+      },
+      {
+        "uid": "1356245075000704",
+        "name": "Iram 2",
+        "power": 191312905
+      },
+      {
+        "uid": "1887195870000704",
+        "name": "Comandante-Farm",
+        "power": 107532083
+      },
+      {
+        "uid": "1882638246000704",
+        "name": "\u8c93\u8c93Jamie\u2022F",
+        "power": 11038159
+      },
+      {
+        "uid": "1373544977000704",
+        "name": "LECS Suzie\u00b0Alt",
+        "power": 96273605
+      },
+      {
+        "uid": "1517542034000704",
+        "name": "K\u2019CHYA",
+        "power": 81801906
+      },
+      {
+        "uid": "1011986809000699",
+        "name": "Katrina Farm2",
+        "power": 86419492
+      },
+      {
+        "uid": "1410203182000704",
+        "name": "RLT08THvFarmII",
+        "power": 131522586
+      },
+      {
+        "uid": "1616397581000704",
+        "name": "Lonewolffarm2",
+        "power": 125157395
+      },
+      {
+        "uid": "1230385610000704",
+        "name": "Lonewolffarm",
+        "power": 114768214
+      },
+      {
+        "uid": "1107146999000704",
+        "name": "Sami46",
+        "power": 71059038
+      },
+      {
+        "uid": "1898823514000704",
+        "name": "\u96ea\u7964",
+        "power": 117433255
+      },
+      {
+        "uid": "1593429008000704",
+        "name": "RippahRaptorXxx",
+        "power": 147597688
+      },
+      {
+        "uid": "1135834835000704",
+        "name": "TomMix2",
+        "power": 189433536
+      },
+      {
+        "uid": "1124381454000704",
+        "name": "PatriciaG",
+        "power": 144773700
+      },
+      {
+        "uid": "1386144416000704",
+        "name": "\u842c\u724c\u63f9\u934b\u4ed4",
+        "power": 210807181
+      },
+      {
+        "uid": "1504606616000704",
+        "name": "Lin wan",
+        "power": 154427208
+      },
+      {
+        "uid": "1721435639000704",
+        "name": "quskdk farm",
+        "power": 94067417
+      },
+      {
+        "uid": "2207604238000704",
+        "name": "C i n farm 1",
+        "power": 94755702
+      },
+      {
+        "uid": "1547212420000704",
+        "name": "IRONICDEBUNK",
+        "power": 14630615
+      },
+      {
+        "uid": "1235944143000704",
+        "name": "BADLittleBee",
+        "power": 78941811
+      }
+    ]
+  }
+}

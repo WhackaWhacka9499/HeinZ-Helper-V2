@@ -1,0 +1,1 @@
+{"xml":"aps_pve_ZombieWave","table_keys":["TableName.PVEZombieWave"],"columns":["id","level","zombie_id","count","path","spawn_radius","delay","times","interval","isday"],"row_count":1,"rows":{"2001":["2001","1","100001;100002;;","4;6;;","130,0;;131,99","10","0","20","5","1"]}}

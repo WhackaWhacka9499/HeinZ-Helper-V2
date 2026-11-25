@@ -1,0 +1,870 @@
+
+==================== WPM.GetWorldObjectClass (L109-120) ====================
+  Locals: ['R0:self(pc 0..19)', 'R1:key(pc 0..19)', 'R2:path(pc 3..19)', 'R3:cls(pc 9..19)']
+  Upvals: ['U0:_classCache', 'U1:_ENV']
+  Consts: ["K0:'GetWorldObjectClassPath'", 'K1:None', "K2:'require'"]
+  000 SELF       R3 := R0; R2 := R0:K0('GetWorldObjectClassPath')
+  001 MOVE       A=4 B=1 C=0 k=0
+  002 CALL       R2(nargs=2, nret=1)
+  003 EQK        A=2 B=1 C=0 k=0
+  004 JMP        goto 7
+  005 LOADNIL    A=3 B=0 C=0 k=0
+  006 RETURN1    A=3 B=2 C=0 k=0
+  007 GETUPVAL   R3 := U0(_classCache)
+  008 GETTABLE   A=3 B=3 C=2 k=0
+  009 EQK        A=3 B=1 C=0 k=0
+  010 JMP        goto 17
+  011 GETTABUP   R4 := U1[K2('require')]
+  012 MOVE       A=5 B=2 C=0 k=0
+  013 CALL       R4(nargs=1, nret=1)
+  014 MOVE       A=3 B=4 C=0 k=0
+  015 GETUPVAL   R4 := U0(_classCache)
+  016 SETTABLE   A=4 B=2 C=3 k=0
+  017 RETURN1    A=3 B=2 C=0 k=0
+  018 RETURN0    A=4 B=1 C=0 k=0
+
+==================== WPM.GetWorldObjectClassPath (L105-107) ====================
+  Locals: ['R0:self(pc 0..4)', 'R1:key(pc 0..4)']
+  Upvals: ['U0:WorldObjectClassRegistry']
+  Consts: []
+  000 GETUPVAL   R2 := U0(WorldObjectClassRegistry)
+  001 GETTABLE   A=2 B=2 C=1 k=0
+  002 RETURN1    A=2 B=2 C=0 k=0
+  003 RETURN0    A=2 B=1 C=0 k=0
+
+==================== WPM.CreateObject (L2857-3064) ====================
+  Locals: ['R0:self(pc 0..709)', 'R1:pointIndex(pc 0..709)', 'R2:info(pc 3..709)', 'R3:createContext(pc 16..709)', 'R4:pType(pc 17..709)', 'R5:obj(pc 18..709)', 'R6:buildId(pc 29..60)', 'R7:detail(pc 99..146)', 'R8:template(pc 121..146)', 'R9:flag(pc 138..146)', 'R10:resourceInfo(pc 164..211)', 'R11:isVolcanoRes(pc 178..204)', 'R12:samplePointInfo(pc 237..277)', 'R13:template(pc 251..277)', 'R14:special(pc 316..391)', 'R15:monsterInfo(pc 321..391)', 'R16:template(pc 349..352)', 'R17:treasureInfo(pc 453..497)', 'R18:typeValue(pc 462..497)', 'R19:iceAnimalPointInfo(pc 573..614)', 'R20:template(pc 594..614)', 'R21:WorldRewardPacketInfo(pc 646..677)', 'R22:curTime(pc 667..671)']
+  Upvals: ['U0:_ENV', 'U1:PerfMonitorManager']
+  Consts: ["K0:'GetWorldTileInfo'", 'K1:None', "K2:'pointInfo'", "K3:'desertInfo'", "K4:'GetObjectCreateContext'", "K5:'pointType'", "K6:'WorldPointType'", "K7:'PlayerBuilding'", "K8:'IsBuildTileOptiEnabled'", "K9:'_GetBuildIdForFactory'", "K10:'IsSmallBuild'", "K11:'IsMineDrawMeshEnabled'", "K12:'GetWorldObjectClass'", "K13:'WorldBuildObjectInstancedLod'", "K14:'New'", "K15:'WorldBuildObjectInstanced'", "K16:'WorldBuildObject'", "K17:'BLACK_LAND_RUIN'", "K18:'WorldBlackLandRuin'", "K19:'NPC_CITY'", "K20:'WorldNpcCity'", "K21:'DRAGON_BUILDING'", "K22:'_parsedExtra'", "K23:'extraInfo'", "K24:'PBController'", "K25:'ParsePbFromBytes'", "K26:'protobuf.DragonBuildingPointInfo'", "K27:'DataCenter'", "K28:'DragonBuildTemplateManager'", "K29:'GetTemplate'", "K30:'buildId'", "K31:'type'", "K32:'WorldDragonPointObject'", "K33:'LuaEntry'", "K34:'DataConfig'", "K35:'CheckSwitch'", "K36:'dragon_battle_Boss'", "K37:'WorldDragonBossObject'", "K38:'VOLCANO_BUILDING'", "K39:'WorldVolcanoBuildObject'", "K40:'WorldResource'", "K41:'resourceInfo'", "K42:'string'", "K43:'IsNullOrEmpty'", "K44:'eventId'", "K45:'VolcanoWarManager'", "K46:'GetResTypeInTime'", "K47:'resourceId'", "K48:'WorldResVolcanoObject'", "K49:'WorldResObjectInstanced'", "K50:'WorldResObject'", "K51:'WorldHighSpeedCollectObject'", "K52:'DETECT_EVENT_PVE'", "K53:'EXPLORE_POINT'", "K54:'WorldExploreObject'", "K55:'SAMPLE_POINT'", "K56:'SAMPLE_POINT_NEW'", "K57:'samplePointInfo'", "K58:'DetectEventTemplateManager'", "K59:'GetDetectEventTemplate'", "K60:'DetectEventType'", "K61:'RESCUE'", "K62:'OVERLORD_RESCUE'", "K63:'WorldRescueObject'", "K64:'WorldSampleObject'", "K65:'GARBAGE'", "K66:'WorldGarbageObject'", "K67:'HERO_DISPATCH'", "K68:'WorldHeroDispatchObjectInstanced'", "K69:'WorldHeroDispatchTaskObject'", "K70:'WorldMonster'", "K71:'protobuf.WorldPointMonster'", "K72:'MonsterTemplateManager'", "K73:'GetMonsterTemplate'", "K74:'monsterId'", "K75:'special'", "K76:'MonsterSpecialType'", "K77:'DinosaurBoss'", "K78:'WorldDinosaurBossObject'", "K79:'NightSacrificePriest'", "K80:'WorldMonsterNightSacrificePriest'", "K81:'NightSacrificeAltar'", "K82:'WorldMonsterNightSacrificeAltar'", "K83:'WorldMonsterObject'", "K84:'WORLD_TALK_TASK'", "K85:'WorldTalkObject'", "K86:'WORLD_TRADE_POST'", "K87:'WorldTradePostObject'", "K88:'WORLD_ICE_CAVE'", "K89:'WorldIceCaveObject'", "K90:'FISH_MISSION'", "K91:'WorldIceCaveFishObject'", "K92:'DemonHunterCamp'", "K93:'WorldDemonHunterObject'", "K94:'GodzillaGift'", "K95:'treasureInfo'", "K96:'toInt'", "K97:'GetTableData'", "K98:'precious_deposits'", "K99:'configId'", "K100:'WorldGodzillaGiftObject'", "K101:'WorldDigTreasureObject'", "K102:'WorldDroppedTreasureObject'", "K103:'WorldTurkeyObject'", "K104:'WORLD_ALLIANCE_CITY'", "K105:'WorldFortObject'", "K106:'Other'", "K107:'WorldPointObject'", "K108:'WORLD_ALLIANCE_BUILD'", "K109:'WorldAllianceCenterObject'", "K110:'ACT_RESOURCE'", "K111:'GetActResourceObjectClass'", "K112:'FoodFestivalEatTable'", "K113:'WorldFoodFestivalEatTableObject'", "K114:'CHRISTMAS_ACT_TREE'", "K115:'WorldChristmasActTreeObject'", "K116:'WORLD_ICE_ANIMAL'", "K117:'protobuf.IceAnimal'", "K118:'FrozenLandDataManager'", "K119:'GetIceAnimalTemplate'", "K120:'createType'", "K121:'IceAnimalsCreateType'", "K122:'DinosaurRescue'", "K123:'WorldDinosaurRescueObject'", "K124:'WorldIceAnimalObject'", "K125:'DetectRewardParkour'", "K126:'DetectRewardParkourInfo'", "K127:'GOBLIN_TREASURE'", "K128:'WorldGoblinTreasureObject'", "K129:'REWARD_PACKET'", "K130:'protobuf.WorldRewardPacketInfo'", "K131:'UITimeManager'", "K132:'GetInstance'", "K133:'GetServerTime'", "K134:'expireTime'", "K135:'WorldPacketRewardObject'", "K136:'WorldBasePointObject'", "K137:'InitData'", "K138:'CreateGameObject'", "K139:'allObj'", "K140:'OnCreateObject'", "K141:'OnObjectCreated'"]
+  000 SELF       R3 := R0; R2 := R0:K0('GetWorldTileInfo')
+  001 MOVE       A=4 B=1 C=0 k=0
+  002 CALL       R2(nargs=2, nret=1)
+  003 EQK        A=2 B=1 C=0 k=1
+  004 JMP        goto 11
+  005 GETFIELD   R3 := R2.K2('pointInfo')
+  006 EQK        A=3 B=1 C=0 k=0
+  007 JMP        goto 12
+  008 GETFIELD   R3 := R2.K3('desertInfo')
+  009 EQK        A=3 B=1 C=0 k=0
+  010 JMP        goto 12
+  011 RETURN0    A=3 B=1 C=0 k=0
+  012 SELF       R4 := R0; R3 := R0:K4('GetObjectCreateContext')
+  013 MOVE       A=5 B=1 C=0 k=0
+  014 MOVE       A=6 B=2 C=0 k=0
+  015 CALL       R3(nargs=3, nret=1)
+  016 GETFIELD   R4 := R2.K5('pointType')
+  017 LOADNIL    A=5 B=0 C=0 k=0
+  018 GETTABUP   R6 := U0[K6('WorldPointType')]
+  019 GETFIELD   R6 := R6.K7('PlayerBuilding')
+  020 EQ         A=4 B=6 C=0 k=0
+  021 JMP        goto 68
+  022 SELF       R7 := R0; R6 := R0:K8('IsBuildTileOptiEnabled')
+  023 CALL       R6(nargs=1, nret=1)
+  024 TEST       A=6 B=0 C=0 k=0
+  025 JMP        goto 61
+  026 SELF       R7 := R0; R6 := R0:K9('_GetBuildIdForFactory')
+  027 MOVE       A=8 B=2 C=0 k=0
+  028 CALL       R6(nargs=2, nret=1)
+  029 TEST       A=6 B=0 C=0 k=0
+  030 JMP        goto 54
+  031 SELF       R8 := R0; R7 := R0:K10('IsSmallBuild')
+  032 MOVE       A=9 B=6 C=0 k=0
+  033 CALL       R7(nargs=2, nret=1)
+  034 TEST       A=7 B=0 C=0 k=0
+  035 JMP        goto 54
+  036 SELF       R8 := R0; R7 := R0:K11('IsMineDrawMeshEnabled')
+  037 CALL       R7(nargs=1, nret=1)
+  038 TEST       A=7 B=0 C=0 k=0
+  039 JMP        goto 47
+  040 SELF       R8 := R0; R7 := R0:K12('GetWorldObjectClass')
+  041 LOADK      R9 := K13('WorldBuildObjectInstancedLod')
+  042 CALL       R7(nargs=2, nret=1)
+  043 GETFIELD   R7 := R7.K14('New')
+  044 CALL       R7(nargs=0, nret=1)
+  045 MOVE       A=5 B=7 C=0 k=0
+  046 JMP        goto 684
+  047 SELF       R8 := R0; R7 := R0:K12('GetWorldObjectClass')
+  048 LOADK      R9 := K15('WorldBuildObjectInstanced')
+  049 CALL       R7(nargs=2, nret=1)
+  050 GETFIELD   R7 := R7.K14('New')
+  051 CALL       R7(nargs=0, nret=1)
+  052 MOVE       A=5 B=7 C=0 k=0
+  053 JMP        goto 684
+  054 SELF       R8 := R0; R7 := R0:K12('GetWorldObjectClass')
+  055 LOADK      R9 := K16('WorldBuildObject')
+  056 CALL       R7(nargs=2, nret=1)
+  057 GETFIELD   R7 := R7.K14('New')
+  058 CALL       R7(nargs=0, nret=1)
+  059 MOVE       A=5 B=7 C=0 k=0
+  060 JMP        goto 684
+  061 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  062 LOADK      R8 := K16('WorldBuildObject')
+  063 CALL       R6(nargs=2, nret=1)
+  064 GETFIELD   R6 := R6.K14('New')
+  065 CALL       R6(nargs=0, nret=1)
+  066 MOVE       A=5 B=6 C=0 k=0
+  067 JMP        goto 684
+  068 GETTABUP   R6 := U0[K6('WorldPointType')]
+  069 GETFIELD   R6 := R6.K17('BLACK_LAND_RUIN')
+  070 EQ         A=4 B=6 C=0 k=0
+  071 JMP        goto 79
+  072 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  073 LOADK      R8 := K18('WorldBlackLandRuin')
+  074 CALL       R6(nargs=2, nret=1)
+  075 GETFIELD   R6 := R6.K14('New')
+  076 CALL       R6(nargs=0, nret=1)
+  077 MOVE       A=5 B=6 C=0 k=0
+  078 JMP        goto 684
+  079 GETTABUP   R6 := U0[K6('WorldPointType')]
+  080 GETFIELD   R6 := R6.K19('NPC_CITY')
+  081 EQ         A=4 B=6 C=0 k=0
+  082 JMP        goto 90
+  083 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  084 LOADK      R8 := K20('WorldNpcCity')
+  085 CALL       R6(nargs=2, nret=1)
+  086 GETFIELD   R6 := R6.K14('New')
+  087 CALL       R6(nargs=0, nret=1)
+  088 MOVE       A=5 B=6 C=0 k=0
+  089 JMP        goto 684
+  090 GETTABUP   R6 := U0[K6('WorldPointType')]
+  091 GETFIELD   R6 := R6.K21('DRAGON_BUILDING')
+  092 EQ         A=4 B=6 C=0 k=0
+  093 JMP        goto 147
+  094 GETFIELD   R6 := R2.K2('pointInfo')
+  095 EQK        A=6 B=1 C=0 k=1
+  096 JMP        goto 684
+  097 GETFIELD   R6 := R2.K2('pointInfo')
+  098 GETFIELD   R6 := R6.K22('_parsedExtra')
+  099 EQK        A=6 B=1 C=0 k=0
+  100 JMP        goto 114
+  101 GETFIELD   R7 := R2.K2('pointInfo')
+  102 GETFIELD   R7 := R7.K23('extraInfo')
+  103 EQK        A=7 B=1 C=0 k=1
+  104 JMP        goto 114
+  105 GETTABUP   R7 := U0[K24('PBController')]
+  106 GETFIELD   R7 := R7.K25('ParsePbFromBytes')
+  107 GETFIELD   R8 := R2.K2('pointInfo')
+  108 GETFIELD   R8 := R8.K23('extraInfo')
+  109 LOADK      R9 := K26('protobuf.DragonBuildingPointInfo')
+  110 CALL       R7(nargs=2, nret=1)
+  111 MOVE       A=6 B=7 C=0 k=0
+  112 GETFIELD   R7 := R2.K2('pointInfo')
+  113 SETFIELD   R7.K22('_parsedExtra') := R6
+  114 EQK        A=6 B=1 C=0 k=1
+  115 JMP        goto 684
+  116 GETTABUP   R7 := U0[K27('DataCenter')]
+  117 GETFIELD   R7 := R7.K28('DragonBuildTemplateManager')
+  118 SELF       R8 := R7; R7 := R7:K29('GetTemplate')
+  119 GETFIELD   R9 := R6.K30('buildId')
+  120 CALL       R7(nargs=2, nret=1)
+  121 EQK        A=7 B=1 C=0 k=1
+  122 JMP        goto 684
+  123 GETFIELD   R8 := R7.K31('type')
+  124 EQI        A=8 B=128 C=0 k=0
+  125 JMP        goto 133
+  126 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  127 LOADK      R10 := K32('WorldDragonPointObject')
+  128 CALL       R8(nargs=2, nret=1)
+  129 GETFIELD   R8 := R8.K14('New')
+  130 CALL       R8(nargs=0, nret=1)
+  131 MOVE       A=5 B=8 C=0 k=0
+  132 JMP        goto 684
+  133 GETTABUP   R8 := U0[K33('LuaEntry')]
+  134 GETFIELD   R8 := R8.K34('DataConfig')
+  135 SELF       R9 := R8; R8 := R8:K35('CheckSwitch')
+  136 LOADK      R10 := K36('dragon_battle_Boss')
+  137 CALL       R8(nargs=2, nret=1)
+  138 TEST       A=8 B=0 C=0 k=0
+  139 JMP        goto 684
+  140 SELF       R10 := R0; R9 := R0:K12('GetWorldObjectClass')
+  141 LOADK      R11 := K37('WorldDragonBossObject')
+  142 CALL       R9(nargs=2, nret=1)
+  143 GETFIELD   R9 := R9.K14('New')
+  144 CALL       R9(nargs=0, nret=1)
+  145 MOVE       A=5 B=9 C=0 k=0
+  146 JMP        goto 684
+  147 GETTABUP   R6 := U0[K6('WorldPointType')]
+  148 GETFIELD   R6 := R6.K38('VOLCANO_BUILDING')
+  149 EQ         A=4 B=6 C=0 k=0
+  150 JMP        goto 158
+  151 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  152 LOADK      R8 := K39('WorldVolcanoBuildObject')
+  153 CALL       R6(nargs=2, nret=1)
+  154 GETFIELD   R6 := R6.K14('New')
+  155 CALL       R6(nargs=0, nret=1)
+  156 MOVE       A=5 B=6 C=0 k=0
+  157 JMP        goto 684
+  158 GETTABUP   R6 := U0[K6('WorldPointType')]
+  159 GETFIELD   R6 := R6.K40('WorldResource')
+  160 EQ         A=4 B=6 C=0 k=0
+  161 JMP        goto 212
+  162 GETFIELD   R6 := R2.K2('pointInfo')
+  163 GETFIELD   R6 := R6.K41('resourceInfo')
+  164 EQK        A=6 B=1 C=0 k=0
+  165 JMP        goto 167
+  166 RETURN0    A=7 B=1 C=0 k=0
+  167 GETTABUP   R7 := U0[K42('string')]
+  168 GETFIELD   R7 := R7.K43('IsNullOrEmpty')
+  169 GETFIELD   R8 := R6.K44('eventId')
+  170 CALL       R7(nargs=1, nret=1)
+  171 TEST       A=7 B=0 C=0 k=0
+  172 JMP        goto 205
+  173 GETTABUP   R7 := U0[K27('DataCenter')]
+  174 GETFIELD   R7 := R7.K45('VolcanoWarManager')
+  175 SELF       R8 := R7; R7 := R7:K46('GetResTypeInTime')
+  176 GETFIELD   R9 := R6.K47('resourceId')
+  177 CALL       R7(nargs=2, nret=1)
+  178 TEST       A=7 B=0 C=0 k=0
+  179 JMP        goto 187
+  180 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  181 LOADK      R10 := K48('WorldResVolcanoObject')
+  182 CALL       R8(nargs=2, nret=1)
+  183 GETFIELD   R8 := R8.K14('New')
+  184 CALL       R8(nargs=0, nret=1)
+  185 MOVE       A=5 B=8 C=0 k=0
+  186 JMP        goto 684
+  187 SELF       R9 := R0; R8 := R0:K11('IsMineDrawMeshEnabled')
+  188 CALL       R8(nargs=1, nret=1)
+  189 TEST       A=8 B=0 C=0 k=0
+  190 JMP        goto 198
+  191 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  192 LOADK      R10 := K49('WorldResObjectInstanced')
+  193 CALL       R8(nargs=2, nret=1)
+  194 GETFIELD   R8 := R8.K14('New')
+  195 CALL       R8(nargs=0, nret=1)
+  196 MOVE       A=5 B=8 C=0 k=0
+  197 JMP        goto 684
+  198 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  199 LOADK      R10 := K50('WorldResObject')
+  200 CALL       R8(nargs=2, nret=1)
+  201 GETFIELD   R8 := R8.K14('New')
+  202 CALL       R8(nargs=0, nret=1)
+  203 MOVE       A=5 B=8 C=0 k=0
+  204 JMP        goto 684
+  205 SELF       R8 := R0; R7 := R0:K12('GetWorldObjectClass')
+  206 LOADK      R9 := K51('WorldHighSpeedCollectObject')
+  207 CALL       R7(nargs=2, nret=1)
+  208 GETFIELD   R7 := R7.K14('New')
+  209 CALL       R7(nargs=0, nret=1)
+  210 MOVE       A=5 B=7 C=0 k=0
+  211 JMP        goto 684
+  212 GETTABUP   R6 := U0[K6('WorldPointType')]
+  213 GETFIELD   R6 := R6.K52('DETECT_EVENT_PVE')
+  214 EQ         A=4 B=6 C=0 k=1
+  215 JMP        goto 220
+  216 GETTABUP   R6 := U0[K6('WorldPointType')]
+  217 GETFIELD   R6 := R6.K53('EXPLORE_POINT')
+  218 EQ         A=4 B=6 C=0 k=0
+  219 JMP        goto 227
+  220 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  221 LOADK      R8 := K54('WorldExploreObject')
+  222 CALL       R6(nargs=2, nret=1)
+  223 GETFIELD   R6 := R6.K14('New')
+  224 CALL       R6(nargs=0, nret=1)
+  225 MOVE       A=5 B=6 C=0 k=0
+  226 JMP        goto 684
+  227 GETTABUP   R6 := U0[K6('WorldPointType')]
+  228 GETFIELD   R6 := R6.K55('SAMPLE_POINT')
+  229 EQ         A=4 B=6 C=0 k=1
+  230 JMP        goto 235
+  231 GETTABUP   R6 := U0[K6('WorldPointType')]
+  232 GETFIELD   R6 := R6.K56('SAMPLE_POINT_NEW')
+  233 EQ         A=4 B=6 C=0 k=0
+  234 JMP        goto 278
+  235 GETFIELD   R6 := R2.K2('pointInfo')
+  236 GETFIELD   R6 := R6.K57('samplePointInfo')
+  237 EQK        A=6 B=1 C=0 k=1
+  238 JMP        goto 245
+  239 GETTABUP   R7 := U0[K42('string')]
+  240 GETFIELD   R7 := R7.K43('IsNullOrEmpty')
+  241 GETFIELD   R8 := R6.K44('eventId')
+  242 CALL       R7(nargs=1, nret=1)
+  243 TEST       A=7 B=0 C=0 k=0
+  244 JMP        goto 246
+  245 RETURN0    A=7 B=1 C=0 k=0
+  246 GETTABUP   R7 := U0[K27('DataCenter')]
+  247 GETFIELD   R7 := R7.K58('DetectEventTemplateManager')
+  248 SELF       R8 := R7; R7 := R7:K59('GetDetectEventTemplate')
+  249 GETFIELD   R9 := R6.K44('eventId')
+  250 CALL       R7(nargs=2, nret=1)
+  251 EQK        A=7 B=1 C=0 k=0
+  252 JMP        goto 254
+  253 RETURN0    A=8 B=1 C=0 k=0
+  254 GETFIELD   R8 := R7.K31('type')
+  255 GETTABUP   R9 := U0[K60('DetectEventType')]
+  256 GETFIELD   R9 := R9.K61('RESCUE')
+  257 EQ         A=8 B=9 C=0 k=1
+  258 JMP        goto 264
+  259 GETFIELD   R8 := R7.K31('type')
+  260 GETTABUP   R9 := U0[K60('DetectEventType')]
+  261 GETFIELD   R9 := R9.K62('OVERLORD_RESCUE')
+  262 EQ         A=8 B=9 C=0 k=0
+  263 JMP        goto 271
+  264 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  265 LOADK      R10 := K63('WorldRescueObject')
+  266 CALL       R8(nargs=2, nret=1)
+  267 GETFIELD   R8 := R8.K14('New')
+  268 CALL       R8(nargs=0, nret=1)
+  269 MOVE       A=5 B=8 C=0 k=0
+  270 JMP        goto 684
+  271 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  272 LOADK      R10 := K64('WorldSampleObject')
+  273 CALL       R8(nargs=2, nret=1)
+  274 GETFIELD   R8 := R8.K14('New')
+  275 CALL       R8(nargs=0, nret=1)
+  276 MOVE       A=5 B=8 C=0 k=0
+  277 JMP        goto 684
+  278 GETTABUP   R6 := U0[K6('WorldPointType')]
+  279 GETFIELD   R6 := R6.K65('GARBAGE')
+  280 EQ         A=4 B=6 C=0 k=0
+  281 JMP        goto 289
+  282 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  283 LOADK      R8 := K66('WorldGarbageObject')
+  284 CALL       R6(nargs=2, nret=1)
+  285 GETFIELD   R6 := R6.K14('New')
+  286 CALL       R6(nargs=0, nret=1)
+  287 MOVE       A=5 B=6 C=0 k=0
+  288 JMP        goto 684
+  289 GETTABUP   R6 := U0[K6('WorldPointType')]
+  290 GETFIELD   R6 := R6.K67('HERO_DISPATCH')
+  291 EQ         A=4 B=6 C=0 k=0
+  292 JMP        goto 311
+  293 SELF       R7 := R0; R6 := R0:K11('IsMineDrawMeshEnabled')
+  294 CALL       R6(nargs=1, nret=1)
+  295 TEST       A=6 B=0 C=0 k=0
+  296 JMP        goto 304
+  297 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  298 LOADK      R8 := K68('WorldHeroDispatchObjectInstanced')
+  299 CALL       R6(nargs=2, nret=1)
+  300 GETFIELD   R6 := R6.K14('New')
+  301 CALL       R6(nargs=0, nret=1)
+  302 MOVE       A=5 B=6 C=0 k=0
+  303 JMP        goto 684
+  304 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  305 LOADK      R8 := K69('WorldHeroDispatchTaskObject')
+  306 CALL       R6(nargs=2, nret=1)
+  307 GETFIELD   R6 := R6.K14('New')
+  308 CALL       R6(nargs=0, nret=1)
+  309 MOVE       A=5 B=6 C=0 k=0
+  310 JMP        goto 684
+  311 GETTABUP   R6 := U0[K6('WorldPointType')]
+  312 GETFIELD   R6 := R6.K70('WorldMonster')
+  313 EQ         A=4 B=6 C=0 k=0
+  314 JMP        goto 392
+  315 LOADNIL    A=6 B=0 C=0 k=0
+  316 GETFIELD   R7 := R2.K2('pointInfo')
+  317 TEST       A=7 B=0 C=0 k=0
+  318 JMP        goto 321
+  319 GETFIELD   R7 := R2.K2('pointInfo')
+  320 GETFIELD   R7 := R7.K22('_parsedExtra')
+  321 EQK        A=7 B=1 C=0 k=0
+  322 JMP        goto 342
+  323 GETFIELD   R8 := R2.K2('pointInfo')
+  324 EQK        A=8 B=1 C=0 k=1
+  325 JMP        goto 342
+  326 GETFIELD   R8 := R2.K2('pointInfo')
+  327 GETFIELD   R8 := R8.K23('extraInfo')
+  328 EQK        A=8 B=1 C=0 k=1
+  329 JMP        goto 342
+  330 GETTABUP   R8 := U0[K24('PBController')]
+  331 GETFIELD   R8 := R8.K25('ParsePbFromBytes')
+  332 GETFIELD   R9 := R2.K2('pointInfo')
+  333 GETFIELD   R9 := R9.K23('extraInfo')
+  334 LOADK      R10 := K71('protobuf.WorldPointMonster')
+  335 CALL       R8(nargs=2, nret=1)
+  336 MOVE       A=7 B=8 C=0 k=0
+  337 GETFIELD   R8 := R2.K2('pointInfo')
+  338 TEST       A=8 B=0 C=0 k=0
+  339 JMP        goto 342
+  340 GETFIELD   R8 := R2.K2('pointInfo')
+  341 SETFIELD   R8.K22('_parsedExtra') := R7
+  342 EQK        A=7 B=1 C=0 k=1
+  343 JMP        goto 352
+  344 GETTABUP   R8 := U0[K27('DataCenter')]
+  345 GETFIELD   R8 := R8.K72('MonsterTemplateManager')
+  346 SELF       R9 := R8; R8 := R8:K73('GetMonsterTemplate')
+  347 GETFIELD   R10 := R7.K74('monsterId')
+  348 CALL       R8(nargs=2, nret=1)
+  349 TESTSET    A=6 B=8 C=0 k=0
+  350 JMP        goto 352
+  351 GETFIELD   R6 := R8.K75('special')
+  352 GETTABUP   R8 := U0[K76('MonsterSpecialType')]
+  353 GETFIELD   R8 := R8.K77('DinosaurBoss')
+  354 EQ         A=6 B=8 C=0 k=0
+  355 JMP        goto 363
+  356 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  357 LOADK      R10 := K78('WorldDinosaurBossObject')
+  358 CALL       R8(nargs=2, nret=1)
+  359 GETFIELD   R8 := R8.K14('New')
+  360 CALL       R8(nargs=0, nret=1)
+  361 MOVE       A=5 B=8 C=0 k=0
+  362 JMP        goto 684
+  363 GETTABUP   R8 := U0[K76('MonsterSpecialType')]
+  364 GETFIELD   R8 := R8.K79('NightSacrificePriest')
+  365 EQ         A=6 B=8 C=0 k=0
+  366 JMP        goto 374
+  367 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  368 LOADK      R10 := K80('WorldMonsterNightSacrificePriest')
+  369 CALL       R8(nargs=2, nret=1)
+  370 GETFIELD   R8 := R8.K14('New')
+  371 CALL       R8(nargs=0, nret=1)
+  372 MOVE       A=5 B=8 C=0 k=0
+  373 JMP        goto 684
+  374 GETTABUP   R8 := U0[K76('MonsterSpecialType')]
+  375 GETFIELD   R8 := R8.K81('NightSacrificeAltar')
+  376 EQ         A=6 B=8 C=0 k=0
+  377 JMP        goto 385
+  378 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  379 LOADK      R10 := K82('WorldMonsterNightSacrificeAltar')
+  380 CALL       R8(nargs=2, nret=1)
+  381 GETFIELD   R8 := R8.K14('New')
+  382 CALL       R8(nargs=0, nret=1)
+  383 MOVE       A=5 B=8 C=0 k=0
+  384 JMP        goto 684
+  385 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  386 LOADK      R10 := K83('WorldMonsterObject')
+  387 CALL       R8(nargs=2, nret=1)
+  388 GETFIELD   R8 := R8.K14('New')
+  389 CALL       R8(nargs=0, nret=1)
+  390 MOVE       A=5 B=8 C=0 k=0
+  391 JMP        goto 684
+  392 GETTABUP   R6 := U0[K6('WorldPointType')]
+  393 GETFIELD   R6 := R6.K84('WORLD_TALK_TASK')
+  394 EQ         A=4 B=6 C=0 k=0
+  395 JMP        goto 403
+  396 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  397 LOADK      R8 := K85('WorldTalkObject')
+  398 CALL       R6(nargs=2, nret=1)
+  399 GETFIELD   R6 := R6.K14('New')
+  400 CALL       R6(nargs=0, nret=1)
+  401 MOVE       A=5 B=6 C=0 k=0
+  402 JMP        goto 684
+  403 GETTABUP   R6 := U0[K6('WorldPointType')]
+  404 GETFIELD   R6 := R6.K86('WORLD_TRADE_POST')
+  405 EQ         A=4 B=6 C=0 k=0
+  406 JMP        goto 414
+  407 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  408 LOADK      R8 := K87('WorldTradePostObject')
+  409 CALL       R6(nargs=2, nret=1)
+  410 GETFIELD   R6 := R6.K14('New')
+  411 CALL       R6(nargs=0, nret=1)
+  412 MOVE       A=5 B=6 C=0 k=0
+  413 JMP        goto 684
+  414 GETTABUP   R6 := U0[K6('WorldPointType')]
+  415 GETFIELD   R6 := R6.K88('WORLD_ICE_CAVE')
+  416 EQ         A=4 B=6 C=0 k=0
+  417 JMP        goto 425
+  418 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  419 LOADK      R8 := K89('WorldIceCaveObject')
+  420 CALL       R6(nargs=2, nret=1)
+  421 GETFIELD   R6 := R6.K14('New')
+  422 CALL       R6(nargs=0, nret=1)
+  423 MOVE       A=5 B=6 C=0 k=0
+  424 JMP        goto 684
+  425 GETTABUP   R6 := U0[K6('WorldPointType')]
+  426 GETFIELD   R6 := R6.K90('FISH_MISSION')
+  427 EQ         A=4 B=6 C=0 k=0
+  428 JMP        goto 436
+  429 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  430 LOADK      R8 := K91('WorldIceCaveFishObject')
+  431 CALL       R6(nargs=2, nret=1)
+  432 GETFIELD   R6 := R6.K14('New')
+  433 CALL       R6(nargs=0, nret=1)
+  434 MOVE       A=5 B=6 C=0 k=0
+  435 JMP        goto 684
+  436 GETTABUP   R6 := U0[K6('WorldPointType')]
+  437 GETFIELD   R6 := R6.K92('DemonHunterCamp')
+  438 EQ         A=4 B=6 C=0 k=0
+  439 JMP        goto 447
+  440 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  441 LOADK      R8 := K93('WorldDemonHunterObject')
+  442 CALL       R6(nargs=2, nret=1)
+  443 GETFIELD   R6 := R6.K14('New')
+  444 CALL       R6(nargs=0, nret=1)
+  445 MOVE       A=5 B=6 C=0 k=0
+  446 JMP        goto 684
+  447 GETTABUP   R6 := U0[K6('WorldPointType')]
+  448 GETFIELD   R6 := R6.K94('GodzillaGift')
+  449 EQ         A=4 B=6 C=0 k=0
+  450 JMP        goto 498
+  451 GETFIELD   R6 := R2.K2('pointInfo')
+  452 GETFIELD   R6 := R6.K95('treasureInfo')
+  453 TEST       A=6 B=0 C=0 k=0
+  454 JMP        goto 684
+  455 GETTABUP   R7 := U0[K96('toInt')]
+  456 GETTABUP   R8 := U0[K97('GetTableData')]
+  457 LOADK      R9 := K98('precious_deposits')
+  458 GETFIELD   R10 := R6.K99('configId')
+  459 LOADK      R11 := K31('type')
+  460 CALL       R8(nargs=3, nret=-1)
+  461 CALL       R7(nargs=-1, nret=1)
+  462 EQI        A=7 B=128 C=0 k=0
+  463 JMP        goto 471
+  464 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  465 LOADK      R10 := K100('WorldGodzillaGiftObject')
+  466 CALL       R8(nargs=2, nret=1)
+  467 GETFIELD   R8 := R8.K14('New')
+  468 CALL       R8(nargs=0, nret=1)
+  469 MOVE       A=5 B=8 C=0 k=0
+  470 JMP        goto 684
+  471 EQI        A=7 B=129 C=0 k=0
+  472 JMP        goto 480
+  473 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  474 LOADK      R10 := K101('WorldDigTreasureObject')
+  475 CALL       R8(nargs=2, nret=1)
+  476 GETFIELD   R8 := R8.K14('New')
+  477 CALL       R8(nargs=0, nret=1)
+  478 MOVE       A=5 B=8 C=0 k=0
+  479 JMP        goto 684
+  480 EQI        A=7 B=130 C=0 k=0
+  481 JMP        goto 489
+  482 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  483 LOADK      R10 := K102('WorldDroppedTreasureObject')
+  484 CALL       R8(nargs=2, nret=1)
+  485 GETFIELD   R8 := R8.K14('New')
+  486 CALL       R8(nargs=0, nret=1)
+  487 MOVE       A=5 B=8 C=0 k=0
+  488 JMP        goto 684
+  489 EQI        A=7 B=131 C=0 k=0
+  490 JMP        goto 684
+  491 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  492 LOADK      R10 := K103('WorldTurkeyObject')
+  493 CALL       R8(nargs=2, nret=1)
+  494 GETFIELD   R8 := R8.K14('New')
+  495 CALL       R8(nargs=0, nret=1)
+  496 MOVE       A=5 B=8 C=0 k=0
+  497 JMP        goto 684
+  498 GETTABUP   R6 := U0[K6('WorldPointType')]
+  499 GETFIELD   R6 := R6.K104('WORLD_ALLIANCE_CITY')
+  500 EQ         A=4 B=6 C=0 k=0
+  501 JMP        goto 509
+  502 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  503 LOADK      R8 := K105('WorldFortObject')
+  504 CALL       R6(nargs=2, nret=1)
+  505 GETFIELD   R6 := R6.K14('New')
+  506 CALL       R6(nargs=0, nret=1)
+  507 MOVE       A=5 B=6 C=0 k=0
+  508 JMP        goto 684
+  509 GETTABUP   R6 := U0[K6('WorldPointType')]
+  510 GETFIELD   R6 := R6.K106('Other')
+  511 EQ         A=4 B=6 C=0 k=0
+  512 JMP        goto 520
+  513 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  514 LOADK      R8 := K107('WorldPointObject')
+  515 CALL       R6(nargs=2, nret=1)
+  516 GETFIELD   R6 := R6.K14('New')
+  517 CALL       R6(nargs=0, nret=1)
+  518 MOVE       A=5 B=6 C=0 k=0
+  519 JMP        goto 684
+  520 GETTABUP   R6 := U0[K6('WorldPointType')]
+  521 GETFIELD   R6 := R6.K108('WORLD_ALLIANCE_BUILD')
+  522 EQ         A=4 B=6 C=0 k=0
+  523 JMP        goto 531
+  524 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  525 LOADK      R8 := K109('WorldAllianceCenterObject')
+  526 CALL       R6(nargs=2, nret=1)
+  527 GETFIELD   R6 := R6.K14('New')
+  528 CALL       R6(nargs=0, nret=1)
+  529 MOVE       A=5 B=6 C=0 k=0
+  530 JMP        goto 684
+  531 GETTABUP   R6 := U0[K6('WorldPointType')]
+  532 GETFIELD   R6 := R6.K110('ACT_RESOURCE')
+  533 EQ         A=4 B=6 C=0 k=0
+  534 JMP        goto 542
+  535 SELF       R7 := R0; R6 := R0:K111('GetActResourceObjectClass')
+  536 MOVE       A=8 B=2 C=0 k=0
+  537 CALL       R6(nargs=2, nret=1)
+  538 GETFIELD   R6 := R6.K14('New')
+  539 CALL       R6(nargs=0, nret=1)
+  540 MOVE       A=5 B=6 C=0 k=0
+  541 JMP        goto 684
+  542 GETTABUP   R6 := U0[K6('WorldPointType')]
+  543 GETFIELD   R6 := R6.K112('FoodFestivalEatTable')
+  544 EQ         A=4 B=6 C=0 k=0
+  545 JMP        goto 553
+  546 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  547 LOADK      R8 := K113('WorldFoodFestivalEatTableObject')
+  548 CALL       R6(nargs=2, nret=1)
+  549 GETFIELD   R6 := R6.K14('New')
+  550 CALL       R6(nargs=0, nret=1)
+  551 MOVE       A=5 B=6 C=0 k=0
+  552 JMP        goto 684
+  553 GETTABUP   R6 := U0[K6('WorldPointType')]
+  554 GETFIELD   R6 := R6.K114('CHRISTMAS_ACT_TREE')
+  555 EQ         A=4 B=6 C=0 k=0
+  556 JMP        goto 564
+  557 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  558 LOADK      R8 := K115('WorldChristmasActTreeObject')
+  559 CALL       R6(nargs=2, nret=1)
+  560 GETFIELD   R6 := R6.K14('New')
+  561 CALL       R6(nargs=0, nret=1)
+  562 MOVE       A=5 B=6 C=0 k=0
+  563 JMP        goto 684
+  564 GETTABUP   R6 := U0[K6('WorldPointType')]
+  565 GETFIELD   R6 := R6.K116('WORLD_ICE_ANIMAL')
+  566 EQ         A=4 B=6 C=0 k=0
+  567 JMP        goto 615
+  568 GETFIELD   R6 := R2.K2('pointInfo')
+  569 TEST       A=6 B=0 C=0 k=0
+  570 JMP        goto 573
+  571 GETFIELD   R6 := R2.K2('pointInfo')
+  572 GETFIELD   R6 := R6.K22('_parsedExtra')
+  573 EQK        A=6 B=1 C=0 k=0
+  574 JMP        goto 587
+  575 GETTABUP   R7 := U0[K24('PBController')]
+  576 GETFIELD   R7 := R7.K25('ParsePbFromBytes')
+  577 GETFIELD   R8 := R2.K2('pointInfo')
+  578 GETFIELD   R8 := R8.K23('extraInfo')
+  579 LOADK      R9 := K117('protobuf.IceAnimal')
+  580 CALL       R7(nargs=2, nret=1)
+  581 MOVE       A=6 B=7 C=0 k=0
+  582 GETFIELD   R7 := R2.K2('pointInfo')
+  583 TEST       A=7 B=0 C=0 k=0
+  584 JMP        goto 587
+  585 GETFIELD   R7 := R2.K2('pointInfo')
+  586 SETFIELD   R7.K22('_parsedExtra') := R6
+  587 EQK        A=6 B=1 C=0 k=1
+  588 JMP        goto 684
+  589 GETTABUP   R7 := U0[K27('DataCenter')]
+  590 GETFIELD   R7 := R7.K118('FrozenLandDataManager')
+  591 SELF       R8 := R7; R7 := R7:K119('GetIceAnimalTemplate')
+  592 GETFIELD   R9 := R6.K99('configId')
+  593 CALL       R7(nargs=2, nret=1)
+  594 TEST       A=7 B=0 C=0 k=0
+  595 JMP        goto 684
+  596 GETFIELD   R8 := R7.K120('createType')
+  597 GETTABUP   R9 := U0[K121('IceAnimalsCreateType')]
+  598 GETFIELD   R9 := R9.K122('DinosaurRescue')
+  599 EQ         A=8 B=9 C=0 k=0
+  600 JMP        goto 608
+  601 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  602 LOADK      R10 := K123('WorldDinosaurRescueObject')
+  603 CALL       R8(nargs=2, nret=1)
+  604 GETFIELD   R8 := R8.K14('New')
+  605 CALL       R8(nargs=0, nret=1)
+  606 MOVE       A=5 B=8 C=0 k=0
+  607 JMP        goto 684
+  608 SELF       R9 := R0; R8 := R0:K12('GetWorldObjectClass')
+  609 LOADK      R10 := K124('WorldIceAnimalObject')
+  610 CALL       R8(nargs=2, nret=1)
+  611 GETFIELD   R8 := R8.K14('New')
+  612 CALL       R8(nargs=0, nret=1)
+  613 MOVE       A=5 B=8 C=0 k=0
+  614 JMP        goto 684
+  615 GETTABUP   R6 := U0[K6('WorldPointType')]
+  616 GETFIELD   R6 := R6.K125('DetectRewardParkour')
+  617 EQ         A=4 B=6 C=0 k=0
+  618 JMP        goto 626
+  619 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  620 LOADK      R8 := K126('DetectRewardParkourInfo')
+  621 CALL       R6(nargs=2, nret=1)
+  622 GETFIELD   R6 := R6.K14('New')
+  623 CALL       R6(nargs=0, nret=1)
+  624 MOVE       A=5 B=6 C=0 k=0
+  625 JMP        goto 684
+  626 GETTABUP   R6 := U0[K6('WorldPointType')]
+  627 GETFIELD   R6 := R6.K127('GOBLIN_TREASURE')
+  628 EQ         A=4 B=6 C=0 k=0
+  629 JMP        goto 637
+  630 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  631 LOADK      R8 := K128('WorldGoblinTreasureObject')
+  632 CALL       R6(nargs=2, nret=1)
+  633 GETFIELD   R6 := R6.K14('New')
+  634 CALL       R6(nargs=0, nret=1)
+  635 MOVE       A=5 B=6 C=0 k=0
+  636 JMP        goto 684
+  637 GETTABUP   R6 := U0[K6('WorldPointType')]
+  638 GETFIELD   R6 := R6.K129('REWARD_PACKET')
+  639 EQ         A=4 B=6 C=0 k=0
+  640 JMP        goto 678
+  641 GETFIELD   R6 := R2.K2('pointInfo')
+  642 TEST       A=6 B=0 C=0 k=0
+  643 JMP        goto 646
+  644 GETFIELD   R6 := R2.K2('pointInfo')
+  645 GETFIELD   R6 := R6.K22('_parsedExtra')
+  646 EQK        A=6 B=1 C=0 k=0
+  647 JMP        goto 660
+  648 GETTABUP   R7 := U0[K24('PBController')]
+  649 GETFIELD   R7 := R7.K25('ParsePbFromBytes')
+  650 GETFIELD   R8 := R2.K2('pointInfo')
+  651 GETFIELD   R8 := R8.K23('extraInfo')
+  652 LOADK      R9 := K130('protobuf.WorldRewardPacketInfo')
+  653 CALL       R7(nargs=2, nret=1)
+  654 MOVE       A=6 B=7 C=0 k=0
+  655 GETFIELD   R7 := R2.K2('pointInfo')
+  656 TEST       A=7 B=0 C=0 k=0
+  657 JMP        goto 660
+  658 GETFIELD   R7 := R2.K2('pointInfo')
+  659 SETFIELD   R7.K22('_parsedExtra') := R6
+  660 EQK        A=6 B=1 C=0 k=1
+  661 JMP        goto 671
+  662 GETTABUP   R7 := U0[K131('UITimeManager')]
+  663 SELF       R8 := R7; R7 := R7:K132('GetInstance')
+  664 CALL       R7(nargs=1, nret=1)
+  665 SELF       R8 := R7; R7 := R7:K133('GetServerTime')
+  666 CALL       R7(nargs=1, nret=1)
+  667 GETFIELD   R8 := R6.K134('expireTime')
+  668 LE         A=8 B=7 C=0 k=0
+  669 JMP        goto 671
+  670 RETURN0    A=8 B=1 C=0 k=0
+  671 SELF       R8 := R0; R7 := R0:K12('GetWorldObjectClass')
+  672 LOADK      R9 := K135('WorldPacketRewardObject')
+  673 CALL       R7(nargs=2, nret=1)
+  674 GETFIELD   R7 := R7.K14('New')
+  675 CALL       R7(nargs=0, nret=1)
+  676 MOVE       A=5 B=7 C=0 k=0
+  677 JMP        goto 684
+  678 SELF       R7 := R0; R6 := R0:K12('GetWorldObjectClass')
+  679 LOADK      R8 := K136('WorldBasePointObject')
+  680 CALL       R6(nargs=2, nret=1)
+  681 GETFIELD   R6 := R6.K14('New')
+  682 CALL       R6(nargs=0, nret=1)
+  683 MOVE       A=5 B=6 C=0 k=0
+  684 EQK        A=5 B=1 C=0 k=1
+  685 JMP        goto 708
+  686 SELF       R7 := R5; R6 := R5:K137('InitData')
+  687 MOVE       A=8 B=1 C=0 k=0
+  688 MOVE       A=9 B=4 C=0 k=0
+  689 CALL       R6(nargs=3, nret=0)
+  690 SELF       R7 := R5; R6 := R5:K138('CreateGameObject')
+  691 CALL       R6(nargs=1, nret=0)
+  692 GETFIELD   R6 := R0.K139('allObj')
+  693 SETTABLE   A=6 B=1 C=5 k=0
+  694 GETUPVAL   R6 := U1(PerfMonitorManager)
+  695 TEST       A=6 B=0 C=0 k=0
+  696 JMP        goto 702
+  697 GETUPVAL   R6 := U1(PerfMonitorManager)
+  698 SELF       R7 := R6; R6 := R6:K132('GetInstance')
+  699 CALL       R6(nargs=1, nret=1)
+  700 SELF       R7 := R6; R6 := R6:K140('OnCreateObject')
+  701 CALL       R6(nargs=1, nret=0)
+  702 SELF       R7 := R0; R6 := R0:K141('OnObjectCreated')
+  703 MOVE       A=8 B=1 C=0 k=0
+  704 MOVE       A=9 B=4 C=0 k=0
+  705 MOVE       A=10 B=5 C=0 k=0
+  706 MOVE       A=11 B=3 C=0 k=0
+  707 CALL       R6(nargs=5, nret=0)
+  708 RETURN0    A=6 B=1 C=0 k=0
+
+==================== WPM.IsAnyPointOptiEnabled (L439-441) ====================
+  Locals: ['R0:self(pc 0..8)']
+  Upvals: []
+  Consts: ["K0:'IsBuildTileOptiEnabled'", "K1:'IsMineDrawMeshEnabled'"]
+  000 SELF       R2 := R0; R1 := R0:K0('IsBuildTileOptiEnabled')
+  001 CALL       R1(nargs=1, nret=1)
+  002 TEST       A=1 B=0 C=0 k=1
+  003 JMP        goto 6
+  004 SELF       R2 := R0; R1 := R0:K1('IsMineDrawMeshEnabled')
+  005 CALL       R1(nargs=1, nret=1)
+  006 RETURN1    A=1 B=2 C=0 k=0
+  007 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WPO.New (L45-55) ====================
+  Locals: ['R0:obj(pc 10..23)']
+  Upvals: ['U0:class_type', 'U1:_ENV', 'U2:delete', 'U3:_class_mt', 'U4:create']
+  Consts: ["K0:'_class_type'", "K1:'__ctype'", "K2:'ClassType'", "K3:'instance'", "K4:'Delete'", "K5:'setmetatable'"]
+  000 VARARGPREP A=0 B=0 C=0 k=0
+  001 NEWTABLE   A=0 B=3 C=0 k=0
+  002 EXTRAARG   A=0 B=0 C=0 k=0
+  003 GETUPVAL   R1 := U0(class_type)
+  004 SETFIELD   R0.K0('_class_type') := R1
+  005 GETTABUP   R1 := U1[K2('ClassType')]
+  006 GETFIELD   R1 := R1.K3('instance')
+  007 SETFIELD   R0.K1('__ctype') := R1
+  008 GETUPVAL   R1 := U2(delete)
+  009 SETFIELD   R0.K4('Delete') := R1
+  010 GETTABUP   R1 := U1[K5('setmetatable')]
+  011 MOVE       A=2 B=0 C=0 k=0
+  012 GETUPVAL   R4 := U0(class_type)
+  013 GETUPVAL   R3 := U3(_class_mt)
+  014 GETTABLE   A=3 B=3 C=4 k=0
+  015 CALL       R1(nargs=2, nret=0)
+  016 GETUPVAL   R1 := U4(create)
+  017 MOVE       A=2 B=0 C=0 k=0
+  018 GETUPVAL   R3 := U0(class_type)
+  019 VARARG     A=4 B=0 C=0 k=0
+  020 CALL       R1(nargs=-1, nret=0)
+  021 RETURN     A=0 B=2 C=1 k=0
+  022 RETURN     A=1 B=1 C=1 k=0
+
+==================== WPO.__delete (L57-84) ====================
+  Locals: ['R0:self(pc 0..32)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'pointIndex'", 'K1:0', "K2:'isVisible'", 'K3:True', "K4:'gameObject'", 'K5:None', "K6:'instance'", "K7:'oldInstance'", "K8:'troopDestinationInst'", "K9:'troopDestination'", "K10:'touchObject'", "K11:'adjuster'", "K12:'pointType'", "K13:'WorldPointType'", "K14:'Other'", "K15:'desertTileInst'", "K16:'desertPlayerType'", "K17:'PlayerType'", "K18:'PlayerNone'", "K19:'hasAssistance'", 'K20:False', "K21:'desertUuid'", "K22:'isFireDesertEffect'", "K23:'isFireDesertMine'", "K24:'isFireDesertLevel'", "K25:'desertId'", "K26:'isRedDesert'", "K27:'isYellowDesert'", "K28:'desertMineId'", "K29:'skillInstList'", "K30:'delayInvokeMap'", "K31:'goInstances'", "K32:'__event_handlers'"]
+  000 SETFIELD   R0.K0('pointIndex') := K1(0)
+  001 SETFIELD   R0.K2('isVisible') := K3(True)
+  002 SETFIELD   R0.K4('gameObject') := K5(None)
+  003 SETFIELD   R0.K6('instance') := K5(None)
+  004 NEWTABLE   A=1 B=0 C=0 k=0
+  005 EXTRAARG   A=0 B=0 C=0 k=0
+  006 SETFIELD   R0.K7('oldInstance') := R1
+  007 SETFIELD   R0.K8('troopDestinationInst') := K5(None)
+  008 SETFIELD   R0.K9('troopDestination') := K5(None)
+  009 SETFIELD   R0.K10('touchObject') := K5(None)
+  010 SETFIELD   R0.K11('adjuster') := K5(None)
+  011 GETTABUP   R1 := U0[K13('WorldPointType')]
+  012 GETFIELD   R1 := R1.K14('Other')
+  013 SETFIELD   R0.K12('pointType') := R1
+  014 SETFIELD   R0.K15('desertTileInst') := K5(None)
+  015 GETTABUP   R1 := U0[K17('PlayerType')]
+  016 GETFIELD   R1 := R1.K18('PlayerNone')
+  017 SETFIELD   R0.K16('desertPlayerType') := R1
+  018 SETFIELD   R0.K19('hasAssistance') := K20(False)
+  019 SETFIELD   R0.K21('desertUuid') := K1(0)
+  020 SETFIELD   R0.K22('isFireDesertEffect') := K20(False)
+  021 SETFIELD   R0.K23('isFireDesertMine') := K20(False)
+  022 SETFIELD   R0.K24('isFireDesertLevel') := K20(False)
+  023 SETFIELD   R0.K25('desertId') := K1(0)
+  024 SETFIELD   R0.K26('isRedDesert') := K20(False)
+  025 SETFIELD   R0.K27('isYellowDesert') := K20(False)
+  026 SETFIELD   R0.K28('desertMineId') := K1(0)
+  027 SETFIELD   R0.K29('skillInstList') := K5(None)
+  028 SETFIELD   R0.K30('delayInvokeMap') := K5(None)
+  029 SETFIELD   R0.K31('goInstances') := K5(None)
+  030 SETFIELD   R0.K32('__event_handlers') := K5(None)
+  031 RETURN0    A=1 B=1 C=0 k=0
+
+==================== WPO.__init (L28-55) ====================
+  Locals: ['R0:self(pc 0..40)']
+  Upvals: ['U0:_ENV']
+  Consts: ["K0:'pointIndex'", 'K1:0', "K2:'isVisible'", 'K3:True', "K4:'gameObject'", 'K5:None', "K6:'instance'", "K7:'oldInstance'", "K8:'troopDestinationInst'", "K9:'troopDestination'", "K10:'touchObject'", "K11:'adjuster'", "K12:'pointType'", "K13:'WorldPointType'", "K14:'Other'", "K15:'desertTileInst'", "K16:'desertPlayerType'", "K17:'PlayerType'", "K18:'PlayerNone'", "K19:'hasAssistance'", 'K20:False', "K21:'desertUuid'", "K22:'isFireDesertEffect'", "K23:'isFireDesertMine'", "K24:'isFireDesertLevel'", "K25:'desertId'", "K26:'isRedDesert'", "K27:'isYellowDesert'", "K28:'desertMineId'", "K29:'skillInstList'", "K30:'delayInvokeMap'", "K31:'goInstances'", "K32:'__event_handlers'"]
+  000 SETFIELD   R0.K0('pointIndex') := K1(0)
+  001 SETFIELD   R0.K2('isVisible') := K3(True)
+  002 SETFIELD   R0.K4('gameObject') := K5(None)
+  003 SETFIELD   R0.K6('instance') := K5(None)
+  004 NEWTABLE   A=1 B=0 C=0 k=0
+  005 EXTRAARG   A=0 B=0 C=0 k=0
+  006 SETFIELD   R0.K7('oldInstance') := R1
+  007 SETFIELD   R0.K8('troopDestinationInst') := K5(None)
+  008 SETFIELD   R0.K9('troopDestination') := K5(None)
+  009 SETFIELD   R0.K10('touchObject') := K5(None)
+  010 SETFIELD   R0.K11('adjuster') := K5(None)
+  011 GETTABUP   R1 := U0[K13('WorldPointType')]
+  012 GETFIELD   R1 := R1.K14('Other')
+  013 SETFIELD   R0.K12('pointType') := R1
+  014 SETFIELD   R0.K15('desertTileInst') := K5(None)
+  015 GETTABUP   R1 := U0[K17('PlayerType')]
+  016 GETFIELD   R1 := R1.K18('PlayerNone')
+  017 SETFIELD   R0.K16('desertPlayerType') := R1
+  018 SETFIELD   R0.K19('hasAssistance') := K20(False)
+  019 SETFIELD   R0.K21('desertUuid') := K1(0)
+  020 SETFIELD   R0.K22('isFireDesertEffect') := K20(False)
+  021 SETFIELD   R0.K23('isFireDesertMine') := K20(False)
+  022 SETFIELD   R0.K24('isFireDesertLevel') := K20(False)
+  023 SETFIELD   R0.K25('desertId') := K1(0)
+  024 SETFIELD   R0.K26('isRedDesert') := K20(False)
+  025 SETFIELD   R0.K27('isYellowDesert') := K20(False)
+  026 SETFIELD   R0.K28('desertMineId') := K1(0)
+  027 NEWTABLE   A=1 B=0 C=0 k=0
+  028 EXTRAARG   A=0 B=0 C=0 k=0
+  029 SETFIELD   R0.K29('skillInstList') := R1
+  030 NEWTABLE   A=1 B=0 C=0 k=0
+  031 EXTRAARG   A=0 B=0 C=0 k=0
+  032 SETFIELD   R0.K30('delayInvokeMap') := R1
+  033 NEWTABLE   A=1 B=0 C=0 k=0
+  034 EXTRAARG   A=0 B=0 C=0 k=0
+  035 SETFIELD   R0.K31('goInstances') := R1
+  036 NEWTABLE   A=1 B=0 C=0 k=0
+  037 EXTRAARG   A=0 B=0 C=0 k=0
+  038 SETFIELD   R0.K32('__event_handlers') := R1
+  039 RETURN0    A=1 B=1 C=0 k=0

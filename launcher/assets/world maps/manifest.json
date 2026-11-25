@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "y_origin": "top",
+  "default_map_key": "pre_season_1",
+  "season_enum_map": {
+    "0": "pre_season_1",
+    "1": "season_2",
+    "2": "season_3",
+    "3": "season_4",
+    "4": "season_5",
+    "5": "season_6"
+  },
+  "zones_overlay": {
+    "file": "zones overlay.webp",
+    "width": 1024,
+    "height": 1024,
+    "grid_size": 1000,
+    "province_count": 87,
+    "size_bytes": 153576,
+    "sha256": "76ac89e25f6419daf5bcf6d1df0a8bc023ddb20ced61c6f381404ec5171c5f41"
+  },
+  "major_cities": [
+    {
+      "id": 1,
+      "x": 500,
+      "y": 500,
+      "level": 7,
+      "name": "Capital"
+    },
+    {
+      "id": 84,
+      "x": 491,
+      "y": 417,
+      "level": 6,
+      "name": "Mega City"
+    },
+    {
+      "id": 85,
+      "x": 424,
+      "y": 496,
+      "level": 6,
+      "name": "Mega City"
+    },
+    {
+      "id": 86,
+      "x": 563,
+      "y": 529,
+      "level": 6,
+      "name": "Mega City"
+    },
+    {
+      "id": 56,
+      "x": 440,
+      "y": 326,
+      "level": 5,
+      "name": "Big City"
+    },
+    {
+      "id": 62,
+      "x": 621,
+      "y": 421,
+      "level": 5,
+      "name": "Big City"
+    },
+    {
+      "id": 65,
+      "x": 310,
+      "y": 478,
+      "level": 5,
+      "name": "Big City"
+    },
+    {
+      "id": 70,
+      "x": 517,
+      "y": 618,
+      "level": 5,
+      "name": "Big City"
+    }
+  ],
+  "maps": [
+    {
+      "key": "pre_season_1",
+      "label": "Pre-Season 1 / S1 (Wasteland)",
+      "short_label": "S1 Wasteland",
+      "world_season_ids": [
+        0
+      ],
+      "grid_size": 1000,
+      "file": "pre season 1.webp",
+      "width": 1024,
+      "height": 1024,
+      "y_origin": "top",
+      "source_kind": "satellite_4k",
+      "supports_zones": true,
+      "size_bytes": 110528,
+      "sha256": "9b1d04c836f71f83d4813003413e7eb6bbf104205c53c97990b703b2dbf0d292"
+    },
+    {
+      "key": "season_2",
+      "label": "Season 2 (Wastes Watcher)",
+      "short_label": "S2 Desert",
+      "world_season_ids": [
+        1
+      ],
+      "grid_size": 1000,
+      "file": "season 2.webp",
+      "width": 1024,
+      "height": 1024,
+      "y_origin": "top",
+      "source_kind": "topology_biome",
+      "supports_zones": true,
+      "size_bytes": 31414,
+      "sha256": "97b028c0e04a4195b306fb72b8c08ccf9853867727ffcd0f4bdaff27fcc4319d"
+    },
+    {
+      "key": "season_3",
+      "label": "Season 3 (Everfrost Era)",
+      "short_label": "S3 Everfrost",
+      "world_season_ids": [
+        2
+      ],
+      "grid_size": 1000,
+      "file": "season 3.webp",
+      "width": 1024,
+      "height": 1024,
+      "y_origin": "top",
+      "source_kind": "satellite_4k",
+      "supports_zones": true,
+      "size_bytes": 112326,
+      "sha256": "48101a53845beb383a3277126c6f6a6263ff46a53d37bfd6dac530fbf0c62d7c"
+    },
+    {
+      "key": "season_4",
+      "label": "Season 4 (Dinosaur Origin)",
+      "short_label": "S4 Dinosaur",
+      "world_season_ids": [
+        3
+      ],
+      "grid_size": 1000,
+      "file": "season 4.webp",
+      "width": 1024,
+      "height": 1024,
+      "y_origin": "top",
+      "source_kind": "satellite_4k",
+      "supports_zones": true,
+      "size_bytes": 194394,
+      "sha256": "c5fe9a0f44945849175615370a852046a4cfe686a7c67deaabe5c316d74faec9"
+    },
+    {
+      "key": "season_5",
+      "label": "Season 5 (Moonlit Elegy)",
+      "short_label": "S5 Moonlit",
+      "world_season_ids": [
+        4
+      ],
+      "grid_size": 1000,
+      "file": "season 5.webp",
+      "width": 1024,
+      "height": 1024,
+      "y_origin": "top",
+      "source_kind": "topology_biome",
+      "supports_zones": true,
+      "size_bytes": 175068,
+      "sha256": "aec8c298ff5e23f9d254f41bfafbb3331af87a359ee96f799a28e056ca3924ac"
+    },
+    {
+      "key": "season_6",
+      "label": "Season 6 (Archipelago 1600)",
+      "short_label": "S6 Archipelago",
+      "world_season_ids": [
+        5
+      ],
+      "grid_size": 1600,
+      "file": "season 6.webp",
+      "width": 1024,
+      "height": 1024,
+      "y_origin": "top",
+      "source_kind": "topology_biome",
+      "supports_zones": false,
+      "size_bytes": 124038,
+      "sha256": "e432699386ede5718ad136b244cc5caa4a44c3cf11548b27bc19d04260ff421d"
+    }
+  ],
+  "total_bytes": 901344
+}

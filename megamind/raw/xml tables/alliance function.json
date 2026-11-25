@@ -1,0 +1,1 @@
+{"xml":"alliance_function","table_keys":["TableName.AllianceFunction"],"columns":["id","lock_mode","id_tips","lock_condition"],"row_count":2,"rows":{"1":["1","1","900227","6"],"2":["2","1","916289","10"]}}

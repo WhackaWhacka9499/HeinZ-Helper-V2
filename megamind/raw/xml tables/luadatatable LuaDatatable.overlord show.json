@@ -1,0 +1,228 @@
+{
+  "index": {
+    "aps_new_heroes": {
+      "1": 15,
+      "2": "number"
+    },
+    "background": {
+      "1": 13,
+      "2": "string"
+    },
+    "sound_effect": {
+      "1": 21,
+      "2": "string"
+    },
+    "in_sound": {
+      "1": 11,
+      "2": "string"
+    },
+    "rank": {
+      "1": 3,
+      "2": "number"
+    },
+    "color": {
+      "1": 6,
+      "2": "number"
+    },
+    "id": {
+      "1": 1,
+      "2": "number"
+    },
+    "spine": {
+      "1": 7,
+      "2": "string"
+    },
+    "model_effect": {
+      "1": 20,
+      "2": "string"
+    },
+    "world_model": {
+      "1": 19,
+      "2": "string"
+    },
+    "bullet_effect_special": {
+      "1": 17,
+      "2": "string"
+    },
+    "overlord": {
+      "1": 2,
+      "2": "number"
+    },
+    "low_model": {
+      "1": 8,
+      "2": "string"
+    },
+    "default_name": {
+      "1": 5,
+      "2": "number"
+    },
+    "loop_sound": {
+      "1": 12,
+      "2": "string"
+    },
+    "attack_delay": {
+      "1": 16,
+      "2": "number"
+    },
+    "stage": {
+      "1": 4,
+      "2": "number"
+    },
+    "high_model": {
+      "1": 10,
+      "2": "string"
+    },
+    "preview_icon": {
+      "1": 14,
+      "2": "string"
+    },
+    "middle_model": {
+      "1": 9,
+      "2": "string"
+    },
+    "train_icon": {
+      "1": 18,
+      "2": "string"
+    }
+  },
+  "data": {
+    "5": {
+      "19": "Assets/_Art_LastDay/Models/Overlord/Environment/overlord_dinasour_106_HQ_world/Prefab/overlord_dinasour_106_world.prefab",
+      "12": "effect_overlord_5_loop",
+      "11": "effect_overlord_5_in",
+      "14": "c_dominate_Head_5",
+      "13": "c_texture_Bg1",
+      "17": "0.003|1;1.5|2",
+      "18": "c_dominate_img_Attr21|c_dominate_img_Attr22|c_dominate_img_Attr24|c_dominate_img_Attr23",
+      "15": 960005,
+      "16": 0.2,
+      "21": "effect_overlord_6_world|effect_overlord_6_world|effect_overlord_6_world",
+      "20": "Eff_world_zhuzai_LV6_kaihuo|Eff_world_zhuzai_LV6_attack_zidan|Eff_world_zhuzai_LV6_hit",
+      "9": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_105_PVE/Prefab/overlord_dinasour_105_PVE.prefab",
+      "6": 5,
+      "7": "Spine_Dominate_05",
+      "8": "Assets/Main/Prefabs/SimpleHero/overlord_dinasour_105_HQ.prefab",
+      "5": 913636,
+      "10": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_105_PVE/Prefab/overlord_dinasour_105_PVE.prefab",
+      "3": 5,
+      "4": 200,
+      "1": 5,
+      "2": 1
+    },
+    "6": {
+      "19": "Assets/_Art_LastDay/Models/Overlord/Environment/overlord_dinasour_106_HQ_world/Prefab/overlord_dinasour_106_world.prefab",
+      "12": "effect_overlord_6_loop",
+      "11": "effect_overlord_6_in",
+      "14": "c_dominate_Head_6",
+      "13": "c_texture_Bg1",
+      "17": "0.003|1;1.5|2",
+      "18": "c_dominate_img_Attr21|c_dominate_img_Attr22|c_dominate_img_Attr24|c_dominate_img_Attr23",
+      "15": 960006,
+      "16": 0.2,
+      "21": "effect_overlord_6_world|effect_overlord_6_world|effect_overlord_6_world",
+      "20": "Eff_world_zhuzai_LV6_kaihuo|Eff_world_zhuzai_LV6_attack_zidan|Eff_world_zhuzai_LV6_hit",
+      "9": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_106_PVE/Prefab/overlord_dinasour_106_PVE.prefab",
+      "6": 6,
+      "7": "Spine_Dominate_06",
+      "8": "Assets/Main/Prefabs/SimpleHero/overlord_dinasour_106_HQ.prefab",
+      "5": 913636,
+      "10": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_106_PVE/Prefab/overlord_dinasour_106_PVE.prefab",
+      "3": 6,
+      "4": 250,
+      "1": 6,
+      "2": 1
+    },
+    "3": {
+      "19": "",
+      "12": "effect_overlord_3_loop",
+      "11": "effect_overlord_3_in",
+      "14": "c_dominate_Head_3",
+      "13": "c_texture_Bg1",
+      "17": "0.003|1;1.5|2",
+      "18": "c_dominate_img_Attr17|c_dominate_img_Attr18|c_dominate_img_Attr20|c_dominate_img_Attr19",
+      "15": 960003,
+      "16": 0.2,
+      "21": "",
+      "20": "",
+      "9": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_103_PVE/Prefab/overlord_dinasour_103_PVE.prefab",
+      "6": 3,
+      "7": "Spine_Dominate_03",
+      "8": "Assets/Main/Prefabs/SimpleHero/overlord_dinasour_103_HQ.prefab",
+      "5": 913636,
+      "10": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_103_PVE/Prefab/overlord_dinasour_103_PVE.prefab",
+      "3": 3,
+      "4": 100,
+      "1": 3,
+      "2": 1
+    },
+    "4": {
+      "19": "Assets/_Art_LastDay/Models/Overlord/Environment/overlord_dinasour_105_HQ_world/Prefab/overlord_dinasour_105_world.prefab",
+      "12": "effect_overlord_4_loop",
+      "11": "effect_overlord_4_in",
+      "14": "c_dominate_Head_4",
+      "13": "c_texture_Bg1",
+      "17": "0.003|1;1.5|2",
+      "18": "c_dominate_img_Attr21|c_dominate_img_Attr22|c_dominate_img_Attr24|c_dominate_img_Attr23",
+      "15": 960004,
+      "16": 0.2,
+      "21": "effect_overlord_6_world|effect_overlord_6_world|effect_overlord_6_world",
+      "20": "Eff_world_zhuzai_LV5_kaihuo|Eff_world_zhuzai_LV5_attack_zidan|Eff_world_zhuzai_LV5_hit",
+      "9": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_104_PVE/Prefab/overlord_dinasour_104_PVE.prefab",
+      "6": 4,
+      "7": "Spine_Dominate_04",
+      "8": "Assets/Main/Prefabs/SimpleHero/overlord_dinasour_104_HQ.prefab",
+      "5": 913636,
+      "10": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_104_PVE/Prefab/overlord_dinasour_104_PVE.prefab",
+      "3": 4,
+      "4": 150,
+      "1": 4,
+      "2": 1
+    },
+    "1": {
+      "19": "",
+      "12": "effect_overlord_1_loop",
+      "11": "effect_overlord_1_in",
+      "14": "c_dominate_Head_1",
+      "13": "c_texture_Bg1",
+      "17": "0.003|1;1.5|2",
+      "18": "c_dominate_img_Attr09|c_dominate_img_Attr10|c_dominate_img_Attr12|c_dominate_img_Attr11",
+      "15": 960001,
+      "16": 0.5,
+      "21": "",
+      "20": "",
+      "9": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_101_PVE/Prefab/overlord_dinasour_101_PVE.prefab",
+      "6": 1,
+      "7": "Spine_Dominate_01",
+      "8": "Assets/Main/Prefabs/SimpleHero/overlord_dinasour_101_HQ.prefab",
+      "5": 913636,
+      "10": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_101_PVE/Prefab/overlord_dinasour_101_PVE.prefab",
+      "3": 1,
+      "4": 1,
+      "1": 1,
+      "2": 1
+    },
+    "2": {
+      "19": "",
+      "12": "effect_overlord_2_loop",
+      "11": "effect_overlord_2_in",
+      "14": "c_dominate_Head_2",
+      "13": "c_texture_Bg1",
+      "17": "0.003|1;1.5|2",
+      "18": "c_dominate_img_Attr13|c_dominate_img_Attr14|c_dominate_img_Attr16|c_dominate_img_Attr15",
+      "15": 960002,
+      "16": 0.5,
+      "21": "",
+      "20": "",
+      "9": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_102_PVE/Prefab/overlord_dinasour_102_PVE.prefab",
+      "6": 2,
+      "7": "Spine_Dominate_02",
+      "8": "Assets/Main/Prefabs/SimpleHero/overlord_dinasour_102_HQ.prefab",
+      "5": 913636,
+      "10": "Assets/_Art_LastDay/Models/Overlord/PVE/overlord_dinasour_102_PVE/Prefab/overlord_dinasour_102_PVE.prefab",
+      "3": 2,
+      "4": 50,
+      "1": 2,
+      "2": 1
+    }
+  }
+}

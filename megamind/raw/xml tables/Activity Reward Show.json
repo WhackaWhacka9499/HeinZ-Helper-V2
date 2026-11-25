@@ -1,0 +1,1 @@
+{"xml":"Activity_Reward_Show","table_keys":["TableName.ActivityRewardShow"],"columns":["id","activity","excess_reward_1","special_monster"],"row_count":4,"rows":{"10000":["10000","72002","255007","101802|420001"],"10001":["10001","40114","255005",""],"10003":["10003","72006","255009",""],"10002":["10002","40115","255005",""]}}

@@ -1,0 +1,128 @@
+{
+  "index": {
+    "rule_new": {
+      "1": 18,
+      "2": "number"
+    },
+    "pic_b": {
+      "1": 24,
+      "2": "string"
+    },
+    "season": {
+      "1": 14,
+      "2": "number"
+    },
+    "during_time": {
+      "1": 8,
+      "2": "number"
+    },
+    "color": {
+      "1": 6,
+      "2": "number"
+    },
+    "pic": {
+      "1": 23,
+      "2": "string"
+    },
+    "effect_scope_newrule": {
+      "1": 13,
+      "2": "number"
+    },
+    "desc": {
+      "1": 4,
+      "2": "number"
+    },
+    "type": {
+      "1": 2,
+      "2": "number"
+    },
+    "prefab": {
+      "1": 9,
+      "2": "string"
+    },
+    "effect_scope_b": {
+      "1": 22,
+      "2": "number"
+    },
+    "id": {
+      "1": 1,
+      "2": "number"
+    },
+    "name_new": {
+      "1": 16,
+      "2": "number"
+    },
+    "punish_time": {
+      "1": 10,
+      "2": "number"
+    },
+    "rank": {
+      "1": 15,
+      "2": "number"
+    },
+    "cd_time": {
+      "1": 11,
+      "2": "number"
+    },
+    "launch_time": {
+      "1": 20,
+      "2": "number"
+    },
+    "desc_new": {
+      "1": 17,
+      "2": "number"
+    },
+    "pre_time_b": {
+      "1": 19,
+      "2": "number"
+    },
+    "effect_scope": {
+      "1": 12,
+      "2": "number"
+    },
+    "rule": {
+      "1": 5,
+      "2": "number"
+    },
+    "pre_time": {
+      "1": 7,
+      "2": "number"
+    },
+    "name": {
+      "1": 3,
+      "2": "number"
+    },
+    "repatriation_time": {
+      "1": 21,
+      "2": "number"
+    }
+  },
+  "data": {
+    "1": {
+      "19": 900,
+      "12": 7,
+      "11": 7200,
+      "14": 1,
+      "13": 9,
+      "17": 5670027,
+      "18": 5670028,
+      "15": 5,
+      "16": 5670026,
+      "24": "UIAlliance_Icon_Changmao",
+      "23": "UIAlliance_Icon_daodan",
+      "22": 14,
+      "21": 1,
+      "20": 10,
+      "9": "WorldS2_terrain_heitudi_jiaotu_01;WorldS3_terrain_heitudi_jiaotu_01;WorldS4_terrain_heitudi_jiaotu_01",
+      "6": 4,
+      "7": 15,
+      "8": 60,
+      "5": 396003,
+      "10": 10,
+      "3": 396001,
+      "4": 396002,
+      "1": 1,
+      "2": 1
+    }
+  }
+}

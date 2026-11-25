@@ -1,0 +1,196 @@
+{
+  "index": {
+    "hat": {
+      "1": 2,
+      "2": "string"
+    },
+    "pants": {
+      "1": 5,
+      "2": "string"
+    },
+    "id": {
+      "1": 1,
+      "2": "number"
+    },
+    "head": {
+      "1": 3,
+      "2": "string"
+    },
+    "shoes": {
+      "1": 6,
+      "2": "string"
+    },
+    "cloth": {
+      "1": 4,
+      "2": "string"
+    },
+    "weapon": {
+      "1": 7,
+      "2": "string"
+    }
+  },
+  "data": {
+    "12": {
+      "7": "300513",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 12,
+      "2": ""
+    },
+    "11": {
+      "7": "300514",
+      "5": "Suit_man_1/hero_nanshibing_02_pants",
+      "6": "Suit_man_1/hero_nanshibing_02_shoes",
+      "3": "Suit_man_1/hero_nanshibing_03_b_head_skin",
+      "4": "Suit_man_1/hero_nanshibing_02_cloth",
+      "1": 11,
+      "2": "Suit_man_1/hero_nanshibing_02_hat"
+    },
+    "14": {
+      "7": "300523",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 14,
+      "2": ""
+    },
+    "13": {
+      "7": "300525",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 13,
+      "2": ""
+    },
+    "17": {
+      "7": "300526",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 17,
+      "2": ""
+    },
+    "18": {
+      "7": "300527",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 18,
+      "2": ""
+    },
+    "15": {
+      "7": "300522",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 15,
+      "2": ""
+    },
+    "16": {
+      "7": "300518",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 16,
+      "2": ""
+    },
+    "9": {
+      "7": "weapon/Hero_weapon_langyabang",
+      "5": "Suit_man_1/hero_nanshibing_02_pants",
+      "6": "Suit_man_1/hero_nanshibing_02_shoes",
+      "3": "Suit_man_1/hero_nanshibing_03_b_head_skin",
+      "4": "Suit_man_1/hero_nanshibing_02_cloth",
+      "1": 9,
+      "2": "Suit_man_1/hero_nanshibing_02_hat"
+    },
+    "6": {
+      "7": "300512",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 6,
+      "2": ""
+    },
+    "7": {
+      "7": "300515",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 7,
+      "2": ""
+    },
+    "8": {
+      "7": "300514",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 8,
+      "2": ""
+    },
+    "5": {
+      "7": "300516",
+      "5": "",
+      "6": "",
+      "3": "",
+      "4": "",
+      "1": 5,
+      "2": ""
+    },
+    "10": {
+      "7": "300518",
+      "5": "Suit_man_1/hero_nanshibing_02_pants",
+      "6": "Suit_man_1/hero_nanshibing_02_shoes",
+      "3": "Suit_man_1/hero_nanshibing_03_b_head_skin",
+      "4": "Suit_man_1/hero_nanshibing_02_cloth",
+      "1": 10,
+      "2": "Suit_man_1/hero_nanshibing_02_hat"
+    },
+    "3": {
+      "7": "weapon/Hero_weapon_langyabang",
+      "5": "Suit_woman_1/nvlieshou_low_skin_leg",
+      "6": "Suit_woman_1/nvlieshou_low_skin_feet",
+      "3": "Suit_woman_1/nvlieshou_low_skin_head",
+      "4": "Suit_woman_1/nvlieshou_low_skin_torso",
+      "1": 3,
+      "2": "Suit_woman_1/nvlieshou_low_skin_hair"
+    },
+    "4": {
+      "7": "",
+      "5": "Zombies_Replace02/Zombies_Replace02_leg",
+      "6": "Zombies_Replace02/Zombies_Replace02_feet",
+      "3": "Zombies_Replace02/Zombies_Replace02_head",
+      "4": "Zombies_Replace02/Zombies_Replace02_torso",
+      "1": 4,
+      "2": ""
+    },
+    "1": {
+      "7": "weapon/ak47",
+      "5": "Suit_man_1/hero_nanshibing_02_pants",
+      "6": "Suit_man_1/hero_nanshibing_02_shoes",
+      "3": "Suit_man_1/hero_nanshibing_03_b_head_skin",
+      "4": "Suit_man_1/hero_nanshibing_02_cloth",
+      "1": 1,
+      "2": "Suit_man_1/hero_nanshibing_02_hat"
+    },
+    "2": {
+      "7": "weapon/pistol",
+      "5": "Suit_woman_1/nvlieshou_low_skin_leg",
+      "6": "Suit_woman_1/nvlieshou_low_skin_feet",
+      "3": "Suit_woman_1/nvlieshou_low_skin_head",
+      "4": "Suit_woman_1/nvlieshou_low_skin_torso",
+      "1": 2,
+      "2": "Suit_woman_1/nvlieshou_low_skin_hair"
+    }
+  }
+}
