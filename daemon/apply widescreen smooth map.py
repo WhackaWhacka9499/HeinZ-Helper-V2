@@ -12,7 +12,7 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
         pass
 
 MASTER_LUA_CODE = r"""
--- Last Z master engine overhaul v8.2 (Zero-gap svLod=1 pipelined sweep, viewport-first 50x50 grid, R3 read-only preload)
+-- Last Z master engine overhaul v8.3 (Zero-gap svLod=1 sweep, global HQs/Boomers/Resources, silent 5m refresh, viewport-first 50x50 grid)
 
 local function IsNull(o)
     if o == nil then return true end
@@ -518,11 +518,15 @@ function _G.RefreshMasterOverlayUI()
     local ptCount = _G._MasterViewPointCount or 0
     local objCount = (mgr and mgr.allObj and SafeTableCount(mgr.allObj)) or 0
     local loadBadge
-    if fls.active and (fls.total or 0) > 0 then
+    if fls.active and (not fls.silentRefresh) and (fls.total or 0) > 0 then
         local pct = math.min(100, math.floor(((fls.done or 0) * 100) / fls.total))
         loadBadge = string.format("<color=#FBBF24>%d%% (%d/%d)</color>", pct, fls.done or 0, fls.total)
     elseif ptCount > 0 then
-        loadBadge = string.format("<color=#4ADE80>%.1fk pts / %d obj</color>", ptCount / 1000.0, objCount)
+        if mgr and mgr.isInit == true then
+            loadBadge = string.format("<color=#4ADE80>%.1fk pts / %d obj</color>", ptCount / 1000.0, objCount)
+        else
+            loadBadge = string.format("<color=#4ADE80>%.1fk pts (Cached)</color>", ptCount / 1000.0)
+        end
     else
         loadBadge = "<color=#94A3B8>Idle</color>"
     end
@@ -572,11 +576,10 @@ function _G.ShouldBuildPointNow(selfMgr, pointIndex, entry, camX, camY, isEvictC
         local mCat = GetMonsterCategory(entry)
         if mCat == "BOOMER" or mCat == "BOSS" then
             if toggles and toggles.showBoomers == false then return false end
-            if mCat == "BOSS" then return true end
-            return dist <= (isEvictCheck and 480 or 380)
+            return true
         else
             if toggles and toggles.showZombies == false then return false end
-            return dist <= (isEvictCheck and 360 or 280)
+            return dist <= (isEvictCheck and 600 or 450)
         end
     elseif pType == 7 then
         if toggles and toggles.showResources == false then return false end
@@ -590,9 +593,10 @@ function _G.ShouldBuildPointNow(selfMgr, pointIndex, entry, camX, camY, isEvictC
             entry._isSmallBuild = isSmall
         end
         if isSmall then
-            return dist <= (isEvictCheck and 300 or 220)
+            return dist <= (isEvictCheck and 520 or 400)
         else
-            return dist <= (isEvictCheck and 680 or 520)
+            -- Real Player HQs (~1.1k across entire state): globally visible across 100% of the map!
+            return true
         end
     end
 
@@ -2001,8 +2005,9 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
     mgr._bgSweepToken = sweepToken
     local sIdx = 1
     local dirtyTicks = 0
-    local fastStepDelay = forceRestart and 0.075 or 0.12
-    local batchSize = forceRestart and 2 or 1
+    local fastStepDelay = forceRestart and 0.075 or 0.10
+    local batchSize = forceRestart and 2 or 2
+    local isSilentRefresh = (not forceRestart) and ((_G._MasterViewPointCount or 0) >= 20000)
     local lastSortX, lastSortY = startX, startY
 
     local function sendSectorSvLod1(gx, gy, targetSid)
@@ -2061,6 +2066,7 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
 
     _G._FullMapLoadState = {
         active = true,
+        silentRefresh = isSilentRefresh,
         done = 0,
         total = #allSectors,
         serverId = serverId,
@@ -2111,6 +2117,7 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
             end
 
             _G._FullMapLoadState.active = true
+            _G._FullMapLoadState.silentRefresh = isSilentRefresh
             _G._FullMapLoadState.done = sIdx - 1
             _G._FullMapLoadState.total = #allSectors
             _G._FullMapLoadState.serverId = serverId
@@ -2125,20 +2132,22 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
             end
             tmManager:DelayInvoke(sStep, fastStepDelay)
         else
-            -- Completed full 1000x1000 zero-gap map sweep. Flush disk cache, rest 60s, then gently refresh
+            -- Completed full 1000x1000 zero-gap map sweep. Flush disk cache, rest 5 min, then silently refresh
             _G.SaveWorldCacheToDisk(serverId, true)
             _G._FullMapLoadState.active = false
+            _G._FullMapLoadState.silentRefresh = true
             _G._FullMapLoadState.done = #allSectors
             _G._FullMapLoadState.lastCompletedAt = os.time()
             _G._ForceStreamRescan = true
             pcall(_G.RefreshMasterOverlayUI)
             sIdx = 1
+            isSilentRefresh = true
             if realCamX and realCamY then
                 reprioritizeRemaining(realCamX, realCamY)
             end
-            fastStepDelay = 0.14
+            fastStepDelay = 0.16
             batchSize = 1
-            tmManager:DelayInvoke(sStep, 60.0)
+            tmManager:DelayInvoke(sStep, 300.0)
         end
     end
     sStep()
@@ -2387,7 +2396,7 @@ if TimerManager then
     _G._masterStreamToken = streamToken
     local lastStreamCamX, lastStreamCamY = -9999, -9999
     local streamHasMoreWork = true
-    local STREAM_MAX_RADIUS = 530
+    local STREAM_MAX_RADIUS = 1000
     local _pendingBucketKeys = {}
     local _pendingBucketIdx = 1
     local _pendingBucketSeen = {}
