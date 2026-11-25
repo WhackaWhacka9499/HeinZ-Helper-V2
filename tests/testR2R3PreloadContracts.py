@@ -911,6 +911,48 @@ class TestR2HookAndBridgeContracts(unittest.TestCase):
             self.assertIsNone(lua.eval("_G._PersistentWorldPointCacheByServer[702][100502]"))
             self.assertIsNone(lua.eval("_G._PersistentWorldPointCacheByServer[702]['100502']"))
 
+    def test_lua_view_and_lod_request_range_return_lod_indexed_tables(self) -> None:
+        """lupa: GetViewLevelRange and GetLodRequestRange must return LOD-indexed tables so UpdateViewRequest never throws nil range."""
+        with tempfile.TemporaryDirectory() as tmp:
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702)
+            lua.execute(
+                r"""
+                local ViewLevelRangeLandscape = { [1] = { x = 48, y = 40 }, [2] = { x = 48, y = 40 } }
+                local LodRequestRangeLandscape = { [1] = { x = 14, y = 14 }, [2] = { x = 22, y = 22 } }
+                DataCenter.WorldPointManager.GetViewLevelRange = function(self)
+                    return ViewLevelRangeLandscape
+                end
+                DataCenter.WorldPointManager.GetLodRequestRange = function(self)
+                    return LodRequestRangeLandscape
+                end
+                _G.ApplyLastZWorldMaster()
+                """
+            )
+            # GetViewLevelRange must return a 1-indexed array of {x=100000, y=100000} (compatible with #ranges and ranges[lodLv])
+            self.assertGreaterEqual(lua.eval("#(DataCenter.WorldPointManager:GetViewLevelRange())"), 12)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetViewLevelRange()[1].x"), 100000)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetViewLevelRange()[6].y"), 100000)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetViewLevelRange()[25].x"), 100000)
+
+            # GetLodRequestRange must preserve sane game pan thresholds and NEVER return nil at [svLod + 1]
+            self.assertGreaterEqual(lua.eval("#(DataCenter.WorldPointManager:GetLodRequestRange())"), 12)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[1].x"), 14)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[2].y"), 22)
+            self.assertIsNotNone(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[4].x"))
+
+            # Even if a previously running session had clobbered LodRequestRange to 100000, fallback must return sane [svLod+1]
+            lua.execute(
+                r"""
+                local clobbered = { [1] = { x = 100000, y = 100000 } }
+                DataCenter.WorldPointManager._origGetLodRequestRange = function() return clobbered end
+                _G.ApplyLastZWorldMaster()
+                """
+            )
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[1].x"), 16)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[1].y"), 16)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetLodRequestRange()[4].x"), 16)
+
+
 
 class TestR3MegamindPreloadContracts(unittest.TestCase):
     """R3 Read-Only Pre-Loading Specification & Live Manifest Verification Against megamind/."""

@@ -1356,7 +1356,7 @@ function _G.ApplyLastZWorldMaster()
             if uName == "OtherPointLod" or uName == "SelfPointLod" or uName == "OtherPlayerLod" or uName == "NightSacrificeLod" or uName == "DesertPointLod" then
                 debug.setupvalue(fn, uIdx, 20)
                 patched = patched + 1
-            elseif (uName == "ViewLevelRange" or uName == "ViewLevelRangeLandscape" or uName == "ViewLevelRange_Old" or uName == "LodRequestRange" or uName == "LodRequestRangeLandscape") and type(uVal) == "table" then
+            elseif (uName == "ViewLevelRange" or uName == "ViewLevelRangeLandscape" or uName == "ViewLevelRange_Old") and type(uVal) == "table" then
                 for k, v in pairs(uVal) do
                     if type(v) == "table" then
                         v.x = 100000
@@ -1430,20 +1430,62 @@ function _G.ApplyLastZWorldMaster()
     end
     _G._MasterVtblPatchedCount = vtblPatchedCount
 
-    local _HUGE_VIEW_RANGE = { x = 100000, y = 100000 }
+    local _HUGE_RANGE_CELL = { x = 100000, y = 100000 }
+    local _HUGE_VIEW_RANGE_TABLE = {}
+    for lodIdx = 1, 20 do
+        _HUGE_VIEW_RANGE_TABLE[lodIdx] = _HUGE_RANGE_CELL
+    end
+    setmetatable(_HUGE_VIEW_RANGE_TABLE, {
+        __index = function(_, key)
+            if type(key) == "number" then
+                return _HUGE_RANGE_CELL
+            end
+            return nil
+        end
+    })
+
+    local _DEFAULT_REQ_RANGE_CELL = { x = 16, y = 16 }
+    local _SAFE_LOD_REQUEST_RANGE = {}
+    for lodIdx = 1, 20 do
+        _SAFE_LOD_REQUEST_RANGE[lodIdx] = _DEFAULT_REQ_RANGE_CELL
+    end
+    setmetatable(_SAFE_LOD_REQUEST_RANGE, {
+        __index = function(_, key)
+            if type(key) == "number" then
+                return _DEFAULT_REQ_RANGE_CELL
+            end
+            return nil
+        end
+    })
+
     if not mgr._origGetViewLevelRange and mgr.GetViewLevelRange then mgr._origGetViewLevelRange = mgr.GetViewLevelRange end
     if not mgr._origGetLodRequestRange and mgr.GetLodRequestRange then mgr._origGetLodRequestRange = mgr.GetLodRequestRange end
     mgr.GetViewLevelRange = function(self, ...)
         if _G._MasterToggles and _G._MasterToggles.masterEnabled == false and self._origGetViewLevelRange then
-            return self:_origGetViewLevelRange(...)
+            local okOrig, orig = pcall(self._origGetViewLevelRange, self, ...)
+            if okOrig and type(orig) == "table" and type(orig[1]) == "table" then
+                return orig
+            end
         end
-        return _HUGE_VIEW_RANGE
+        return _HUGE_VIEW_RANGE_TABLE
     end
     mgr.GetLodRequestRange = function(self, ...)
-        if _G._MasterToggles and _G._MasterToggles.masterEnabled == false and self._origGetLodRequestRange then
-            return self:_origGetLodRequestRange(...)
+        if self._origGetLodRequestRange then
+            local okOrig, orig = pcall(self._origGetLodRequestRange, self, ...)
+            if okOrig and type(orig) == "table" and type(orig[1]) == "table" then
+                local rx = tonumber(orig[1].x)
+                local ry = tonumber(orig[1].y)
+                if rx and ry and rx > 0 and rx <= 500 and ry > 0 and ry <= 500 then
+                    for lodIdx = 1, 12 do
+                        if type(orig[lodIdx]) ~= "table" then
+                            orig[lodIdx] = orig[1]
+                        end
+                    end
+                    return orig
+                end
+            end
         end
-        return _HUGE_VIEW_RANGE
+        return _SAFE_LOD_REQUEST_RANGE
     end
 
     mgr.GetViewBounds = function(self, padX, padY)
@@ -1452,14 +1494,20 @@ function _G.ApplyLastZWorldMaster()
     mgr.IsOutOfRange = function(self, ...)
         return false
     end
+    local _oorFrame = -1
+    local _oorCamX, _oorCamY = 500, 500
     mgr.IsOutOfRange2 = function(self, x, y, minX, maxX, minY, maxY)
         if x and y then
             local tw = TileCountX or 1000
             local pIdx = y * tw + x + 1
             local entry = self.allViewPoints and self.allViewPoints[pIdx]
             if entry then
-                local camX, camY = GetActualCameraTilePos(self, SceneManager and SceneManager.World)
-                return not ShouldBuildPointNow(self, pIdx, entry, camX, camY, false)
+                local f = CS and CS.UnityEngine and CS.UnityEngine.Time and CS.UnityEngine.Time.frameCount or -2
+                if f ~= _oorFrame then
+                    _oorFrame = f
+                    _oorCamX, _oorCamY = GetActualCameraTilePos(self, SceneManager and SceneManager.World)
+                end
+                return not ShouldBuildPointNow(self, pIdx, entry, _oorCamX, _oorCamY, false)
             end
         end
         return false
