@@ -9,7 +9,10 @@ and a 4-tier zero-setup provider cascade (plus optional DeepL / Gemini keys).
 from __future__ import annotations
 
 import atexit
+import base64
 import collections
+import ctypes
+from ctypes import wintypes
 from email.parser import BytesParser
 from email.policy import default as email_default_policy
 import hashlib
@@ -41,6 +44,8 @@ PROVIDER_TIMEOUT = 4.0
 MAX_SQLITE_ROWS = 25000
 MAX_MEMORY_ENTRIES = 2000
 RECENT_HISTORY_LIMIT = 15
+TRANSLATOR_HOOK_VERSION = 2
+CRYPTPROTECT_UI_FORBIDDEN = 0x1
 LASTZ_UPSTREAM_URL = "https://translate-lm.omnilojoapps.com/client.php"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) HeinZTranslator/1.0"
 
@@ -204,6 +209,21 @@ def get_config_path() -> Path:
     return _get_json_cache_dir() / "translator config.json"
 
 
+def get_dpapi_keys_path(config_path: Path | None = None) -> Path:
+    """Return DPAPI encrypted key store path (gitignored local cache or sibling .dpapi.json for custom paths)."""
+    if config_path is None:
+        return _get_json_cache_dir() / "translator dpapi keys.json"
+    p = Path(config_path)
+    default_cfg = get_config_path()
+    try:
+        same = p.resolve() == default_cfg.resolve()
+    except OSError:
+        same = os.path.abspath(os.fspath(p)) == os.path.abspath(os.fspath(default_cfg))
+    if same:
+        return _get_json_cache_dir() / "translator dpapi keys.json"
+    return p.parent / f"{p.stem}.dpapi.json"
+
+
 def get_cache_db_path() -> Path:
     return _get_json_cache_dir() / "translation cache.sqlite"
 
@@ -216,13 +236,218 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
         with open(tmp_path, "w", encoding="utf-8") as fh:
             fh.write(raw)
             fh.flush()
-        os.replace(tmp_path, path)
+            try:
+                os.fsync(fh.fileno())
+            except OSError:
+                pass
+        for attempt in range(10):
+            try:
+                os.replace(tmp_path, path)
+                break
+            except PermissionError:
+                if attempt >= 9:
+                    raise
+                time.sleep(0.015)
+            except OSError as exc:
+                if getattr(exc, "winerror", None) not in (5, 32) or attempt >= 9:
+                    raise
+                time.sleep(0.015)
     finally:
         if tmp_path.exists():
             try:
                 tmp_path.unlink()
             except OSError:
                 pass
+
+
+_DPAPI_IO_LOCK = threading.RLock()
+
+
+class _DATA_BLOB(ctypes.Structure):
+    _fields_ = [
+        ("cbData", wintypes.DWORD),
+        ("pbData", ctypes.POINTER(ctypes.c_ubyte)),
+    ]
+
+
+def _get_dpapi_libs() -> tuple[Any, Any]:
+    if os.name != "nt":
+        raise RuntimeError("Windows DPAPI is only available on Windows")
+    windll = getattr(ctypes, "windll", None)
+    if windll is None:
+        raise RuntimeError("ctypes.windll is unavailable on this platform")
+    crypt32 = windll.crypt32
+    kernel32 = windll.kernel32
+    try:
+        crypt32.CryptProtectData.argtypes = [
+            ctypes.POINTER(_DATA_BLOB),
+            wintypes.LPCWSTR,
+            ctypes.POINTER(_DATA_BLOB),
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(_DATA_BLOB),
+        ]
+        crypt32.CryptProtectData.restype = wintypes.BOOL
+        crypt32.CryptUnprotectData.argtypes = [
+            ctypes.POINTER(_DATA_BLOB),
+            ctypes.POINTER(wintypes.LPWSTR),
+            ctypes.POINTER(_DATA_BLOB),
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(_DATA_BLOB),
+        ]
+        crypt32.CryptUnprotectData.restype = wintypes.BOOL
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
+    except Exception:
+        pass
+    return crypt32, kernel32
+
+
+def dpapi_protect_text(plaintext: str) -> str:
+    """Encrypt plaintext with Windows DPAPI (current-user scope, no UI) and return base64."""
+    if plaintext is None:
+        raise ValueError("plaintext must be a string")
+    text = str(plaintext)
+    if text == "":
+        return ""
+    crypt32, kernel32 = _get_dpapi_libs()
+    raw = text.encode("utf-8")
+    buf = (ctypes.c_ubyte * len(raw)).from_buffer_copy(raw)
+    in_blob = _DATA_BLOB(len(raw), ctypes.cast(buf, ctypes.POINTER(ctypes.c_ubyte)))
+    out_blob = _DATA_BLOB()
+    ok = crypt32.CryptProtectData(
+        ctypes.byref(in_blob),
+        "HeinZ Translator Keys",
+        None,
+        None,
+        None,
+        CRYPTPROTECT_UI_FORBIDDEN,
+        ctypes.byref(out_blob),
+    )
+    try:
+        if not ok:
+            raise RuntimeError(f"CryptProtectData failed (error={ctypes.GetLastError()})")
+        if not out_blob.pbData or int(out_blob.cbData) <= 0:
+            raise RuntimeError("CryptProtectData returned empty buffer")
+        protected = ctypes.string_at(out_blob.pbData, int(out_blob.cbData))
+        return base64.b64encode(protected).decode("ascii")
+    finally:
+        if getattr(out_blob, "pbData", None):
+            try:
+                kernel32.LocalFree(ctypes.cast(out_blob.pbData, ctypes.c_void_p))
+            except Exception:
+                pass
+
+
+def dpapi_unprotect_text(b64_blob: str) -> str:
+    """Decrypt a base64-encoded Windows DPAPI blob for the current Windows user."""
+    text = str(b64_blob or "").strip()
+    if not text:
+        return ""
+    crypt32, kernel32 = _get_dpapi_libs()
+    try:
+        raw = base64.b64decode(text.encode("ascii"), validate=True)
+    except Exception as exc:
+        raise ValueError(f"Invalid DPAPI base64 blob: {exc}") from exc
+    if not raw:
+        raise ValueError("Empty DPAPI blob")
+    buf = (ctypes.c_ubyte * len(raw)).from_buffer_copy(raw)
+    in_blob = _DATA_BLOB(len(raw), ctypes.cast(buf, ctypes.POINTER(ctypes.c_ubyte)))
+    out_blob = _DATA_BLOB()
+    ok = crypt32.CryptUnprotectData(
+        ctypes.byref(in_blob),
+        None,
+        None,
+        None,
+        None,
+        CRYPTPROTECT_UI_FORBIDDEN,
+        ctypes.byref(out_blob),
+    )
+    try:
+        if not ok:
+            raise RuntimeError(f"CryptUnprotectData failed (error={ctypes.GetLastError()})")
+        if not out_blob.pbData or int(out_blob.cbData) < 0:
+            raise RuntimeError("CryptUnprotectData returned invalid buffer")
+        if int(out_blob.cbData) == 0:
+            return ""
+        plain_bytes = ctypes.string_at(out_blob.pbData, int(out_blob.cbData))
+        return plain_bytes.decode("utf-8")
+    finally:
+        if getattr(out_blob, "pbData", None):
+            try:
+                kernel32.LocalFree(ctypes.cast(out_blob.pbData, ctypes.c_void_p))
+            except Exception:
+                pass
+
+
+def _backup_corrupt_dpapi_file(path: Path) -> None:
+    try:
+        if path.is_file():
+            backup = path.with_name(f"{path.stem}.corrupt.{int(time.time())}.json")
+            os.replace(path, backup)
+    except OSError:
+        pass
+
+
+def _load_dpapi_keys(dpapi_path: Path) -> dict[str, str]:
+    out = {"deepl_api_key": "", "gemini_api_key": ""}
+    with _DPAPI_IO_LOCK:
+        if not dpapi_path.is_file():
+            return out
+        try:
+            with open(dpapi_path, "r", encoding="utf-8") as fh:
+                raw = json.load(fh)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            _backup_corrupt_dpapi_file(dpapi_path)
+            return out
+        except OSError:
+            return out
+        if not isinstance(raw, dict):
+            return out
+        keys_node = raw.get("keys")
+        if not isinstance(keys_node, dict):
+            return out
+        for field in ("deepl_api_key", "gemini_api_key"):
+            blob = keys_node.get(field)
+            if isinstance(blob, str) and blob.strip():
+                try:
+                    out[field] = dpapi_unprotect_text(blob).strip()
+                except Exception:
+                    out[field] = ""
+        return out
+
+
+def _save_dpapi_keys(dpapi_path: Path, keys: dict[str, str]) -> None:
+    enc_keys: dict[str, str] = {}
+    for field in ("deepl_api_key", "gemini_api_key"):
+        val = str(keys.get(field) or "").strip()
+        if val:
+            enc_keys[field] = dpapi_protect_text(val)
+    with _DPAPI_IO_LOCK:
+        if not enc_keys and not dpapi_path.exists():
+            return
+        payload = {
+            "schema_version": 1,
+            "updated_at": int(time.time()),
+            "scope": "current_user_dpapi",
+            "keys": enc_keys,
+        }
+        _atomic_write_json(dpapi_path, payload)
+
+
+def sanitize_translator_config(cfg: dict[str, Any] | None) -> dict[str, Any]:
+    """Return non-secret translator preferences and boolean key presence flags only."""
+    norm = _normalize_config(cfg)
+    return {
+        "enabled": bool(norm["enabled"]),
+        "auto_translate_chat": bool(norm["auto_translate_chat"]),
+        "target_lang": str(norm["target_lang"]),
+        "has_deepl_key": bool(str(norm.get("deepl_api_key") or "").strip()),
+        "has_gemini_key": bool(str(norm.get("gemini_api_key") or "").strip()),
+    }
 
 
 def normalize_lang_code(code: str | None, default: str = "en") -> str:
@@ -599,12 +824,41 @@ class TranslatorStats:
             }
 
 
+_CONFIG_IO_LOCK = threading.RLock()
 _CONFIG_CACHE_LOCK = threading.Lock()
-_CONFIG_CACHE_STATE: dict[str, Any] = {"path": None, "mtime_ns": -1, "cfg": None}
+_CONFIG_CACHE_STATE: dict[str, Any] = {
+    "path": None,
+    "mtime_ns": -1,
+    "size": -1,
+    "dpapi_path": None,
+    "dpapi_mtime_ns": -1,
+    "dpapi_size": -1,
+    "cfg": None,
+}
 _GLOBAL_CACHE_LOCK = threading.Lock()
 _GLOBAL_CACHE: TranslationCache | None = None
 _GLOBAL_CACHE_PATH: Path | None = None
 _GLOBAL_STATS = TranslatorStats()
+
+
+def _stat_config_file(path: Path) -> tuple[str, int, int]:
+    try:
+        resolved = str(path.resolve())
+    except OSError:
+        resolved = os.path.abspath(os.fspath(path))
+    try:
+        st = path.stat()
+        return resolved, int(st.st_mtime_ns), int(st.st_size)
+    except OSError:
+        return resolved, -1, -1
+
+
+def _public_config_payload(normalized: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "enabled": bool(normalized["enabled"]),
+        "auto_translate_chat": bool(normalized["auto_translate_chat"]),
+        "target_lang": str(normalized["target_lang"]),
+    }
 
 
 def _normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
@@ -625,49 +879,118 @@ def _normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def load_translator_config(config_path: Path | None = None) -> dict[str, Any]:
-    """Load translator preferences from data/json cache/translator config.json with mtime caching."""
-    path = Path(config_path) if config_path is not None else get_config_path()
-    try:
-        mtime_ns = path.stat().st_mtime_ns
-    except OSError:
-        return dict(DEFAULT_TRANSLATOR_CONFIG)
+    """Load translator preferences from config JSON and DPAPI key store with dual-stat caching."""
+    with _CONFIG_IO_LOCK:
+        path = Path(config_path) if config_path is not None else get_config_path()
+        dpapi_path = get_dpapi_keys_path(path)
+        resolved_path, mtime_ns, st_size = _stat_config_file(path)
+        resolved_dpapi, dpapi_mtime_ns, dpapi_size = _stat_config_file(dpapi_path)
 
-    with _CONFIG_CACHE_LOCK:
-        if (
-            _CONFIG_CACHE_STATE["path"] == str(path)
-            and _CONFIG_CACHE_STATE["mtime_ns"] == mtime_ns
-            and isinstance(_CONFIG_CACHE_STATE["cfg"], dict)
-        ):
-            return dict(_CONFIG_CACHE_STATE["cfg"])
+        if mtime_ns == -1 and dpapi_mtime_ns == -1:
+            with _CONFIG_CACHE_LOCK:
+                if _CONFIG_CACHE_STATE["path"] == resolved_path:
+                    _CONFIG_CACHE_STATE.update(
+                        {
+                            "path": None,
+                            "mtime_ns": -1,
+                            "size": -1,
+                            "dpapi_path": None,
+                            "dpapi_mtime_ns": -1,
+                            "dpapi_size": -1,
+                            "cfg": None,
+                        }
+                    )
+            return dict(DEFAULT_TRANSLATOR_CONFIG)
 
-    try:
-        with open(path, "r", encoding="utf-8") as fh:
-            raw = json.load(fh)
-    except Exception:
-        raw = {}
+        with _CONFIG_CACHE_LOCK:
+            if (
+                _CONFIG_CACHE_STATE["path"] == resolved_path
+                and _CONFIG_CACHE_STATE["mtime_ns"] == mtime_ns
+                and _CONFIG_CACHE_STATE["size"] == st_size
+                and _CONFIG_CACHE_STATE["dpapi_path"] == resolved_dpapi
+                and _CONFIG_CACHE_STATE["dpapi_mtime_ns"] == dpapi_mtime_ns
+                and _CONFIG_CACHE_STATE["dpapi_size"] == dpapi_size
+                and isinstance(_CONFIG_CACHE_STATE["cfg"], dict)
+            ):
+                return dict(_CONFIG_CACHE_STATE["cfg"])
 
-    cfg = _normalize_config(raw if isinstance(raw, dict) else {})
-    with _CONFIG_CACHE_LOCK:
-        _CONFIG_CACHE_STATE["path"] = str(path)
-        _CONFIG_CACHE_STATE["mtime_ns"] = mtime_ns
-        _CONFIG_CACHE_STATE["cfg"] = dict(cfg)
-    return cfg
+        raw: dict[str, Any] = {}
+        if mtime_ns != -1:
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    loaded = json.load(fh)
+                if isinstance(loaded, dict):
+                    raw = loaded
+            except Exception:
+                raw = {}
+
+        dpapi_keys = _load_dpapi_keys(dpapi_path)
+        has_legacy_key_fields = "deepl_api_key" in raw or "gemini_api_key" in raw
+        legacy_deepl = str(raw.get("deepl_api_key") or "").strip() if has_legacy_key_fields else ""
+        legacy_gemini = str(raw.get("gemini_api_key") or "").strip() if has_legacy_key_fields else ""
+
+        merged_keys = {
+            "deepl_api_key": legacy_deepl or dpapi_keys.get("deepl_api_key", ""),
+            "gemini_api_key": legacy_gemini or dpapi_keys.get("gemini_api_key", ""),
+        }
+
+        cfg = _normalize_config(raw)
+        cfg["deepl_api_key"] = merged_keys["deepl_api_key"]
+        cfg["gemini_api_key"] = merged_keys["gemini_api_key"]
+
+        dpapi_saved = True
+        if legacy_deepl or legacy_gemini:
+            dpapi_saved = False
+            try:
+                _save_dpapi_keys(dpapi_path, merged_keys)
+                dpapi_saved = True
+            except Exception:
+                dpapi_saved = False
+        if has_legacy_key_fields and mtime_ns != -1 and dpapi_saved:
+            try:
+                _atomic_write_json(path, _public_config_payload(cfg))
+            except Exception:
+                pass
+
+        resolved_path, mtime_ns, st_size = _stat_config_file(path)
+        resolved_dpapi, dpapi_mtime_ns, dpapi_size = _stat_config_file(dpapi_path)
+
+        with _CONFIG_CACHE_LOCK:
+            _CONFIG_CACHE_STATE["path"] = resolved_path
+            _CONFIG_CACHE_STATE["mtime_ns"] = mtime_ns
+            _CONFIG_CACHE_STATE["size"] = st_size
+            _CONFIG_CACHE_STATE["dpapi_path"] = resolved_dpapi
+            _CONFIG_CACHE_STATE["dpapi_mtime_ns"] = dpapi_mtime_ns
+            _CONFIG_CACHE_STATE["dpapi_size"] = dpapi_size
+            _CONFIG_CACHE_STATE["cfg"] = dict(cfg)
+        return dict(cfg)
 
 
 def save_translator_config(cfg: dict[str, Any], config_path: Path | None = None) -> dict[str, Any]:
-    """Persist translator preferences atomically."""
-    path = Path(config_path) if config_path is not None else get_config_path()
-    normalized = _normalize_config(cfg)
-    _atomic_write_json(path, normalized)
-    try:
-        mtime_ns = path.stat().st_mtime_ns
-    except OSError:
-        mtime_ns = -1
-    with _CONFIG_CACHE_LOCK:
-        _CONFIG_CACHE_STATE["path"] = str(path)
-        _CONFIG_CACHE_STATE["mtime_ns"] = mtime_ns
-        _CONFIG_CACHE_STATE["cfg"] = dict(normalized)
-    return normalized
+    """Persist public translator preferences atomically and store API keys via Windows DPAPI."""
+    with _CONFIG_IO_LOCK:
+        path = Path(config_path) if config_path is not None else get_config_path()
+        dpapi_path = get_dpapi_keys_path(path)
+        normalized = _normalize_config(cfg)
+        _save_dpapi_keys(
+            dpapi_path,
+            {
+                "deepl_api_key": normalized["deepl_api_key"],
+                "gemini_api_key": normalized["gemini_api_key"],
+            },
+        )
+        _atomic_write_json(path, _public_config_payload(normalized))
+        resolved_path, mtime_ns, st_size = _stat_config_file(path)
+        resolved_dpapi, dpapi_mtime_ns, dpapi_size = _stat_config_file(dpapi_path)
+        with _CONFIG_CACHE_LOCK:
+            _CONFIG_CACHE_STATE["path"] = resolved_path
+            _CONFIG_CACHE_STATE["mtime_ns"] = mtime_ns
+            _CONFIG_CACHE_STATE["size"] = st_size
+            _CONFIG_CACHE_STATE["dpapi_path"] = resolved_dpapi
+            _CONFIG_CACHE_STATE["dpapi_mtime_ns"] = dpapi_mtime_ns
+            _CONFIG_CACHE_STATE["dpapi_size"] = dpapi_size
+            _CONFIG_CACHE_STATE["cfg"] = dict(normalized)
+        return dict(normalized)
 
 
 def _get_global_cache() -> TranslationCache:
@@ -1113,11 +1436,14 @@ def build_translator_lua_hook(
     endpoint = f"http://127.0.0.1:{safe_port}/client.php"
 
     return f"""
+local _hzHookVer = {TRANSLATOR_HOOK_VERSION}
 local _hzPort = {safe_port}
 local _hzEnabled = {safe_enabled}
 local _hzAuto = {safe_auto}
 local _hzTarget = "{escaped_target}"
 local _hzEndpoint = "{endpoint}"
+
+_G.__HEINZ_TRANSLATOR_HOOK_VER__ = _hzHookVer
 
 if _G.__HEINZ_ORIG_TRANSLATE_URLS__ == nil and type(_G.TranslateUrlList) == "table" then
     local _origCopy = {{}}
@@ -1127,11 +1453,43 @@ if _G.__HEINZ_ORIG_TRANSLATE_URLS__ == nil and type(_G.TranslateUrlList) == "tab
     _G.__HEINZ_ORIG_TRANSLATE_URLS__ = _origCopy
 end
 
+if type(_G.__HEINZ_ORIG_TR_FUNCS__) ~= "table" then
+    _G.__HEINZ_ORIG_TR_FUNCS__ = {{}}
+end
+local _hzOrigs = _G.__HEINZ_ORIG_TR_FUNCS__
+
+local function _hzRestoreSlot(slotName)
+    local rec = _hzOrigs[slotName]
+    if type(rec) == "table" and type(rec.tbl) == "table" and rec.orig ~= nil then
+        if rec.tbl[rec.key] == rec.wrapper then
+            rec.tbl[rec.key] = rec.orig
+        end
+    end
+    _hzOrigs[slotName] = nil
+end
+
+local function _hzRestoreAutoSlots()
+    _hzRestoreSlot("dataConfigCheckSwitch")
+    _hzRestoreSlot("globalDataConfigCheckSwitch")
+    _hzRestoreSlot("chatUtilsCheckSwitch")
+    _hzRestoreSlot("monthCardActive")
+    _hzRestoreSlot("monthCardAvail")
+    _hzRestoreSlot("chatInterfaceAotuTra")
+    _hzRestoreSlot("cmOnHandleMessage")
+    _hzRestoreSlot("rmAddChat")
+end
+
+local function _hzRestoreAllSlots()
+    _hzRestoreAutoSlots()
+    _hzRestoreSlot("tmGetLangString")
+end
+
 _G.__HEINZ_TRANSLATOR_CFG__ = {{
     enabled = _hzEnabled,
     target = _hzTarget,
     auto = _hzAuto,
     port = _hzPort,
+    ver = _hzHookVer,
 }}
 
 if not _hzEnabled then
@@ -1142,10 +1500,15 @@ if not _hzEnabled then
         end
         _G.TranslateUrlList = _restore
     end
+    _hzRestoreAllSlots()
     return "TRANSLATOR_HOOK_DISABLED"
 end
 
 _G.TranslateUrlList = {{ _hzEndpoint, _hzEndpoint }}
+
+if not _hzAuto then
+    _hzRestoreAutoSlots()
+end
 
 if type(_G.__HEINZ_AUTO_TR_SEEN__) ~= "table" then
     _G.__HEINZ_AUTO_TR_SEEN__ = {{}}
@@ -1173,6 +1536,60 @@ local function _hzAllowRateLimit()
     return true
 end
 
+local function _hzResolveChatManager()
+    local raw = _G.ChatManager2
+    if type(raw) ~= "table" then
+        return nil
+    end
+    if type(raw.Instance) == "table" then
+        return raw.Instance
+    end
+    if type(raw.GetInstance) == "function" then
+        local okI, inst = pcall(raw.GetInstance, raw)
+        if okI and type(inst) == "table" then
+            return inst
+        end
+        local okI2, inst2 = pcall(raw.GetInstance)
+        if okI2 and type(inst2) == "table" then
+            return inst2
+        end
+    end
+    if raw.Translate ~= nil or raw.translateManager ~= nil or raw.Room ~= nil or raw.RoomManager ~= nil or type(raw.OnHandleMessage) == "function" then
+        return raw
+    end
+    return nil
+end
+
+local function _hzResolveTranslateManager(cm)
+    if type(cm) == "table" then
+        local tm = cm.Translate or cm.translateManager
+        if type(tm) == "table" then
+            return tm
+        end
+    end
+    if type(_G.ChatInterface) == "table" and type(_G.ChatInterface.getTranslateMgr) == "function" then
+        local ok1, tm1 = pcall(_G.ChatInterface.getTranslateMgr)
+        if ok1 and type(tm1) == "table" then
+            return tm1
+        end
+        local ok2, tm2 = pcall(_G.ChatInterface.getTranslateMgr, _G.ChatInterface)
+        if ok2 and type(tm2) == "table" then
+            return tm2
+        end
+    end
+    if type(_G.ChatUtils) == "table" and type(_G.ChatUtils.GetTranslateManager) == "function" then
+        local ok3, tm3 = pcall(_G.ChatUtils.GetTranslateManager)
+        if ok3 and type(tm3) == "table" then
+            return tm3
+        end
+        local ok4, tm4 = pcall(_G.ChatUtils.GetTranslateManager, _G.ChatUtils)
+        if ok4 and type(tm4) == "table" then
+            return tm4
+        end
+    end
+    return nil
+end
+
 local function _hzTryAutoTranslateMsg(tm, msg)
     if type(msg) ~= "table" or not tm or type(tm.DoTranslate) ~= "function" then
         return false
@@ -1194,6 +1611,10 @@ local function _hzTryAutoTranslateMsg(tm, msg)
         return false
     end
     local trMsg = msg.translateMsg
+    if (trMsg == nil or trMsg == "") and type(msg.getTranslationMsg) == "function" then
+        local okTr, resTr = pcall(msg.getTranslationMsg, msg)
+        if okTr then trMsg = resTr end
+    end
     if type(trMsg) == "string" and trMsg ~= "" then
         return false
     end
@@ -1229,7 +1650,7 @@ end
 
 local function _hzScanCandidate(tm, obj)
     if type(obj) ~= "table" then return end
-    if obj.msg ~= nil and obj.type ~= nil then
+    if obj.msg ~= nil and (obj.type ~= nil or type(obj.getChatMessageType) == "function") then
         _hzTryAutoTranslateMsg(tm, obj)
         return
     end
@@ -1246,55 +1667,310 @@ local function _hzScanCandidate(tm, obj)
     end
 end
 
+local function _hzScanRoomContainer(tm, rm)
+    if type(rm) ~= "table" then return end
+    local rooms = rm.rooms or rm.roomDic or rm.m_rooms or rm.roomMap
+    if type(rooms) == "table" then
+        for _, room in pairs(rooms) do
+            _hzScanCandidate(tm, room)
+        end
+    else
+        _hzScanCandidate(tm, rm)
+    end
+end
+
 local function _hzPostHandleMessage(cmSelf, a1, a2, a3)
     local cfg = _G.__HEINZ_TRANSLATOR_CFG__
     if not cfg or not cfg.enabled or not cfg.auto then return end
-    local tm = cmSelf and (cmSelf.Translate or cmSelf.translateManager)
+    local tm = _hzResolveTranslateManager(cmSelf)
     if not tm or type(tm.DoTranslate) ~= "function" then return end
     _hzScanCandidate(tm, a1)
     _hzScanCandidate(tm, a2)
     _hzScanCandidate(tm, a3)
-    local rm = cmSelf.Room or cmSelf.RoomManager
-    if type(rm) == "table" then
-        local rooms = rm.rooms or rm.m_rooms or rm.roomMap
-        if type(rooms) == "table" then
-            for _, room in pairs(rooms) do
-                _hzScanCandidate(tm, room)
-            end
-        else
-            _hzScanCandidate(tm, rm)
-        end
+    if type(cmSelf) == "table" then
+        _hzScanRoomContainer(tm, cmSelf.Room or cmSelf.RoomManager)
     end
 end
 
-local cm = _G.ChatManager2 and _G.ChatManager2.Instance
-local tm = cm and (cm.Translate or cm.translateManager)
+local function _hzPostAddChat(rmSelf, a1, a2, a3)
+    local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+    if not cfg or not cfg.enabled or not cfg.auto then return end
+    local cmCur = _hzResolveChatManager()
+    local tm = _hzResolveTranslateManager(cmCur)
+    if not tm or type(tm.DoTranslate) ~= "function" then return end
+    _hzScanCandidate(tm, a1)
+    _hzScanCandidate(tm, a2)
+    _hzScanCandidate(tm, a3)
+    _hzScanRoomContainer(tm, rmSelf)
+end
 
-if tm and type(tm.GetLangString) == "function" and tm.GetLangString ~= _G.__HEINZ_GETLANG_WRAPPER__ then
-    local _origGetLang = tm.GetLangString
-    local function _wrappedGetLang(self, ...)
+local function _hzWrapCheckSwitch(tbl, slotName)
+    if type(tbl) ~= "table" or type(tbl.CheckSwitch) ~= "function" then
+        return false
+    end
+    local rec = _hzOrigs[slotName]
+    if type(rec) == "table" and rec.tbl == tbl and tbl.CheckSwitch == rec.wrapper then
+        return true
+    end
+    local origFn = tbl.CheckSwitch
+    local function _wrapped(a1, a2, ...)
         local cfg = _G.__HEINZ_TRANSLATOR_CFG__
-        if cfg and cfg.enabled and type(cfg.target) == "string" and cfg.target ~= "" and cfg.target ~= "auto" then
-            return cfg.target
+        local isMethod = (type(a1) == "table")
+        local key = isMethod and a2 or a1
+        if cfg and cfg.enabled and cfg.auto and key == "screen_translation" then
+            return true
         end
-        return _origGetLang(self, ...)
+        if isMethod then
+            if select("#", ...) > 0 then
+                return origFn(a1, a2, ...)
+            end
+            return origFn(a1, a2)
+        end
+        if select("#", ...) > 0 or a2 ~= nil then
+            return origFn(a1, a2, ...)
+        end
+        return origFn(a1)
     end
-    tm.GetLangString = _wrappedGetLang
-    _G.__HEINZ_GETLANG_WRAPPER__ = _wrappedGetLang
+    _hzOrigs[slotName] = {{ tbl = tbl, key = "CheckSwitch", orig = origFn, wrapper = _wrapped }}
+    tbl.CheckSwitch = _wrapped
+    return true
 end
 
-if _hzAuto and cm and type(cm.OnHandleMessage) == "function" and cm.OnHandleMessage ~= _G.__HEINZ_ONHANDLE_WRAPPER__ then
-    local _origOnHandle = cm.OnHandleMessage
-    local function _wrappedOnHandle(self, a1, a2, a3, ...)
-        local r1, r2, r3 = _origOnHandle(self, a1, a2, a3, ...)
-        pcall(_hzPostHandleMessage, self, a1, a2, a3)
-        return r1, r2, r3
+local function _hzWrapAutoGate(tbl, fieldName, slotName)
+    if type(tbl) ~= "table" or type(tbl[fieldName]) ~= "function" then
+        return false
     end
-    cm.OnHandleMessage = _wrappedOnHandle
-    _G.__HEINZ_ONHANDLE_WRAPPER__ = _wrappedOnHandle
+    local rec = _hzOrigs[slotName]
+    if type(rec) == "table" and rec.tbl == tbl and tbl[fieldName] == rec.wrapper then
+        return true
+    end
+    local origFn = tbl[fieldName]
+    local function _wrapped(...)
+        local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+        if cfg and cfg.enabled and cfg.auto then
+            return true
+        end
+        return origFn(...)
+    end
+    _hzOrigs[slotName] = {{ tbl = tbl, key = fieldName, orig = origFn, wrapper = _wrapped }}
+    tbl[fieldName] = _wrapped
+    return true
 end
 
+local cm = _hzResolveChatManager()
+local tm = _hzResolveTranslateManager(cm)
+local rm = (type(cm) == "table") and (cm.Room or cm.RoomManager) or nil
+
+if _hzAuto then
+    local dcCfg = (type(_G.LuaEntry) == "table") and _G.LuaEntry.DataConfig or nil
+    _hzWrapCheckSwitch(dcCfg, "dataConfigCheckSwitch")
+    if type(_G.DataConfig) == "table" and (dcCfg == nil or not rawequal(_G.DataConfig, dcCfg)) then
+        _hzWrapCheckSwitch(_G.DataConfig, "globalDataConfigCheckSwitch")
+    end
+    _hzWrapCheckSwitch(_G.ChatUtils, "chatUtilsCheckSwitch")
+
+    local mcMgr = (type(_G.DataCenter) == "table") and _G.DataCenter.MonthCardNewManager or nil
+    _hzWrapAutoGate(mcMgr, "CheckAutoTraActive", "monthCardActive")
+    _hzWrapAutoGate(mcMgr, "CheckAutoTraAvailable", "monthCardAvail")
+    _hzWrapAutoGate(_G.ChatInterface, "GetAotuTra", "chatInterfaceAotuTra")
+end
+
+local _hzHookedGetLang = false
+if type(tm) == "table" and type(tm.GetLangString) == "function" then
+    local rec = _hzOrigs["tmGetLangString"]
+    if type(rec) == "table" and rec.tbl == tm and tm.GetLangString == rec.wrapper then
+        _hzHookedGetLang = true
+    else
+        local _origGetLang = tm.GetLangString
+        local function _wrappedGetLang(self, ...)
+            local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+            if cfg and cfg.enabled and type(cfg.target) == "string" and cfg.target ~= "" and cfg.target ~= "auto" then
+                return cfg.target
+            end
+            return _origGetLang(self, ...)
+        end
+        _hzOrigs["tmGetLangString"] = {{ tbl = tm, key = "GetLangString", orig = _origGetLang, wrapper = _wrappedGetLang }}
+        tm.GetLangString = _wrappedGetLang
+        _hzHookedGetLang = true
+    end
+end
+
+local function _hzPack(...)
+    return {{ n = select("#", ...), ... }}
+end
+local _hzUnpack = table.unpack or unpack
+
+local _hzHookedOnHandle = false
+if _hzAuto and type(cm) == "table" and type(cm.OnHandleMessage) == "function" then
+    local rec = _hzOrigs["cmOnHandleMessage"]
+    if type(rec) == "table" and rec.tbl == cm and cm.OnHandleMessage == rec.wrapper then
+        _hzHookedOnHandle = true
+    else
+        local _origOnHandle = cm.OnHandleMessage
+        local function _wrappedOnHandle(self, ...)
+            local _res = _hzPack(_origOnHandle(self, ...))
+            local a1, a2, a3 = ...
+            pcall(_hzPostHandleMessage, self, a1, a2, a3)
+            return _hzUnpack(_res, 1, _res.n)
+        end
+        _hzOrigs["cmOnHandleMessage"] = {{ tbl = cm, key = "OnHandleMessage", orig = _origOnHandle, wrapper = _wrappedOnHandle }}
+        cm.OnHandleMessage = _wrappedOnHandle
+        _hzHookedOnHandle = true
+    end
+end
+
+local _hzHookedAddChat = false
+if _hzAuto and type(rm) == "table" and type(rm.AddChat) == "function" then
+    local rec = _hzOrigs["rmAddChat"]
+    if type(rec) == "table" and rec.tbl == rm and rm.AddChat == rec.wrapper then
+        _hzHookedAddChat = true
+    else
+        local _origAddChat = rm.AddChat
+        local function _wrappedAddChat(self, ...)
+            local _res = _hzPack(_origAddChat(self, ...))
+            local a1, a2, a3 = ...
+            pcall(_hzPostAddChat, self, a1, a2, a3)
+            return _hzUnpack(_res, 1, _res.n)
+        end
+        _hzOrigs["rmAddChat"] = {{ tbl = rm, key = "AddChat", orig = _origAddChat, wrapper = _wrappedAddChat }}
+        rm.AddChat = _wrappedAddChat
+        _hzHookedAddChat = true
+    end
+end
+
+local _hzHookedTm = _hzHookedGetLang or (type(tm) == "table" and type(tm.DoTranslate) == "function")
+local _hzHookedAny = _hzHookedTm or _hzHookedOnHandle or _hzHookedAddChat
+if not _hzHookedAny then
+    return "TRANSLATOR_HOOK_PENDING:" .. tostring(_hzPort) .. ":" .. tostring(_hzTarget)
+end
 return "TRANSLATOR_HOOK_ENABLED:" .. tostring(_hzPort) .. ":" .. tostring(_hzTarget)
+""".strip()
+
+
+def build_translator_diag_lua() -> str:
+    """Build non-mutating Lua snippet returning live translator hook & switch diagnostics as JSON."""
+    return """
+local function _hzJsonEsc(s)
+    local out = tostring(s or "")
+    out = out:gsub("\\\\", "\\\\\\\\")
+    out = out:gsub('"', '\\\\"')
+    out = out:gsub("\\r", "\\\\r")
+    out = out:gsub("\\n", "\\\\n")
+    out = out:gsub("\\t", "\\\\t")
+    return out
+end
+
+local function _hzResolveCmDiag()
+    local raw = _G.ChatManager2
+    if type(raw) ~= "table" then return nil end
+    if type(raw.Instance) == "table" then return raw.Instance end
+    if type(raw.GetInstance) == "function" then
+        local okI, inst = pcall(raw.GetInstance, raw)
+        if okI and type(inst) == "table" then return inst end
+        local okI2, inst2 = pcall(raw.GetInstance)
+        if okI2 and type(inst2) == "table" then return inst2 end
+    end
+    if raw.Translate ~= nil or raw.translateManager ~= nil or raw.Room ~= nil or raw.RoomManager ~= nil or type(raw.OnHandleMessage) == "function" then
+        return raw
+    end
+    return nil
+end
+
+local function _hzResolveTmDiag(cm)
+    if type(cm) == "table" then
+        local tm = cm.Translate or cm.translateManager
+        if type(tm) == "table" then return tm end
+    end
+    if type(_G.ChatInterface) == "table" and type(_G.ChatInterface.getTranslateMgr) == "function" then
+        local ok1, tm1 = pcall(_G.ChatInterface.getTranslateMgr)
+        if ok1 and type(tm1) == "table" then return tm1 end
+        local ok2, tm2 = pcall(_G.ChatInterface.getTranslateMgr, _G.ChatInterface)
+        if ok2 and type(tm2) == "table" then return tm2 end
+    end
+    if type(_G.ChatUtils) == "table" and type(_G.ChatUtils.GetTranslateManager) == "function" then
+        local ok3, tm3 = pcall(_G.ChatUtils.GetTranslateManager)
+        if ok3 and type(tm3) == "table" then return tm3 end
+        local ok4, tm4 = pcall(_G.ChatUtils.GetTranslateManager, _G.ChatUtils)
+        if ok4 and type(tm4) == "table" then return tm4 end
+    end
+    return nil
+end
+
+local cm = _hzResolveCmDiag()
+local tm = _hzResolveTmDiag(cm)
+local rm = (type(cm) == "table") and (cm.Room or cm.RoomManager) or nil
+local hasCm = (type(cm) == "table")
+local hasTm = (type(tm) == "table")
+
+local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+local origs = _G.__HEINZ_ORIG_TR_FUNCS__
+local hooked = false
+if type(cfg) == "table" and cfg.enabled and type(origs) == "table" then
+    local matchedAny = false
+    local allSlotsOk = true
+    if (hasTm and type(tm.GetLangString) == "function") or type(origs.tmGetLangString) == "table" then
+        if hasTm and type(tm.GetLangString) == "function" and type(origs.tmGetLangString) == "table" and tm.GetLangString == origs.tmGetLangString.wrapper then
+            matchedAny = true
+        else
+            allSlotsOk = false
+        end
+    end
+    if cfg.auto then
+        if (hasCm and type(cm.OnHandleMessage) == "function") or type(origs.cmOnHandleMessage) == "table" then
+            if hasCm and type(cm.OnHandleMessage) == "function" and type(origs.cmOnHandleMessage) == "table" and cm.OnHandleMessage == origs.cmOnHandleMessage.wrapper then
+                matchedAny = true
+            else
+                allSlotsOk = false
+            end
+        end
+        if (type(rm) == "table" and type(rm.AddChat) == "function") or type(origs.rmAddChat) == "table" then
+            if type(rm) == "table" and type(rm.AddChat) == "function" and type(origs.rmAddChat) == "table" and rm.AddChat == origs.rmAddChat.wrapper then
+                matchedAny = true
+            else
+                allSlotsOk = false
+            end
+        end
+    end
+    hooked = matchedAny and allSlotsOk
+end
+
+local screenTranslation = false
+local dcCfg = (type(_G.LuaEntry) == "table") and _G.LuaEntry.DataConfig or nil
+if type(dcCfg) == "table" and type(dcCfg.CheckSwitch) == "function" then
+    local okS, resS = pcall(dcCfg.CheckSwitch, dcCfg, "screen_translation")
+    if okS then screenTranslation = (resS == true) end
+elseif type(_G.DataConfig) == "table" and type(_G.DataConfig.CheckSwitch) == "function" then
+    local okS, resS = pcall(_G.DataConfig.CheckSwitch, _G.DataConfig, "screen_translation")
+    if okS then screenTranslation = (resS == true) end
+elseif type(_G.ChatUtils) == "table" and type(_G.ChatUtils.CheckSwitch) == "function" then
+    local okS, resS = pcall(_G.ChatUtils.CheckSwitch, "screen_translation")
+    if okS then screenTranslation = (resS == true) end
+end
+
+local autoTraActive = false
+local mcMgr = (type(_G.DataCenter) == "table") and _G.DataCenter.MonthCardNewManager or nil
+if type(mcMgr) == "table" and type(mcMgr.CheckAutoTraActive) == "function" then
+    local okA, resA = pcall(mcMgr.CheckAutoTraActive, mcMgr)
+    if okA then autoTraActive = (resA == true) end
+elseif type(_G.ChatInterface) == "table" and type(_G.ChatInterface.GetAotuTra) == "function" then
+    local okA, resA = pcall(_G.ChatInterface.GetAotuTra)
+    if okA then autoTraActive = (resA == true) end
+end
+
+local translateUrl = ""
+if type(_G.TranslateUrlList) == "table" and type(_G.TranslateUrlList[1]) == "string" then
+    translateUrl = _G.TranslateUrlList[1]
+end
+
+return string.format(
+    '{"hooked":%s,"hasCm":%s,"hasTm":%s,"screenTranslation":%s,"autoTraActive":%s,"translateUrl":"%s"}',
+    tostring(hooked),
+    tostring(hasCm),
+    tostring(hasTm),
+    tostring(screenTranslation),
+    tostring(autoTraActive),
+    _hzJsonEsc(translateUrl)
+)
 """.strip()
 
 

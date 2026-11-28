@@ -92,10 +92,21 @@ _G._FullMapLoadState = _G._FullMapLoadState or {
 }
 
 local BUCKET_SIZE = 50
+local MONSTER_NEAR_3D_RADIUS = 85
+local MONSTER_EVICT_3D_RADIUS = 115
 _G._MasterSpatialGrid = _G._MasterSpatialGrid or {}
 _G._MasterDirtyBuckets = _G._MasterDirtyBuckets or {}
 _G._MasterViewPointCount = _G._MasterViewPointCount or 0
 _G._MasterGridTableRef = _G._MasterGridTableRef or nil
+_G._MasterObjCount = _G._MasterObjCount or 0
+_G._MasterAllObjRef = _G._MasterAllObjRef or nil
+_G._MasterNear3DMonsters = _G._MasterNear3DMonsters or {}
+_G._MasterProxyMonsterLabels = _G._MasterProxyMonsterLabels or {}
+_G._MasterProxyMonsters = _G._MasterProxyMonsters or {}
+_G._MasterReconcilePass = _G._MasterReconcilePass or nil
+_G._MasterReconcileToken = _G._MasterReconcileToken or 0
+_G._MasterLastResLodCamX = _G._MasterLastResLodCamX or -9999
+_G._MasterLastResLodCamY = _G._MasterLastResLodCamY or -9999
 
 local _DEFAULT_CACHE_DIR = "./data/cache"
 _G._WorldCacheLoadedOk = _G._WorldCacheLoadedOk or {}
@@ -229,14 +240,20 @@ function _G.LoadWorldCacheFromDisk(serverId)
         if not content or #content < 5 then return end
         local decoded = rjson.decode(content)
         if type(decoded) == "table" and next(decoded) ~= nil then
+            local hadLivePoints = (next(cache) ~= nil)
+            local prevDirty = _G._WorldCacheDirtyCount[sid] or 0
             for kStr, v in pairs(decoded) do
                 local kNum = tonumber(kStr)
-                if kNum then
+                if kNum and cache[kNum] == nil then
                     cache[kNum] = v
                 end
             end
-            _G._WorldCacheDirtyCount[sid] = 0
-            _G._WorldCacheLastSaveTs[sid] = os.time()
+            if not hadLivePoints then
+                _G._WorldCacheDirtyCount[sid] = 0
+                _G._WorldCacheLastSaveTs[sid] = os.time()
+            else
+                _G._WorldCacheDirtyCount[sid] = math.max(prevDirty, 1)
+            end
             _G._WorldCacheLoadedOk[sid] = true
         end
     end)
@@ -244,7 +261,7 @@ end
 
 do
     local initCache, _, initSid = GetServerCacheTables()
-    if next(initCache) == nil then
+    if next(initCache) == nil or not _G._WorldCacheLoadedOk[initSid] then
         _G.LoadWorldCacheFromDisk(initSid)
     end
 end
@@ -347,6 +364,19 @@ local function SyncSpatialGridIfReplaced(mgr)
     end
 end
 
+local function _syncMasterObjCount(targetMgr)
+    if not targetMgr or type(targetMgr.allObj) ~= "table" then
+        _G._MasterObjCount = 0
+        _G._MasterAllObjRef = nil
+        return 0
+    end
+    if _G._MasterAllObjRef ~= targetMgr.allObj or ((_G._MasterObjCount or 0) > 0 and next(targetMgr.allObj) == nil) then
+        _G._MasterAllObjRef = targetMgr.allObj
+        _G._MasterObjCount = SafeTableCount(targetMgr.allObj)
+    end
+    return _G._MasterObjCount or 0
+end
+
 function _G.RestoreWorldMapCache(serverId)
     local mgr = DataCenter and DataCenter.WorldPointManager
     if not mgr then return end
@@ -422,9 +452,8 @@ local function GetMonsterCategory(entry)
     local cat = entry._monsterCat
     if cat then return cat end
     local pi = entry.pointInfo
-    if not pi then return "ZOMBIE" end
-    local mi = pi.monsterInfo or pi._parsedExtra or entry._parsedExtra
-    if not mi and pi.extraInfo and PBController and PBController.ParsePbFromBytes then
+    local mi = (pi and (pi.monsterInfo or pi._parsedExtra)) or entry._parsedExtra
+    if not mi and pi and pi.extraInfo and PBController and PBController.ParsePbFromBytes then
         local ok, parsed = pcall(PBController.ParsePbFromBytes, pi.extraInfo, "protobuf.WorldPointMonster")
         if ok and parsed then
             mi = parsed
@@ -458,6 +487,7 @@ function _G.RefreshMasterOverlayUI()
 
     local barGo = _G._MasterOverlayBarGo
     local tmp = _G._MasterOverlayTmp
+    local justCreatedBar = false
     if not barGo or IsNull(barGo) or not tmp or IsNull(tmp) then
         local existing = parentRect:Find("LastZMasterOverlayBar")
         if existing and not IsNull(existing) then
@@ -500,23 +530,45 @@ function _G.RefreshMasterOverlayUI()
         _G._MasterOverlayBarGo = barGo
         _G._MasterOverlayTmp = tmp
         _G._MasterLastOverlayText = nil
+        justCreatedBar = true
     end
 
     local t = _G._MasterToggles
     local showBar = (t.showOverlay ~= false)
-    if barGo.activeSelf ~= showBar then
+    local wasVisible = barGo.activeSelf
+    if wasVisible ~= showBar then
         barGo:SetActive(showBar)
     end
     if not showBar then return end
 
-    barGo.transform:SetAsLastSibling()
+    local curSceneId = SceneManager and SceneManager.CurrSceneID
+    local curParent = (barGo.transform and barGo.transform.parent) or parentRect
+    local curChildCount = (curParent and curParent.childCount) or (parentRect and parentRect.childCount) or nil
+    local isNotLastSibling = false
+    if curChildCount ~= nil and barGo.transform and type(barGo.transform.GetSiblingIndex) == "function" then
+        local okSib, sibIdx = pcall(barGo.transform.GetSiblingIndex, barGo.transform)
+        if okSib and type(sibIdx) == "number" and sibIdx < (curChildCount - 1) then
+            isNotLastSibling = true
+        end
+    end
+    if justCreatedBar
+        or (not wasVisible)
+        or _G._MasterOverlayLastSceneId ~= curSceneId
+        or (curChildCount ~= nil and _G._MasterOverlayLastChildCount ~= curChildCount)
+        or isNotLastSibling
+    then
+        barGo.transform:SetAsLastSibling()
+        _G._MasterOverlayLastSceneId = curSceneId
+        _G._MasterOverlayLastChildCount = curChildCount
+    end
     local fls = _G._FullMapLoadState or {}
     local mgr = DataCenter and DataCenter.WorldPointManager
     if mgr then
         SyncSpatialGridIfReplaced(mgr)
+        _syncMasterObjCount(mgr)
     end
     local ptCount = _G._MasterViewPointCount or 0
-    local objCount = (mgr and mgr.allObj and SafeTableCount(mgr.allObj)) or 0
+    local objCount = tonumber(_G._MasterObjCount or 0) or 0
     local loadBadge
     if fls.active and (not fls.silentRefresh) and (fls.total or 0) > 0 then
         local pct = math.min(100, math.floor(((fls.done or 0) * 100) / fls.total))
@@ -579,28 +631,17 @@ function _G.ShouldBuildPointNow(selfMgr, pointIndex, entry, camX, camY, isEvictC
             return true
         else
             if toggles and toggles.showZombies == false then return false end
-            return dist <= (isEvictCheck and 600 or 450)
+            return true
         end
     elseif pType == 7 then
         if toggles and toggles.showResources == false then return false end
         return true
     elseif pType == 6 then
         if toggles and toggles.showHQs == false then return false end
-        local isSmall = entry._isSmallBuild
-        if isSmall == nil then
-            local bid = selfMgr and selfMgr._GetBuildIdForFactory and selfMgr:_GetBuildIdForFactory(entry)
-            isSmall = (bid ~= nil and selfMgr.IsSmallBuild and selfMgr:IsSmallBuild(bid)) and true or false
-            entry._isSmallBuild = isSmall
-        end
-        if isSmall then
-            return dist <= (isEvictCheck and 520 or 400)
-        else
-            -- Real Player HQs (~1.1k across entire state): globally visible across 100% of the map!
-            return true
-        end
+        return true
     end
 
-    -- All other point types (Radar 22, Cities 11, Alliance 15, Treasures, Ice Caves): globally visible
+    -- All point types (HQs, Resources, Zombies, Boomers, Radar 22, Cities 11, Alliance 15, Treasures): 100% corner-to-corner globally visible!
     return true
 end
 
@@ -918,8 +959,12 @@ function _G.ApplyLastZWorldMaster()
     _G._MasterSeenMatCount = _G._MasterSeenMatCount or 0
     local function optimizeInstance(inst)
         if IsNull(inst) then return end
-        local animators = inst:GetComponentsInChildren(rc.typeAnimator, true)
-        if animators then
+        local instType = type(inst)
+        if (instType ~= "userdata" and instType ~= "table") or not inst.GetComponentsInChildren then
+            return
+        end
+        local okAnim, animators = pcall(inst.GetComponentsInChildren, inst, rc.typeAnimator, true)
+        if okAnim and animators then
             local cullMode = rc.cullTransform
             for i = 0, animators.Length - 1 do
                 if animators[i].cullingMode ~= cullMode then
@@ -927,8 +972,8 @@ function _G.ApplyLastZWorldMaster()
                 end
             end
         end
-        local particles = inst:GetComponentsInChildren(rc.typeParticle, true)
-        if particles then
+        local okPart, particles = pcall(inst.GetComponentsInChildren, inst, rc.typeParticle, true)
+        if okPart and particles then
             local pPause = rc.particlePause
             for i = 0, particles.Length - 1 do
                 if particles[i].cullingMode ~= pPause then
@@ -936,8 +981,8 @@ function _G.ApplyLastZWorldMaster()
                 end
             end
         end
-        local renderers = inst:GetComponentsInChildren(rc.typeRenderer, true)
-        if renderers then
+        local okRend, renderers = pcall(inst.GetComponentsInChildren, inst, rc.typeRenderer, true)
+        if okRend and renderers then
             local seenMats = _G._MasterSeenMaterialIds
             for i = 0, renderers.Length - 1 do
                 local sm = renderers[i].sharedMaterial
@@ -981,6 +1026,204 @@ function _G.ApplyLastZWorldMaster()
         scale = CS.UnityEngine.Vector3(2.7, 2.7, 1.0)
     }
 
+    -- Monster GPU-instanced proxy configuration (pType == 4 zoomed-out / distant rendering)
+    local MONSTER_LOD_ICON = {
+        ZOMBIE = "Assets/Main/Sprites/LodIcon/monster.png",
+        BOOMER = "Assets/Main/Sprites/LodIcon/G_Sj_iocnboss_1.png",
+        BOSS   = "Assets/Main/Sprites/LodIcon/UIworld_img_boss.png",
+    }
+    local MONSTER_ICON_CFG = {
+        offset = CS.UnityEngine.Vector3(0, 1.6, 0),
+        scale  = CS.UnityEngine.Vector3(2.2, 2.2, 1.0),
+    }
+    local MONSTER_BOSS_CFG = {
+        offset = CS.UnityEngine.Vector3(0, 2.2, 0),
+        scale  = CS.UnityEngine.Vector3(3.0, 3.0, 1.0),
+    }
+    local MONSTER_LABEL_CFG = {
+        offset = CS.UnityEngine.Vector3(0, 0.35, 0),
+        scale  = CS.UnityEngine.Vector3(1.0, 1.0, 1.0),
+    }
+
+    local _MonsterFallbackBatch = _G._MasterMonsterFallbackBatch
+    if not _MonsterFallbackBatch then
+        _MonsterFallbackBatch = {
+            entries = {},
+            count = 0,
+            dirty = false,
+            chunks = {},
+            mesh = nil,
+            mat = nil,
+            mpb = nil,
+            hookedCamera = false,
+        }
+        _G._MasterMonsterFallbackBatch = _MonsterFallbackBatch
+    end
+
+    local function _ensureFallbackAssets()
+        local fb = _MonsterFallbackBatch
+        if fb.mesh and fb.mat then return true end
+        local ue = CS and CS.UnityEngine
+        if not ue or not ue.Mesh or not ue.Material or not ue.Shader or not ue.Graphics then
+            return false
+        end
+        local ok = pcall(function()
+            if not fb.mesh then
+                local m = ue.Mesh()
+                m.name = "MasterMonsterProxyQuad"
+                local verts = CS.System.Array.CreateInstance(typeof(ue.Vector3), 4)
+                verts[0] = ue.Vector3(-0.5, -0.5, 0)
+                verts[1] = ue.Vector3(0.5, -0.5, 0)
+                verts[2] = ue.Vector3(0.5, 0.5, 0)
+                verts[3] = ue.Vector3(-0.5, 0.5, 0)
+                local tris = CS.System.Array.CreateInstance(typeof(CS.System.Int32), 6)
+                tris[0] = 0; tris[1] = 2; tris[2] = 1
+                tris[3] = 0; tris[4] = 3; tris[5] = 2
+                m.vertices = verts
+                m.triangles = tris
+                m:RecalculateBounds()
+                fb.mesh = m
+            end
+            if not fb.mat then
+                local shader = ue.Shader.Find("Universal Render Pipeline/Unlit")
+                    or ue.Shader.Find("Sprites/Default")
+                    or ue.Shader.Find("Unlit/Color")
+                if shader then
+                    local mat = ue.Material(shader)
+                    mat.enableInstancing = true
+                    if ue.Color then
+                        pcall(function() mat.color = ue.Color(0.95, 0.35, 0.25, 0.9) end)
+                    end
+                    fb.mat = mat
+                end
+            end
+            if not fb.mpb and ue.MaterialPropertyBlock then
+                fb.mpb = ue.MaterialPropertyBlock()
+            end
+        end)
+        return ok and fb.mesh ~= nil and fb.mat ~= nil
+    end
+
+    local function _rebuildFallbackChunks()
+        local fb = _MonsterFallbackBatch
+        fb.dirty = false
+        fb.chunks = {}
+        if fb.count <= 0 then return end
+        local ue = CS and CS.UnityEngine
+        local sysArr = CS and CS.System and CS.System.Array
+        if not ue or not ue.Matrix4x4 or not ue.Quaternion then return end
+        local list = {}
+        for _, item in pairs(fb.entries) do
+            list[#list + 1] = item
+        end
+        fb.count = #list
+        local rot = ue.Quaternion.Euler(60, 0, 0)
+        local idx = 1
+        while idx <= #list do
+            local endIdx = math.min(#list, idx + 1022)
+            local sliceLen = endIdx - idx + 1
+            local matArr = (sysArr and sysArr.CreateInstance)
+                and sysArr.CreateInstance(typeof(ue.Matrix4x4), sliceLen)
+                or {}
+            for i = 0, sliceLen - 1 do
+                local it = list[idx + i]
+                local mat = ue.Matrix4x4.TRS(it.pos, rot, it.scale)
+                if type(matArr) == "table" then
+                    matArr[i + 1] = mat
+                else
+                    matArr[i] = mat
+                end
+            end
+            fb.chunks[#fb.chunks + 1] = { mats = matArr, len = sliceLen }
+            idx = endIdx + 1
+        end
+    end
+
+    function _MonsterFallbackBatch.Set(pointIndex, pos, cfg)
+        if not pointIndex or not pos then return false end
+        local fb = _MonsterFallbackBatch
+        if fb.entries[pointIndex] == nil then
+            fb.count = fb.count + 1
+        end
+        local off = (cfg and cfg.offset) or MONSTER_ICON_CFG.offset
+        local sc = (cfg and cfg.scale) or MONSTER_ICON_CFG.scale
+        local ue = CS and CS.UnityEngine
+        local drawPos = (ue and ue.Vector3)
+            and ue.Vector3((pos.x or 0) + (off.x or 0), (pos.y or 0) + (off.y or 0), (pos.z or 0) + (off.z or 0))
+            or pos
+        fb.entries[pointIndex] = { pos = drawPos, scale = sc }
+        fb.dirty = true
+        return true
+    end
+
+    function _MonsterFallbackBatch.Remove(pointIndex)
+        local fb = _MonsterFallbackBatch
+        if pointIndex ~= nil and fb.entries[pointIndex] ~= nil then
+            fb.entries[pointIndex] = nil
+            fb.count = math.max(0, fb.count - 1)
+            fb.dirty = true
+        end
+    end
+
+    function _MonsterFallbackBatch.Clear()
+        local fb = _MonsterFallbackBatch
+        fb.entries = {}
+        fb.count = 0
+        fb.chunks = {}
+        fb.dirty = false
+    end
+
+    function _MonsterFallbackBatch.Render(cam)
+        local fb = _MonsterFallbackBatch
+        if fb.count <= 0 then return end
+        local ueCam = CS and CS.UnityEngine and CS.UnityEngine.Camera
+        if cam ~= nil and ueCam and ueCam.main and not IsNull(ueCam.main) and cam ~= ueCam.main then
+            return
+        end
+        local curMgr = DataCenter and DataCenter.WorldPointManager
+        if not curMgr or curMgr.isInit ~= true then return end
+        if not _ensureFallbackAssets() then return end
+        if fb.dirty then
+            _rebuildFallbackChunks()
+        end
+        local gfx = CS and CS.UnityEngine and CS.UnityEngine.Graphics
+        if not gfx or not gfx.DrawMeshInstanced then return end
+        for i = 1, #fb.chunks do
+            local c = fb.chunks[i]
+            pcall(gfx.DrawMeshInstanced, fb.mesh, 0, fb.mat, c.mats, c.len, fb.mpb)
+        end
+    end
+
+    if not _MonsterFallbackBatch.hookedCamera then
+        local ueCam = CS and CS.UnityEngine and CS.UnityEngine.Camera
+        if ueCam then
+            local cb = function(cam)
+                _MonsterFallbackBatch.Render(cam)
+            end
+            local okHook = pcall(function()
+                local cur = ueCam.onPreCull
+                if cur == nil then
+                    ueCam.onPreCull = cb
+                elseif type(cur) == "function" then
+                    ueCam.onPreCull = function(cam)
+                        cur(cam)
+                        cb(cam)
+                    end
+                else
+                    local okAdd = pcall(function()
+                        ueCam.onPreCull = cur + cb
+                    end)
+                    if not okAdd then
+                        ueCam.onPreCull("+", cb)
+                    end
+                end
+            end)
+            if okHook and ueCam.onPreCull ~= nil then
+                _MonsterFallbackBatch.hookedCamera = true
+            end
+        end
+    end
+
     local ok_wroi, wroi = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldResObjectInstanced")
     if ok_wroi and wroi then
         wroi._IsResourceLodVisible = function(self) return true end
@@ -1006,12 +1249,12 @@ function _G.ApplyLastZWorldMaster()
             local path = self:_GetFarIconPath(info)
             local cfg = self:_GetFarIconConfig(info)
             if nil == path or "" == path then path = DEFAULT_RESOURCE_LOD_ICON end
-            if nil == self.cachedWorldPos then
+            if nil == self.cachedWorldPos and self.pointIndex and SceneUtils and SceneUtils.TileIndexToWorld and ForceChangeScene then
                 self.cachedWorldPos = SceneUtils.TileIndexToWorld(self.pointIndex, ForceChangeScene.World)
             end
             if nil == self.cachedWorldPos then return end
 
-            local iconRenderer = mgr and mgr:GetIconRenderer()
+            local iconRenderer = mgr and mgr.GetIconRenderer and mgr:GetIconRenderer()
             if not iconRenderer then return end
 
             if nil == self.iconHandle then
@@ -1079,12 +1322,12 @@ function _G.ApplyLastZWorldMaster()
             local path = self:_GetFarIconPath(info)
             local cfg = self:_GetFarIconConfig(info)
             if nil == path or "" == path then return end
-            if nil == self.cachedWorldPos then
+            if nil == self.cachedWorldPos and self.pointIndex and SceneUtils and SceneUtils.TileIndexToWorld and ForceChangeScene then
                 self.cachedWorldPos = SceneUtils.TileIndexToWorld(self.pointIndex, ForceChangeScene.World)
             end
             if nil == self.cachedWorldPos then return end
 
-            local iconRenderer = mgr and mgr:GetIconRenderer()
+            local iconRenderer = mgr and mgr.GetIconRenderer and mgr:GetIconRenderer()
             if not iconRenderer then return end
 
             if nil == self.iconHandle then
@@ -1181,10 +1424,42 @@ function _G.ApplyLastZWorldMaster()
                 if info then pcall(self.SetBuildIconColor, self, info) end
             end
 
-            local origOnMainModelLoaded = wbo.OnMainModelLoaded
-            wbo.OnMainModelLoaded = function(self, ...)
-                if origOnMainModelLoaded then pcall(origOnMainModelLoaded, self, ...) end
-                optimizeInstance(self.instance)
+            local origOnMainModelLoaded = wbo._origOnMainModelLoaded or wbo.OnMainModelLoaded
+            wbo._origOnMainModelLoaded = origOnMainModelLoaded
+            wbo.OnMainModelLoaded = function(self, go, ...)
+                if origOnMainModelLoaded then pcall(origOnMainModelLoaded, self, go, ...) end
+                local target = (not IsNull(go) and go)
+                    or (not IsNull(self.model) and self.model)
+                    or (not IsNull(self.mainModel) and self.mainModel)
+                    or (not IsNull(self.gameObject) and self.gameObject)
+                if target then
+                    optimizeInstance(target)
+                end
+            end
+
+            if type(wbo.CreateMain) == "function" then
+                local origCreateMain = wbo._origCreateMain or wbo.CreateMain
+                wbo._origCreateMain = origCreateMain
+                wbo.CreateMain = function(self, info, ...)
+                    local curLod = (mgr and mgr.lodLv) or 1
+                    if curLod >= 3 then
+                        return
+                    end
+                    if self.pointIndex then
+                        local px = self._cachedTileX
+                        local py = self._cachedTileY
+                        if not px or not py then
+                            px, py = FastIndexToXY(self.pointIndex)
+                            self._cachedTileX = px
+                            self._cachedTileY = py
+                        end
+                        local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+                        if math.abs(px - camX) > 110 or math.abs(py - camY) > 110 then
+                            return
+                        end
+                    end
+                    return origCreateMain(self, info, ...)
+                end
             end
 
             wbo.CheckIdleShowAnim = function(self) end
@@ -1262,7 +1537,7 @@ function _G.ApplyLastZWorldMaster()
                 if info and self.CheckShowEffect then
                     pcall(self.CheckShowEffect, self, info, lod)
                 end
-                if lod <= 2 and not self.instance and self.CreateMain then
+                if isNear and not self.instance and self.CreateMain then
                     pcall(self.CreateMain, self, info)
                 end
             end
@@ -1312,13 +1587,13 @@ function _G.ApplyLastZWorldMaster()
         end
     end
 
-    -- Zombies and monsters overhaul
+    -- Zombies and monsters overhaul (GPU-instanced proxy at lodLv >= 3 or distant, lazy near-3D promotion)
     local ok_wmo, wmo = pcall(require, "SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
-    if ok_wmo and wmo and not wmo.__masterMonsterHooked then
-        wmo.__masterMonsterHooked = true
-
-        -- Always show Zombie 2D FarIcon & Level Label at LOD 3..12 without needing the Monster filter tab selected!
+    if ok_wmo and wmo then
+        local origRefreshLod = wmo._origRefreshLodType or wmo.RefreshLodType
+        wmo._origRefreshLodType = origRefreshLod
         wmo.RefreshLodType = function(self)
+            if self._isProxyMode then return end
             if self.lodSetObj and not IsNull(self.lodSetObj) and self.lodSetObj.gameObject then
                 self.lodSetObj.gameObject:SetActive(true)
             end
@@ -1330,15 +1605,541 @@ function _G.ApplyLastZWorldMaster()
             end
         end
 
-        -- Skip expensive 3D skeletal animations on Zombies when zoomed out to 2D icons (lodLv >= 3)
-        local origPlayAnim = wmo.PlayAnim
+        local origCreateGO = wmo._origCreateGO or wmo.CreateGameObject
+        wmo._origCreateGO = origCreateGO
+        local origOnCreateGO = wmo._origOnCreateGO or wmo.OnCreateGameObject
+        wmo._origOnCreateGO = origOnCreateGO
+        local origDestroy = wmo._origDestroy or wmo.Destroy
+        wmo._origDestroy = origDestroy
+        local origUpdateGO = wmo._origUpdateGO or wmo.UpdateGameObject
+        wmo._origUpdateGO = origUpdateGO
+        local origSetIsBattle = wmo._origSetIsBattle or wmo.SetIsBattle
+        wmo._origSetIsBattle = origSetIsBattle
+        local origPlayAnim = wmo._origPlayAnim or wmo.PlayAnim
+        wmo._origPlayAnim = origPlayAnim
+
+        wmo._ShouldUseNear3D = function(self, info)
+            local toggles = _G._MasterToggles
+            local pIdx = self.pointIndex
+            if not pIdx or pIdx <= 0 then
+                return "NEAR3D"
+            end
+            local px = self._cachedTileX
+            local py = self._cachedTileY
+            if not px or not py then
+                px, py = FastIndexToXY(pIdx)
+                self._cachedTileX = px
+                self._cachedTileY = py
+            end
+            local camX, camY = GetActualCameraTilePos(mgr, SceneManager and SceneManager.World)
+            local dist = math.max(math.abs(px - camX), math.abs(py - camY))
+            if toggles then
+                if toggles.masterEnabled == false and dist > 48 then
+                    return "HIDDEN"
+                end
+                info = info or (mgr and mgr.GetPointInfo and mgr:GetPointInfo(pIdx))
+                local cat = GetMonsterCategory({ pointInfo = info, _parsedExtra = self.monsterInfo })
+                if (cat == "BOOMER" or cat == "BOSS") and toggles.showBoomers == false then
+                    return "HIDDEN"
+                elseif cat == "ZOMBIE" and toggles.showZombies == false then
+                    return "HIDDEN"
+                end
+            end
+            if self.isInBattle == true then
+                return "NEAR3D"
+            end
+            local curLod = (mgr and mgr.lodLv) or 1
+            if curLod >= 3 then
+                return "PROXY"
+            end
+            if dist <= MONSTER_NEAR_3D_RADIUS then
+                return "NEAR3D"
+            end
+            return "PROXY"
+        end
+
+        wmo._EnsureProxyVisual = function(self, info)
+            local pIdx = self.pointIndex
+            if not pIdx or pIdx <= 0 then return end
+            if _G._MasterProxyMonsters then
+                if self._isProxyMode then
+                    _G._MasterProxyMonsters[pIdx] = self
+                else
+                    _G._MasterProxyMonsters[pIdx] = nil
+                end
+            end
+            info = info or (mgr and mgr.GetPointInfo and mgr:GetPointInfo(pIdx))
+            if nil == self.cachedWorldPos and SceneUtils and SceneUtils.TileIndexToWorld and ForceChangeScene then
+                self.cachedWorldPos = SceneUtils.TileIndexToWorld(pIdx, ForceChangeScene.World)
+            end
+            if nil == self.cachedWorldPos then return end
+
+            local mi = (info and info.monsterInfo) or (info and info._parsedExtra) or self.monsterInfo
+            if not mi and info and info.extraInfo and PBController and PBController.ParsePbFromBytes then
+                local okPb, parsed = pcall(PBController.ParsePbFromBytes, info.extraInfo, "protobuf.WorldPointMonster")
+                if okPb and parsed then
+                    mi = parsed
+                    info._parsedExtra = parsed
+                end
+            end
+            if mi then
+                self.monsterInfo = mi
+            end
+
+            local cat = GetMonsterCategory({ pointInfo = info, _parsedExtra = mi })
+            local path = MONSTER_LOD_ICON[cat] or MONSTER_LOD_ICON.ZOMBIE
+            local cfg = (cat == "BOSS" or cat == "BOOMER") and MONSTER_BOSS_CFG or MONSTER_ICON_CFG
+
+            local ir = mgr and mgr.GetIconRenderer and mgr:GetIconRenderer()
+            if ir and ir.AddIcon then
+                if self._proxyIconHandle == nil then
+                    local okAdd, handle = pcall(ir.AddIcon, ir, self.cachedWorldPos, path, cfg)
+                    if okAdd and handle ~= nil then
+                        self._proxyIconHandle = handle
+                        self._proxyIconPath = path
+                        _MonsterFallbackBatch.Remove(pIdx)
+                    else
+                        _MonsterFallbackBatch.Set(pIdx, self.cachedWorldPos, cfg)
+                    end
+                elseif self._proxyIconPath ~= path and ir.UpdateIcon then
+                    local okUpd, handle = pcall(ir.UpdateIcon, ir, self._proxyIconHandle, self.cachedWorldPos, path, cfg)
+                    if okUpd then
+                        if handle ~= nil then
+                            self._proxyIconHandle = handle
+                        end
+                        self._proxyIconPath = path
+                    end
+                end
+            else
+                _MonsterFallbackBatch.Set(pIdx, self.cachedWorldPos, cfg)
+            end
+
+            local curLod = (mgr and mgr.lodLv) or 1
+            local lr = mgr and mgr.GetLabelRenderer and mgr:GetLabelRenderer()
+            if curLod <= 4 and mi and mi.monsterId then
+                local mtm = DataCenter and DataCenter.MonsterTemplateManager
+                if mtm and mtm.GetTableValue then
+                    local okLv, lvVal = pcall(mtm.GetTableValue, mtm, mi.monsterId, "level")
+                    if okLv and lvVal ~= nil then
+                        self.monsterLevel = tonumber(lvVal) or self.monsterLevel or 1
+                    end
+                end
+                local lvNum = tonumber(self.monsterLevel or 1) or 1
+                if lr and lr.AddLabel then
+                    if self._proxyLabelHandle ~= nil and self._proxyLabelLv ~= lvNum then
+                        if lr.RemoveLabel then
+                            pcall(lr.RemoveLabel, lr, self._proxyLabelHandle)
+                            self._proxyLabelHandle = nil
+                            self._proxyLabelLv = nil
+                        elseif lr.UpdateLabel then
+                            local okUpdL, lHandle = pcall(lr.UpdateLabel, lr, self._proxyLabelHandle, self.cachedWorldPos, lvNum)
+                            if okUpdL and lHandle ~= nil then
+                                self._proxyLabelHandle = lHandle
+                                self._proxyLabelLv = lvNum
+                            end
+                        end
+                    end
+                    if self._proxyLabelHandle == nil then
+                        local okLbl, lHandle = pcall(lr.AddLabel, lr, self.cachedWorldPos, lvNum, MONSTER_LABEL_CFG)
+                        if okLbl and lHandle ~= nil then
+                            self._proxyLabelHandle = lHandle
+                            self._proxyLabelLv = lvNum
+                        end
+                    end
+                end
+                if self._proxyLabelHandle ~= nil then
+                    if pIdx and _G._MasterProxyMonsterLabels then
+                        _G._MasterProxyMonsterLabels[pIdx] = self
+                    end
+                elseif pIdx and _G._MasterProxyMonsterLabels then
+                    _G._MasterProxyMonsterLabels[pIdx] = nil
+                end
+            elseif self._proxyLabelHandle ~= nil then
+                if lr and lr.RemoveLabel then
+                    pcall(lr.RemoveLabel, lr, self._proxyLabelHandle)
+                end
+                self._proxyLabelHandle = nil
+                self._proxyLabelLv = nil
+                if pIdx and _G._MasterProxyMonsterLabels then
+                    _G._MasterProxyMonsterLabels[pIdx] = nil
+                end
+            elseif pIdx and _G._MasterProxyMonsterLabels then
+                _G._MasterProxyMonsterLabels[pIdx] = nil
+            end
+        end
+
+        wmo._ClearProxyVisual = function(self)
+            if self._proxyIconHandle ~= nil then
+                local ir = mgr and mgr.GetIconRenderer and mgr:GetIconRenderer()
+                if ir and ir.RemoveIcon then
+                    pcall(ir.RemoveIcon, ir, self._proxyIconHandle)
+                end
+                self._proxyIconHandle = nil
+                self._proxyIconPath = nil
+            end
+            if self._proxyLabelHandle ~= nil then
+                local lr = mgr and mgr.GetLabelRenderer and mgr:GetLabelRenderer()
+                if lr and lr.RemoveLabel then
+                    pcall(lr.RemoveLabel, lr, self._proxyLabelHandle)
+                end
+                self._proxyLabelHandle = nil
+                self._proxyLabelLv = nil
+            end
+            if self.pointIndex ~= nil then
+                if _G._MasterProxyMonsterLabels then
+                    _G._MasterProxyMonsterLabels[self.pointIndex] = nil
+                end
+                if _G._MasterProxyMonsters then
+                    _G._MasterProxyMonsters[self.pointIndex] = nil
+                end
+                _MonsterFallbackBatch.Remove(self.pointIndex)
+            end
+        end
+
+        wmo._ApplyMonsterLodState = function(self, info)
+            local mode = self:_ShouldUseNear3D(info)
+            if mode == "HIDDEN" then
+                if self.gameObject or self.instance then
+                    if origDestroy then pcall(origDestroy, self) end
+                    self.gameObject = nil
+                    self.instance = nil
+                    self.model = nil
+                    self.anims = nil
+                    self.gpuAnims = nil
+                    self.cityLabels = nil
+                end
+                self:_ClearProxyVisual()
+                self._isProxyMode = true
+                if self.pointIndex then _G._MasterNear3DMonsters[self.pointIndex] = nil end
+            elseif mode == "PROXY" then
+                if self.gameObject or self.instance then
+                    if origDestroy then pcall(origDestroy, self) end
+                    self.gameObject = nil
+                    self.instance = nil
+                    self.model = nil
+                    self.anims = nil
+                    self.gpuAnims = nil
+                    self.cityLabels = nil
+                end
+                self._isProxyMode = true
+                if self.pointIndex then _G._MasterNear3DMonsters[self.pointIndex] = nil end
+                self:_EnsureProxyVisual(info)
+            else
+                self:_ClearProxyVisual()
+                self._isProxyMode = false
+                if self.pointIndex then _G._MasterNear3DMonsters[self.pointIndex] = self end
+                if not self.gameObject and not self.instance then
+                    if origCreateGO then origCreateGO(self) end
+                elseif self.gameObject and not IsNull(self.gameObject) and self.gameObject.SetActive then
+                    self.gameObject:SetActive(true)
+                end
+            end
+        end
+
+        wmo.CreateGameObject = function(self)
+            local pIdx = self.pointIndex
+            if not pIdx or pIdx <= 0 then
+                if origCreateGO then return origCreateGO(self) end
+                return
+            end
+            local info = mgr and mgr.GetPointInfo and mgr:GetPointInfo(pIdx)
+            local mode = self:_ShouldUseNear3D(info)
+            if mode == "HIDDEN" then
+                self:_ClearProxyVisual()
+                self._isProxyMode = true
+                _G._MasterNear3DMonsters[pIdx] = nil
+                return
+            elseif mode == "PROXY" then
+                self._isProxyMode = true
+                _G._MasterNear3DMonsters[pIdx] = nil
+                self:_EnsureProxyVisual(info)
+                return
+            end
+            self:_ClearProxyVisual()
+            self._isProxyMode = false
+            _G._MasterNear3DMonsters[pIdx] = self
+            if origCreateGO then return origCreateGO(self) end
+        end
+
+        wmo.OnCreateGameObject = function(self, ...)
+            if self._isProxyMode then
+                local firstArg = select(1, ...)
+                if not self.gameObject and firstArg and not IsNull(firstArg) then
+                    if type(firstArg) == "table" and firstArg.gameObject and not IsNull(firstArg.gameObject) then
+                        self.gameObject = firstArg.gameObject
+                    elseif type(firstArg) == "table" and firstArg.Result and not IsNull(firstArg.Result) then
+                        self.gameObject = firstArg.Result
+                    elseif type(firstArg) == "userdata" or (type(firstArg) == "table" and (firstArg.SetActive or firstArg.GetComponentsInChildren)) then
+                        self.gameObject = firstArg
+                    end
+                end
+                if self.gameObject and not IsNull(self.gameObject) then
+                    if self.GameObjectDestroy then
+                        pcall(self.GameObjectDestroy, self, self.gameObject)
+                    elseif CS and CS.UnityEngine and CS.UnityEngine.Object and CS.UnityEngine.Object.Destroy then
+                        pcall(CS.UnityEngine.Object.Destroy, self.gameObject)
+                    elseif self.gameObject.SetActive then
+                        pcall(self.gameObject.SetActive, self.gameObject, false)
+                    end
+                end
+                if self.instance and type(self.instance) == "table" and self.instance.Destroy then
+                    pcall(self.instance.Destroy, self.instance)
+                end
+                self.gameObject = nil
+                self.instance = nil
+                self.model = nil
+                self.anims = nil
+                self.gpuAnims = nil
+                self.cityLabels = nil
+                if self.pointIndex and _G._MasterNear3DMonsters then
+                    _G._MasterNear3DMonsters[self.pointIndex] = nil
+                end
+                return
+            end
+            local r = origOnCreateGO and origOnCreateGO(self, ...) or nil
+            local target = (not IsNull(self.gameObject) and self.gameObject)
+                or (not IsNull(self.model) and self.model)
+            if target then
+                optimizeInstance(target)
+            end
+            if self.RefreshLodType then
+                self:RefreshLodType()
+            end
+            return r
+        end
+
+        wmo.UpdateGameObject = function(self, ...)
+            local info = mgr and mgr.GetPointInfo and mgr:GetPointInfo(self.pointIndex)
+            local vp = mgr and mgr.allViewPoints and self.pointIndex and mgr.allViewPoints[self.pointIndex]
+            if type(vp) == "table" then
+                vp._monsterCat = nil
+                vp._parsedExtra = nil
+            end
+            if info then
+                if info.monsterInfo then
+                    self.monsterInfo = info.monsterInfo
+                elseif info.extraInfo then
+                    info._parsedExtra = nil
+                    self.monsterInfo = nil
+                end
+            end
+            if self._isProxyMode then
+                self:_ApplyMonsterLodState(info)
+                return
+            end
+            local r = origUpdateGO and origUpdateGO(self, ...) or nil
+            self:_ApplyMonsterLodState(info)
+            return r
+        end
+
+        wmo.Destroy = function(self, ...)
+            self:_ClearProxyVisual()
+            if self.pointIndex ~= nil then
+                _G._MasterNear3DMonsters[self.pointIndex] = nil
+                if _G._MasterProxyMonsterLabels then
+                    _G._MasterProxyMonsterLabels[self.pointIndex] = nil
+                end
+                if _G._MasterProxyMonsters then
+                    _G._MasterProxyMonsters[self.pointIndex] = nil
+                end
+            end
+            self._isProxyMode = nil
+            if origDestroy and (self.gameObject or self.instance) then
+                return origDestroy(self, ...)
+            end
+            self.monsterInfo = nil
+            self.model = nil
+            if self.RemoveAllListeners then
+                pcall(self.RemoveAllListeners, self)
+            end
+        end
+
+        wmo.SetIsBattle = function(self, value, ...)
+            if value == true and self._isProxyMode then
+                self:_ClearProxyVisual()
+                self._isProxyMode = false
+                if self.pointIndex then _G._MasterNear3DMonsters[self.pointIndex] = self end
+                if origCreateGO and not self.gameObject and not self.instance then
+                    pcall(origCreateGO, self)
+                end
+            end
+            if origSetIsBattle then
+                return origSetIsBattle(self, value, ...)
+            end
+        end
+
+        -- Skip expensive 3D skeletal animations on Zombies when proxied or zoomed out to 2D icons (lodLv >= 3)
         if origPlayAnim then
             wmo.PlayAnim = function(self, animName, ...)
+                if self._isProxyMode or not self.gameObject then
+                    return
+                end
                 local curLod = (mgr and mgr.lodLv) or 1
                 if curLod >= 3 and animName == "idle" then
                     return
                 end
                 return origPlayAnim(self, animName, ...)
+            end
+        end
+
+        wmo.__masterMonsterHooked = true
+    end
+
+    -- Preserve click-to-inspect/attack on GPU-instanced proxied monsters
+    local ok_wim, wim = pcall(require, "Scene.WorldScene.SubModule.WorldInputManager")
+    if ok_wim and wim and not wim.__masterClickHooked then
+        wim.__masterClickHooked = true
+        local _resolvedInClick = nil
+        local _lastInputClickArg1 = nil
+        local _lastInputClickArg2 = nil
+
+        local function resolveProxyMonsterClick(posOrIdx)
+            local curMgr = DataCenter and DataCenter.WorldPointManager
+            if not curMgr or not curMgr.allViewPoints or posOrIdx == nil then return nil end
+            local tileIndex = nil
+            local posType = type(posOrIdx)
+            if posType == "number" then
+                tileIndex = posOrIdx
+            elseif posType == "table" or posType == "userdata" then
+                if posType == "table" and (posOrIdx.pointIndex or posOrIdx.tileIndex or posOrIdx.mainIndex) then
+                    tileIndex = tonumber(posOrIdx.pointIndex or posOrIdx.tileIndex or posOrIdx.mainIndex)
+                elseif SceneUtils and ForceChangeScene then
+                    if SceneUtils.WorldToTileIndex then
+                        local okTi, ti = pcall(SceneUtils.WorldToTileIndex, posOrIdx, ForceChangeScene.World)
+                        if okTi and type(ti) == "number" and ti > 0 then
+                            tileIndex = ti
+                        end
+                    end
+                    if not tileIndex and SceneUtils.WorldToTileXZ and posOrIdx.x ~= nil then
+                        local wz = (posOrIdx.z ~= nil) and posOrIdx.z or posOrIdx.y
+                        if wz ~= nil then
+                            local okXz, tx, ty = pcall(SceneUtils.WorldToTileXZ, posOrIdx.x, wz, ForceChangeScene.World)
+                            if okXz and type(tx) == "number" and type(ty) == "number" and tx >= 0 and ty >= 0 then
+                                tileIndex = ty * (TileCountX or 1000) + tx + 1
+                            end
+                        end
+                    end
+                end
+            else
+                return nil
+            end
+            if not tileIndex or tileIndex <= 0 then return nil end
+            local vp = curMgr.allViewPoints[tileIndex]
+            local mainIdx = (type(vp) == "table" and vp.mainIndex) or tileIndex
+            local obj = curMgr.allObj and curMgr.allObj[mainIdx]
+            if obj and obj._isProxyMode then
+                return mainIdx, obj
+            end
+            return nil
+        end
+
+        local function resolveWorldClickPosFromWim(selfWim)
+            if selfWim then
+                local direct = selfWim.curClickPos or selfWim.clickPos or selfWim.touchWorldPos
+                if direct ~= nil then return direct end
+                if type(selfWim.GetClickWorldBulidingPos) == "function" then
+                    local okBp, bp = pcall(selfWim.GetClickWorldBulidingPos, selfWim)
+                    if okBp and bp ~= nil then return bp end
+                end
+                if type(selfWim.GetCurIndex) == "function" then
+                    local okCi, ci = pcall(selfWim.GetCurIndex, selfWim)
+                    if okCi and type(ci) == "number" and ci > 0 then return ci end
+                end
+            end
+            if _lastInputClickArg1 ~= nil then
+                if type(_lastInputClickArg1) == "number" then
+                    return _lastInputClickArg1
+                elseif (type(_lastInputClickArg1) == "table" or type(_lastInputClickArg1) == "userdata") and _lastInputClickArg1.z ~= nil and _lastInputClickArg1.z ~= 0 then
+                    return _lastInputClickArg1
+                end
+            end
+            local mainCam = CS and CS.UnityEngine and CS.UnityEngine.Camera and CS.UnityEngine.Camera.main
+            local inp = CS and CS.UnityEngine and CS.UnityEngine.Input
+            local screenPos = ((type(_lastInputClickArg1) == "table" or type(_lastInputClickArg1) == "userdata") and _lastInputClickArg1.x ~= nil and _lastInputClickArg1)
+                or ((type(_lastInputClickArg2) == "table" or type(_lastInputClickArg2) == "userdata") and _lastInputClickArg2.x ~= nil and _lastInputClickArg2)
+                or (inp and inp.mousePosition)
+            if mainCam and not IsNull(mainCam) and screenPos and mainCam.ScreenPointToRay then
+                local okRay, ray = pcall(mainCam.ScreenPointToRay, mainCam, screenPos)
+                if okRay and ray and ray.origin and ray.direction and ray.direction.y ~= 0 then
+                    local t = -ray.origin.y / ray.direction.y
+                    if t > 0 then
+                        return {
+                            x = ray.origin.x + ray.direction.x * t,
+                            y = 0,
+                            z = ray.origin.z + ray.direction.z * t,
+                        }
+                    end
+                end
+            end
+            return nil
+        end
+
+        local function invokeUIOnClickWorld(proxyIdx)
+            if not proxyIdx or not _G.UIUtil or not _G.UIUtil.OnClickWorld then return false, nil end
+            local fn = _G.UIUtil.OnClickWorld
+            local firstParamName = (debug and debug.getlocal) and select(1, debug.getlocal(fn, 1)) or nil
+            if firstParamName == "pointIndex" or firstParamName == "index" or firstParamName == "tileIndex" or firstParamName == "pos" or firstParamName == "pIdx" or firstParamName == "pointId" then
+                return pcall(fn, proxyIdx)
+            end
+            return pcall(fn, _G.UIUtil, proxyIdx)
+        end
+
+        if type(wim.OnInputClick) == "function" then
+            local origOnInputClick = wim._origOnInputClick or wim.OnInputClick
+            wim._origOnInputClick = origOnInputClick
+            wim.OnInputClick = function(self, a1, a2, a3, ...)
+                _lastInputClickArg1 = a1
+                _lastInputClickArg2 = a2
+                local okIc, resIc = pcall(origOnInputClick, self, a1, a2, a3, ...)
+                _lastInputClickArg1 = nil
+                _lastInputClickArg2 = nil
+                if not okIc then error(resIc) end
+                return resIc
+            end
+        end
+
+        if type(wim.GetInstancedBuildingClickIndex) == "function" then
+            local origGetIdx = wim._origGetInstancedBuildingClickIndex or wim.GetInstancedBuildingClickIndex
+            wim._origGetInstancedBuildingClickIndex = origGetIdx
+            wim.GetInstancedBuildingClickIndex = function(self, posOrIdx, ...)
+                local idx = origGetIdx(self, posOrIdx, ...)
+                if idx ~= nil and idx ~= 0 then
+                    return idx
+                end
+                local proxyIdx = resolveProxyMonsterClick(posOrIdx)
+                if proxyIdx then
+                    _resolvedInClick = proxyIdx
+                    return proxyIdx
+                end
+                return idx
+            end
+        end
+
+        if type(wim.ClickWorld) == "function" then
+            local origClickWorld = wim._origClickWorld or wim.ClickWorld
+            wim._origClickWorld = origClickWorld
+            wim.ClickWorld = function(self, optTileIdx, ...)
+                _resolvedInClick = nil
+                local okCall, res = pcall(origClickWorld, self, optTileIdx, ...)
+                local wasResolvedByGetIdx = (_resolvedInClick ~= nil)
+                _resolvedInClick = nil
+                if not okCall then
+                    error(res)
+                end
+                if (res == nil or res == false) and not wasResolvedByGetIdx then
+                    local clickTarget = optTileIdx
+                    if clickTarget == nil then
+                        clickTarget = resolveWorldClickPosFromWim(self)
+                    end
+                    local proxyIdx = resolveProxyMonsterClick(clickTarget)
+                    if proxyIdx then
+                        local okClick, clickRes = invokeUIOnClickWorld(proxyIdx)
+                        if okClick and clickRes ~= nil then
+                            return clickRes
+                        end
+                    end
+                end
+                return res
             end
         end
     end
@@ -1546,33 +2347,61 @@ function _G.ApplyLastZWorldMaster()
         return false
     end
 
-    -- High-throughput zero-stutter frame budgets for DoParse (90/frame) and BuildAsync (60..180/frame)
+    -- High-throughput zero-stutter frame budgets using os.clock() wall-clock deltas (DoParse <= 2.5ms, BuildAsync <= 3.5ms)
     local _parseFrame = -1
     local _parseCount = 0
+    local _parseStartClock = 0
+    local _PARSE_BUDGET_SEC = 0.0025
     mgr.IsBusy = function(self)
-        local f = CS.UnityEngine.Time.frameCount
+        local timeApi = CS and CS.UnityEngine and CS.UnityEngine.Time
+        local f = timeApi and timeApi.frameCount or 0
+        local nowClk = os.clock()
         if f ~= _parseFrame then
             _parseFrame = f
             _parseCount = 0
+            _parseStartClock = nowClk
         end
         _parseCount = _parseCount + 1
+        if _parseCount <= 4 then
+            return false
+        end
+        local dt = nowClk - _parseStartClock
+        if dt < 0 then
+            _parseStartClock = nowClk
+            dt = 0
+        end
+        if dt >= _PARSE_BUDGET_SEC then
+            return true
+        end
         return _parseCount > 90
     end
 
     local _buildFrame = -1
     local _buildCount = 0
+    local _buildStartClock = 0
+    local _BUILD_BUDGET_SEC = 0.0035
     mgr.IsSyncBusy = function(self)
-        local f = CS.UnityEngine.Time.frameCount
+        local timeApi = CS and CS.UnityEngine and CS.UnityEngine.Time
+        local f = timeApi and timeApi.frameCount or 0
+        local nowClk = os.clock()
         if f ~= _buildFrame then
             _buildFrame = f
             _buildCount = 0
+            _buildStartClock = nowClk
         end
         _buildCount = _buildCount + 1
-        local totalLen = (self.toBuildList and #self.toBuildList) or 0
-        local headIdx = tonumber(self.toBuildListHead or 1) or 1
-        local remaining = totalLen - headIdx + 1
-        local limit = (remaining > 80) and 180 or 60
-        return _buildCount > limit
+        if _buildCount <= 4 then
+            return false
+        end
+        local dt = nowClk - _buildStartClock
+        if dt < 0 then
+            _buildStartClock = nowClk
+            dt = 0
+        end
+        if dt >= _BUILD_BUDGET_SEC then
+            return true
+        end
+        return _buildCount > 250
     end
 
     mgr.ReconcileAoiPoints = function(self, newIdSet, newCount)
@@ -1582,6 +2411,28 @@ function _G.ApplyLastZWorldMaster()
     mgr.ReconcileAoiDeserts = function(self, newIdSet, newCount)
         if not self.aoiDesertIdSet then self.aoiDesertIdSet = newIdSet or {}
         else for k in pairs(newIdSet or {}) do self.aoiDesertIdSet[k] = true end end
+    end
+
+    local function _clearAllProxyRenderers(targetMgr)
+        if _MonsterFallbackBatch and _MonsterFallbackBatch.Clear then
+            _MonsterFallbackBatch.Clear()
+        end
+        _G._MasterNear3DMonsters = {}
+        _G._MasterProxyMonsterLabels = {}
+        _G._MasterProxyMonsters = {}
+        if not targetMgr then return end
+        if targetMgr.GetIconRenderer then
+            local okIr, ir = pcall(targetMgr.GetIconRenderer, targetMgr)
+            if okIr and ir and ir.Clear then
+                pcall(ir.Clear, ir)
+            end
+        end
+        if targetMgr.GetLabelRenderer then
+            local okLr, lr = pcall(targetMgr.GetLabelRenderer, targetMgr)
+            if okLr and lr and lr.Clear then
+                pcall(lr.Clear, lr)
+            end
+        end
     end
 
     -- Persistent Cache Lifecycle Hooks (Per-server cache; never wipe viewpoints across scene switches)
@@ -1613,6 +2464,7 @@ function _G.ApplyLastZWorldMaster()
                 end
             end
             _G.SaveWorldCacheToDisk(sid, true)
+            _clearAllProxyRenderers(self)
             local ret = nil
             if origClose then
                 ret = origClose(self, ...)
@@ -1621,8 +2473,51 @@ function _G.ApplyLastZWorldMaster()
             _G._MasterDirtyBuckets = {}
             _G._MasterViewPointCount = 0
             _G._MasterGridTableRef = nil
+            _G._MasterObjCount = 0
+            _G._MasterAllObjRef = nil
+            _G._MasterProxyMonsters = {}
             _G._MasterStreamReset = true
             return ret
+        end
+
+        local origCreateObject = proto._origCreateObjectV8 or proto.CreateObject
+        proto._origCreateObjectV8 = origCreateObject
+        if origCreateObject then
+            proto.CreateObject = function(self, pointIndex, ...)
+                _syncMasterObjCount(self)
+                local had = (self.allObj ~= nil and pointIndex ~= nil and self.allObj[pointIndex] ~= nil)
+                local ret = origCreateObject(self, pointIndex, ...)
+                if not had and self.allObj ~= nil and pointIndex ~= nil and self.allObj[pointIndex] ~= nil then
+                    _G._MasterObjCount = (_G._MasterObjCount or 0) + 1
+                end
+                return ret
+            end
+        end
+
+        local origDestroyObject = proto._origDestroyObjectV8 or proto.DestroyObject
+        proto._origDestroyObjectV8 = origDestroyObject
+        if origDestroyObject then
+            proto.DestroyObject = function(self, pointIndex, ...)
+                _syncMasterObjCount(self)
+                local prevObj = (self.allObj ~= nil and pointIndex ~= nil) and self.allObj[pointIndex] or nil
+                if prevObj and prevObj._ClearProxyVisual then
+                    pcall(prevObj._ClearProxyVisual, prevObj)
+                end
+                if pointIndex ~= nil and _G._MasterNear3DMonsters then
+                    _G._MasterNear3DMonsters[pointIndex] = nil
+                end
+                if pointIndex ~= nil and _G._MasterProxyMonsterLabels then
+                    _G._MasterProxyMonsterLabels[pointIndex] = nil
+                end
+                if pointIndex ~= nil and _G._MasterProxyMonsters then
+                    _G._MasterProxyMonsters[pointIndex] = nil
+                end
+                local ret = origDestroyObject(self, pointIndex, ...)
+                if prevObj ~= nil and (self.allObj == nil or self.allObj[pointIndex] == nil) then
+                    _G._MasterObjCount = math.max(0, (_G._MasterObjCount or 1) - 1)
+                end
+                return ret
+            end
         end
 
         local origStartUp = proto._origStartUpV8 or proto.StartUp
@@ -1656,10 +2551,15 @@ function _G.ApplyLastZWorldMaster()
                     end
                     if self.allViewPoints and not self.allViewPoints[pKey] then
                         self.allViewPoints[pKey] = { pointIndex = pKey, pointInfo = pInfo }
+                    elseif self.allViewPoints and type(self.allViewPoints[pKey]) == "table" then
+                        self.allViewPoints[pKey]._monsterCat = nil
+                        self.allViewPoints[pKey]._parsedExtra = nil
                     end
                 end
                 local ret = origAddPointInfo(self, arg1, arg2, ...)
                 if pKey and self.allViewPoints and self.allViewPoints[pKey] then
+                    self.allViewPoints[pKey]._monsterCat = nil
+                    self.allViewPoints[pKey]._parsedExtra = nil
                     IndexViewPoint(self, pKey, self.allViewPoints[pKey], true)
                 end
                 return ret
@@ -1716,7 +2616,24 @@ function _G.ApplyLastZWorldMaster()
         mgr.RemovePointInfo = function(self, pointIndex, forceRemove, isOutOfView)
             if forceRemove == true and isOutOfView ~= true then
                 local prevEntry = self.allViewPoints and self.allViewPoints[pointIndex]
+                local prevObj = self.allObj and pointIndex ~= nil and self.allObj[pointIndex] or nil
+                if prevObj and prevObj._ClearProxyVisual then
+                    pcall(prevObj._ClearProxyVisual, prevObj)
+                end
+                if pointIndex ~= nil and _G._MasterNear3DMonsters then
+                    _G._MasterNear3DMonsters[pointIndex] = nil
+                end
+                if pointIndex ~= nil and _G._MasterProxyMonsterLabels then
+                    _G._MasterProxyMonsterLabels[pointIndex] = nil
+                end
+                if pointIndex ~= nil and _G._MasterProxyMonsters then
+                    _G._MasterProxyMonsters[pointIndex] = nil
+                end
+                local cntBefore = _G._MasterObjCount or 0
                 local ret = origRemovePointInfo(self, pointIndex, true, false)
+                if prevObj ~= nil and (self.allObj == nil or self.allObj[pointIndex] == nil) and (_G._MasterObjCount or 0) == cntBefore then
+                    _G._MasterObjCount = math.max(0, cntBefore - 1)
+                end
                 UnindexViewPoint(pointIndex, prevEntry)
                 local sid = ResolveCacheServerId(nil, self)
                 local ptCache, desertCache = GetServerCacheTables(sid, self)
@@ -1732,6 +2649,103 @@ function _G.ApplyLastZWorldMaster()
                 MarkWorldCacheDirty(sid, 1)
                 return ret
             end
+        end
+    end
+
+    if type(mgr.OnLodChanged) == "function" then
+        local origOnLodChanged = mgr._origOnLodChangedV8 or mgr.OnLodChanged
+        mgr._origOnLodChangedV8 = origOnLodChanged
+        mgr.OnLodChanged = function(self, lod, ...)
+            local r = origOnLodChanged(self, lod, ...)
+            _G._MasterLodDirty = true
+            _G._MasterReconcilePass = nil
+            local startClk = os.clock()
+            local budgetHit = false
+            if type(lod) == "number" and lod >= 3 and _G._MasterNear3DMonsters then
+                local countDemoted = 0
+                for pIdx, mObj in pairs(_G._MasterNear3DMonsters) do
+                    if mObj and mObj._ApplyMonsterLodState then
+                        local info = self.GetPointInfo and self:GetPointInfo(pIdx)
+                        pcall(mObj._ApplyMonsterLodState, mObj, info)
+                    else
+                        _G._MasterNear3DMonsters[pIdx] = nil
+                    end
+                    countDemoted = countDemoted + 1
+                    if (countDemoted % 8 == 0) and (os.clock() - startClk) >= 0.0020 then
+                        budgetHit = true
+                        break
+                    end
+                end
+            end
+            if (not budgetHit) and type(lod) == "number" and lod >= 5 and _G._MasterProxyMonsterLabels then
+                local lr = self.GetLabelRenderer and self:GetLabelRenderer()
+                local countLbl = 0
+                for pIdx, mObj in pairs(_G._MasterProxyMonsterLabels) do
+                    if mObj and mObj._proxyLabelHandle ~= nil then
+                        if lr and lr.RemoveLabel then
+                            pcall(lr.RemoveLabel, lr, mObj._proxyLabelHandle)
+                        end
+                        mObj._proxyLabelHandle = nil
+                        mObj._proxyLabelLv = nil
+                    end
+                    _G._MasterProxyMonsterLabels[pIdx] = nil
+                    countLbl = countLbl + 1
+                    if (countLbl % 16 == 0) and (os.clock() - startClk) >= 0.0020 then
+                        break
+                    end
+                end
+            elseif (not budgetHit) and type(lod) == "number" and lod <= 4 and _G._MasterProxyMonsters and next(_G._MasterProxyMonsters) ~= nil then
+                local toggles = _G._MasterToggles
+                local needCam = (lod <= 2) or (toggles ~= nil and toggles.masterEnabled == false)
+                local camX, camY = 500, 500
+                if needCam then
+                    camX, camY = GetActualCameraTilePos(self, SceneManager and SceneManager.World)
+                end
+                local allObj = self.allObj
+                local countRestored = 0
+                for pIdx, mObj in pairs(_G._MasterProxyMonsters) do
+                    if mObj and mObj._isProxyMode and mObj._proxyLabelHandle == nil and mObj._EnsureProxyVisual then
+                        if allObj and allObj[pIdx] ~= mObj then
+                            _G._MasterProxyMonsters[pIdx] = nil
+                        else
+                            local allowed = true
+                            if needCam then
+                                local px = mObj._cachedTileX
+                                local py = mObj._cachedTileY
+                                if not px or not py then
+                                    px, py = FastIndexToXY(pIdx)
+                                    mObj._cachedTileX = px
+                                    mObj._cachedTileY = py
+                                end
+                                local dist = math.max(math.abs(px - camX), math.abs(py - camY))
+                                if lod <= 2 and (dist <= MONSTER_NEAR_3D_RADIUS or mObj.isInBattle == true) then
+                                    allowed = false
+                                elseif toggles and toggles.masterEnabled == false and dist > 48 then
+                                    allowed = false
+                                end
+                            end
+                            local vp = allowed and self.allViewPoints and self.allViewPoints[pIdx] or nil
+                            local info = allowed and ((vp and vp.pointInfo) or (self.GetPointInfo and self:GetPointInfo(pIdx))) or nil
+                            if allowed and toggles then
+                                local cat = GetMonsterCategory({ pointInfo = info, _parsedExtra = mObj.monsterInfo })
+                                if (cat == "BOOMER" or cat == "BOSS") and toggles.showBoomers == false then
+                                    allowed = false
+                                elseif cat == "ZOMBIE" and toggles.showZombies == false then
+                                    allowed = false
+                                end
+                            end
+                            if allowed then
+                                pcall(mObj._EnsureProxyVisual, mObj, info)
+                            end
+                        end
+                    end
+                    countRestored = countRestored + 1
+                    if (countRestored % 16 == 0) and (os.clock() - startClk) >= 0.0020 then
+                        break
+                    end
+                end
+            end
+            return r
         end
     end
 
@@ -1812,9 +2826,15 @@ function _G.ApplyLastZWorldMaster()
         SyncSpatialGridIfReplaced(mgr)
     end
 
-    -- Preload and stream nearby spatial buckets synchronously on world entry (viewport-first concentric rings)
+    -- Preload and stream all spatial buckets on world entry (viewport-first concentric rings, deduplicated by mainIndex)
     local initCamX, initCamY = GetActualCameraTilePos(mgr, ws)
     if mgr.isInit == true and mgr.allViewPoints and mgr.AddToBuildList then
+        -- Reset any stale duplicate sub-tile queue entries before clean deduplicated viewport-first streaming
+        if type(mgr.toBuildList) == "table" and #mgr.toBuildList > 2000 then
+            mgr.toBuildList = {}
+            mgr.toBuildListHead = 1
+            mgr.toBuildSet = {}
+        end
         local grid = _G._MasterSpatialGrid
         local camBx = math.floor(initCamX / BUCKET_SIZE)
         local camBy = math.floor(initCamY / BUCKET_SIZE)
@@ -1838,7 +2858,7 @@ function _G.ApplyLastZWorldMaster()
             local bucket = grid[ordered[i].key]
             if bucket then
                 for k, v in pairs(bucket) do
-                    if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                    if type(v) == "table" and (v.mainIndex == nil or v.mainIndex == k) and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
                         if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
                             if ShouldBuildPointNow(mgr, k, v, initCamX, initCamY, false) then
                                 mgr:AddToBuildList(k)
@@ -1855,14 +2875,7 @@ function _G.ApplyLastZWorldMaster()
         return "HOOKS_READY_WAITING_FOR_WORLD_VIEW"
     end
 
-    -- Clean any dead GameObjects that might have been left over in allObj
-    if mgr.allObj then
-        for k, obj in pairs(mgr.allObj) do
-            if not obj or not obj.gameObject or IsNull(obj.gameObject) then
-                mgr.allObj[k] = nil
-            end
-        end
-    end
+    _syncMasterObjCount(mgr)
 
     -- Camera streamer: remove any legacy per-frame AfterUpdate hook that caused frame lag or moved transforms
     if ws and ws.Camera then
@@ -1872,51 +2885,124 @@ function _G.ApplyLastZWorldMaster()
         end
     end
 
+    local function _applyToggleEntry(curMgr, k, obj, camX, camY)
+        if not obj then return end
+        local vp = curMgr.allViewPoints and curMgr.allViewPoints[k]
+        local cname = (obj._class_type and obj._class_type.__cname) or ""
+        if obj._ApplyMonsterLodState then
+            local info = (vp and vp.pointInfo) or (curMgr.GetPointInfo and curMgr:GetPointInfo(obj.pointIndex))
+            pcall(obj._ApplyMonsterLodState, obj, info)
+        elseif cname == "WorldResObjectInstanced" and obj._ApplyInstancedLodState then
+            local info = (vp and vp.pointInfo) or (curMgr.GetPointInfo and curMgr:GetPointInfo(obj.pointIndex))
+            if info then pcall(obj._ApplyInstancedLodState, obj, info, false) end
+        elseif obj.gameObject and not IsNull(obj.gameObject) then
+            local shouldShow = (vp ~= nil) and _G.ShouldBuildPointNow(curMgr, k, vp, camX, camY, false) or true
+            if obj.gameObject.activeSelf ~= shouldShow then
+                obj.gameObject:SetActive(shouldShow)
+            end
+        end
+    end
+
     _G.ApplyToggleChangeImmediate = function()
-        pcall(function()
-            local curMgr = DataCenter and DataCenter.WorldPointManager
-            local curWs = SceneManager and SceneManager.World
-            if curMgr and curMgr.isInit == true and curMgr.allObj then
-                local camX, camY = GetActualCameraTilePos(curMgr, curWs)
-                for k, obj in pairs(curMgr.allObj) do
-                    local vp = curMgr.allViewPoints and curMgr.allViewPoints[k]
-                    local shouldShow = (vp ~= nil) and _G.ShouldBuildPointNow(curMgr, k, vp, camX, camY, false) or true
-                    local cname = (obj._class_type and obj._class_type.__cname) or ""
-                    if cname == "WorldResObjectInstanced" and obj._ApplyInstancedLodState then
-                        local info = curMgr:GetPointInfo(obj.pointIndex)
-                        if info then pcall(obj._ApplyInstancedLodState, obj, info, false) end
-                    elseif obj.gameObject and not IsNull(obj.gameObject) then
-                        if obj.gameObject.activeSelf ~= shouldShow then
-                            obj.gameObject:SetActive(shouldShow)
+        local tok = (_G._MasterToggleSweepToken or 0) + 1
+        _G._MasterToggleSweepToken = tok
+        local curMgr = DataCenter and DataCenter.WorldPointManager
+        local curWs = SceneManager and SceneManager.World
+        if curMgr and curMgr.isInit == true and curMgr.allObj then
+            local camX, camY = GetActualCameraTilePos(curMgr, curWs)
+            local objTbl = curMgr.allObj
+            local nextK, nextV = next(objTbl, nil)
+            local function _toggleSlice()
+                if _G._MasterToggleSweepToken ~= tok then return end
+                if DataCenter and DataCenter.WorldPointManager ~= curMgr or curMgr.isInit ~= true then return end
+                local startClk = os.clock()
+                local processed = 0
+                while nextK ~= nil do
+                    local curK, curObj = nextK, nextV
+                    local okN, nk, nv = pcall(next, objTbl, curK)
+                    if okN then
+                        nextK, nextV = nk, nv
+                    else
+                        nextK, nextV = nil, nil
+                    end
+                    _applyToggleEntry(curMgr, curK, curObj, camX, camY)
+                    processed = processed + 1
+                    if nextK ~= nil and (processed % 16 == 0) and (os.clock() - startClk) >= 0.0025 then
+                        local tm = TimerManager and TimerManager:GetInstance()
+                        if tm and tm.DelayInvoke then
+                            tm:DelayInvoke(_toggleSlice, 0.02)
+                            return
                         end
                     end
                 end
             end
-            _G._ForceStreamRescan = true
-        end)
+            pcall(_toggleSlice)
+        end
+        _G._ForceStreamRescan = true
         pcall(_G.RefreshMasterOverlayUI)
     end
 
-    -- Refresh existing objects
-    local now = os.time()
-    for k, obj in pairs(mgr.allObj or {}) do
-        if obj.adjuster and not IsNull(obj.adjuster) then
-            expandAdjuster(obj.adjuster)
-        end
-        local cname = (obj._class_type and obj._class_type.__cname) or ""
-        local info = mgr:GetPointInfo(obj.pointIndex)
-        if cname == "WorldBuildObject" and info then
-            pcall(obj.SetBuildIconColor, obj, info)
-            local bi = info.buildInfo
-            if bi and bi.protectEndTime and (bi.protectEndTime > now) then
-                pcall(obj.SetProtectRenderVisible, obj, true)
+    -- Time-sliced dead-GO sweep and existing object refresh (0.0025s os.clock() budget/tick)
+    if mgr.allObj then
+        local sweepTok = (_G._MasterRefreshSweepToken or 0) + 1
+        _G._MasterRefreshSweepToken = sweepTok
+        local objTbl = mgr.allObj
+        local nowSec = os.time()
+        local nextK, nextV = next(objTbl, nil)
+        local function _refreshSlice()
+            if _G._MasterRefreshSweepToken ~= sweepTok then return end
+            local startClk = os.clock()
+            local processed = 0
+            while nextK ~= nil do
+                local curK, curObj = nextK, nextV
+                local okN, nk, nv = pcall(next, objTbl, curK)
+                if okN then
+                    nextK, nextV = nk, nv
+                else
+                    nextK, nextV = nil, nil
+                end
+                local cname = curObj and ((curObj._class_type and curObj._class_type.__cname) or "") or ""
+                local isInstancedObj = curObj and (curObj._ApplyInstancedLodState ~= nil or string.find(cname, "Instanced", 1, true) ~= nil)
+                local hasAsyncPending = curObj and (curObj.instance ~= nil)
+                if not curObj or (not curObj._isProxyMode and not isInstancedObj and not hasAsyncPending and (not curObj.gameObject or IsNull(curObj.gameObject))) then
+                    objTbl[curK] = nil
+                    if _G._MasterNear3DMonsters then _G._MasterNear3DMonsters[curK] = nil end
+                    if _G._MasterProxyMonsterLabels then _G._MasterProxyMonsterLabels[curK] = nil end
+                    if _G._MasterProxyMonsters then _G._MasterProxyMonsters[curK] = nil end
+                    _G._MasterObjCount = math.max(0, (_G._MasterObjCount or 1) - 1)
+                else
+                    if curObj.adjuster and not IsNull(curObj.adjuster) then
+                        expandAdjuster(curObj.adjuster)
+                    end
+                    local info = mgr.GetPointInfo and mgr:GetPointInfo(curObj.pointIndex)
+                    if cname == "WorldBuildObject" and info then
+                        if curObj.SetBuildIconColor then pcall(curObj.SetBuildIconColor, curObj, info) end
+                        local bi = info.buildInfo
+                        if bi and bi.protectEndTime and (bi.protectEndTime > nowSec) and curObj.SetProtectRenderVisible then
+                            pcall(curObj.SetProtectRenderVisible, curObj, true)
+                        end
+                    elseif cname == "WorldMonsterObject" then
+                        if curObj._ApplyMonsterLodState then
+                            pcall(curObj._ApplyMonsterLodState, curObj, info)
+                        elseif curObj.RefreshLodType then
+                            pcall(curObj.RefreshLodType, curObj)
+                        end
+                    elseif cname == "WorldResObjectInstanced" and info then
+                        curObj._ApplyInstancedLodState = applySmartInstancedLodState
+                        pcall(curObj._ApplyInstancedLodState, curObj, info, false)
+                    end
+                end
+                processed = processed + 1
+                if nextK ~= nil and (processed % 16 == 0) and (os.clock() - startClk) >= 0.0025 then
+                    local tm = TimerManager and TimerManager:GetInstance()
+                    if tm and tm.DelayInvoke then
+                        tm:DelayInvoke(_refreshSlice, 0.02)
+                        return
+                    end
+                end
             end
-        elseif cname == "WorldMonsterObject" then
-            pcall(obj.RefreshLodType, obj)
-        elseif cname == "WorldResObjectInstanced" and info then
-            obj._ApplyInstancedLodState = applySmartInstancedLodState
-            pcall(obj._ApplyInstancedLodState, obj, info, false)
         end
+        pcall(_refreshSlice)
     end
 
     -- Ensure background preloader is continuously sweeping and parsing world data
@@ -1929,8 +3015,7 @@ function _G.ApplyLastZWorldMaster()
     pcall(_G.RefreshMasterOverlayUI)
 
     local totalPts = _G._MasterViewPointCount or 0
-    local totalObjs = 0
-    if mgr.allObj then for _ in pairs(mgr.allObj) do totalObjs = totalObjs + 1 end end
+    local totalObjs = tonumber(_G._MasterObjCount or 0) or 0
 
     return string.format(
         "SUCCESS_MASTER_V8_0_FULL_MAP_LOAD (server=%d, vtblPatched=%d, cachedPoints=%d, activeObj=%d)",
@@ -1973,19 +3058,23 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
     end
 
     -- Zero-gap overlapping svLod=1 grid (server returns 71x101 full-detail HQs/Zombies/Resources/Cities/Radar)
-    -- Step 64x90 guarantees 7..11 tiles overlap on every border and full 0..999 edge-to-edge coverage (176 sectors)
+    -- Step 64x90 guarantees 7..11 tiles overlap on every border and full 0..999 edge-to-edge coverage (192 sectors)
     local xs = {}
     for gx = 32, tileW - 32, 64 do
         xs[#xs + 1] = gx
     end
-    if xs[#xs] < (tileW - 36) then
+    if #xs == 0 then
+        xs[#xs + 1] = math.max(0, math.floor(tileW / 2))
+    elseif xs[#xs] < (tileW - 36) then
         xs[#xs + 1] = tileW - 32
     end
     local ys = {}
     for gy = 48, tileH - 48, 90 do
         ys[#ys + 1] = gy
     end
-    if ys[#ys] < (tileH - 52) then
+    if #ys == 0 then
+        ys[#ys + 1] = math.max(0, math.floor(tileH / 2))
+    elseif ys[#ys] < (tileH - 51) then
         ys[#ys + 1] = tileH - 48
     end
 
@@ -2128,12 +3217,30 @@ function _G.StartBackgroundWorldPreloader(forceRestart)
             end
             if dirtyTicks >= 40 then
                 dirtyTicks = 0
-                _G.SaveWorldCacheToDisk(serverId, false)
+                if mgr.isInit ~= true then
+                    _G.SaveWorldCacheToDisk(serverId, false)
+                end
             end
             tmManager:DelayInvoke(sStep, fastStepDelay)
         else
-            -- Completed full 1000x1000 zero-gap map sweep. Flush disk cache, rest 5 min, then silently refresh
-            _G.SaveWorldCacheToDisk(serverId, true)
+            -- Completed full 1000x1000 zero-gap map sweep. Defer 40MB disk flush until idle/City, rest 5 min, then silently refresh
+            local deferTok = (_G._MasterDeferredSaveToken or 0) + 1
+            _G._MasterDeferredSaveToken = deferTok
+            local deferTries = 0
+            local function _deferredIdleSave()
+                if _G._MasterDeferredSaveToken ~= deferTok then return end
+                deferTries = deferTries + 1
+                local curMgr = DataCenter and DataCenter.WorldPointManager
+                local inWorld = (curMgr and curMgr.isInit == true)
+                local camQuiet = (os.clock() - (_G._LastCameraMoveClock or 0)) >= 2.5
+                local streamIdle = (_G._MasterStreamActive ~= true)
+                if (not inWorld) or (streamIdle and camQuiet) or deferTries >= 12 then
+                    _G.SaveWorldCacheToDisk(serverId, true)
+                    return
+                end
+                tmManager:DelayInvoke(_deferredIdleSave, 1.0)
+            end
+            tmManager:DelayInvoke(_deferredIdleSave, 0.5)
             _G._FullMapLoadState.active = false
             _G._FullMapLoadState.silentRefresh = true
             _G._FullMapLoadState.done = #allSectors
@@ -2218,7 +3325,7 @@ function _G.TriggerFullMapLoad(forceRestart)
                 local bucket = grid[ordered[i].key]
                 if bucket then
                     for k, v in pairs(bucket) do
-                        if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                        if type(v) == "table" and (v.mainIndex == nil or v.mainIndex == k) and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
                             if not (mgr.allObj and mgr.allObj[k]) and not (mgr.toBuildSet and mgr.toBuildSet[k]) then
                                 if _G.ShouldBuildPointNow(mgr, k, v, camX, camY, false) then
                                     mgr:AddToBuildList(k)
@@ -2235,7 +3342,7 @@ function _G.TriggerFullMapLoad(forceRestart)
     end
     pcall(_G.RefreshMasterOverlayUI)
     local ptCnt = _G._MasterViewPointCount or 0
-    local objCnt = (mgr and mgr.allObj and SafeTableCount(mgr.allObj)) or 0
+    local objCnt = tonumber(_G._MasterObjCount or 0) or 0
     return string.format(
         "FULL_MAP_LOAD_TRIGGERED (server=%d, inWorld=%s, points=%d, built=%d, vtblPatched=%d)",
         GetActiveWorldServerId(mgr),
@@ -2293,33 +3400,45 @@ if TimerManager then
         { code = kc.Home, field = "showOverlay",   isWorldToggle = false },
     }
 
-    local function pollHotkeys()
-        if _G._masterHotkeyToken ~= hkToken then return end
-        pcall(function()
-            if not inp or not _G._MasterToggles then return end
-            local prev = _G._keyPrevState
+    local function _pollHotkeysWork()
+        if not inp or not _G._MasterToggles then return end
+        local prev = _G._keyPrevState
+        if (inp.anyKey ~= nil or inp.anyKeyDown ~= nil) and (not inp.anyKey) and (not inp.anyKeyDown) then
+            local hasLatched = false
             for i = 1, #KEY_BINDINGS do
-                local b = KEY_BINDINGS[i]
-                local isDown = inp.GetKey(b.code) or inp.GetKeyDown(b.code)
-                if isDown and not prev[b.field] then
-                    prev[b.field] = true
-                    if b.isFullLoad then
-                        if _G.TriggerFullMapLoad then
-                            pcall(_G.TriggerFullMapLoad, true)
-                        end
-                    else
-                        _G._MasterToggles[b.field] = not _G._MasterToggles[b.field]
-                        if b.isWorldToggle and _G.ApplyToggleChangeImmediate then
-                            _G.ApplyToggleChangeImmediate()
-                        else
-                            pcall(_G.RefreshMasterOverlayUI)
-                        end
-                    end
-                elseif not isDown and prev[b.field] then
-                    prev[b.field] = false
+                if prev[KEY_BINDINGS[i].field] then
+                    hasLatched = true
+                    break
                 end
             end
-        end)
+            if not hasLatched then return end
+        end
+        for i = 1, #KEY_BINDINGS do
+            local b = KEY_BINDINGS[i]
+            local isDown = inp.GetKey(b.code) or (inp.GetKeyDown and inp.GetKeyDown(b.code))
+            if isDown and not prev[b.field] then
+                prev[b.field] = true
+                if b.isFullLoad then
+                    if _G.TriggerFullMapLoad then
+                        pcall(_G.TriggerFullMapLoad, true)
+                    end
+                else
+                    _G._MasterToggles[b.field] = not _G._MasterToggles[b.field]
+                    if b.isWorldToggle and _G.ApplyToggleChangeImmediate then
+                        _G.ApplyToggleChangeImmediate()
+                    else
+                        pcall(_G.RefreshMasterOverlayUI)
+                    end
+                end
+            elseif not isDown and prev[b.field] then
+                prev[b.field] = false
+            end
+        end
+    end
+
+    local function pollHotkeys()
+        if _G._masterHotkeyToken ~= hkToken then return end
+        pcall(_pollHotkeysWork)
         tmManager:DelayInvoke(pollHotkeys, 0.05)
     end
     tmManager:DelayInvoke(pollHotkeys, 0.05)
@@ -2360,7 +3479,7 @@ if TimerManager then
             if cam.nearClipPlane ~= 20.0 then cam.nearClipPlane = 20.0 end
         end
 
-        -- Auto-detect World View session
+        -- Auto-detect World View session and flush dirty map cache when camera/stream is idle
         local curMgr = DataCenter and DataCenter.WorldPointManager
         local isNowInWorld = (curMgr and curMgr.isInit == true)
         if isNowInWorld then
@@ -2372,6 +3491,14 @@ if TimerManager then
             end
         elseif curMgr then
             curMgr._masterAppliedForThisWorldSession = false
+        end
+        local hbSid = ResolveCacheServerId(nil, curMgr)
+        if hbSid > 0 and (_G._WorldCacheDirtyCount[hbSid] or 0) > 0 then
+            local sweepBusy = (_G._FullMapLoadState and _G._FullMapLoadState.active == true)
+            local camIdle = (not isNowInWorld) or ((os.clock() - (_G._LastCameraMoveClock or 0)) >= 2.5 and _G._MasterStreamActive ~= true)
+            if (not sweepBusy) and camIdle and (os.time() - (_G._WorldCacheLastSaveTs[hbSid] or 0)) >= 25 then
+                _G.SaveWorldCacheToDisk(hbSid, false)
+            end
         end
     end
 
@@ -2426,14 +3553,293 @@ if TimerManager then
         end
     end
 
+    local lastLodReconcile = -1
+    local lastLodCamX, lastLodCamY = -9999, -9999
+    local lastResLodReconcile = -1
+
+    local function _reconcileMonsterAndResourceLods(curMgr, camX, camY, curLod, streamStart)
+        local resNeedNow = (curLod ~= lastResLodReconcile)
+            or (math.abs(camX - (_G._MasterLastResLodCamX or -9999)) >= 6)
+            or (math.abs(camY - (_G._MasterLastResLodCamY or -9999)) >= 6)
+        local pass = _G._MasterReconcilePass
+        if not pass
+            or pass.mgr ~= curMgr
+            or pass.lod ~= curLod
+            or math.abs(camX - pass.camX) >= 4
+            or math.abs(camY - pass.camY) >= 4
+            or (resNeedNow and not pass.resNeedUpdate)
+        then
+            local tok = (_G._MasterReconcileToken or 0) + 1
+            _G._MasterReconcileToken = tok
+            local evictKeys = {}
+            local nearMap = _G._MasterNear3DMonsters
+            if nearMap then
+                for pIdx in pairs(nearMap) do
+                    evictKeys[#evictKeys + 1] = pIdx
+                end
+            end
+            local labelKeys = {}
+            if curLod >= 5 and _G._MasterProxyMonsterLabels and next(_G._MasterProxyMonsterLabels) ~= nil then
+                for pIdx in pairs(_G._MasterProxyMonsterLabels) do
+                    labelKeys[#labelKeys + 1] = pIdx
+                end
+            end
+            local restoreKeys = {}
+            if curLod <= 4 and _G._MasterProxyMonsters and next(_G._MasterProxyMonsters) ~= nil then
+                for pIdx, mObj in pairs(_G._MasterProxyMonsters) do
+                    if mObj and mObj._isProxyMode and mObj._proxyLabelHandle == nil then
+                        restoreKeys[#restoreKeys + 1] = pIdx
+                    end
+                end
+            end
+            local buckets = {}
+            local grid = _G._MasterSpatialGrid
+            if grid and curMgr.allObj and curLod <= 2 then
+                local scanRadius = 110
+                local camBx = math.floor(camX / BUCKET_SIZE)
+                local camBy = math.floor(camY / BUCKET_SIZE)
+                local minBx = math.max(0, math.floor((camX - scanRadius) / BUCKET_SIZE))
+                local maxBx = math.min(20, math.floor((camX + scanRadius) / BUCKET_SIZE))
+                local minBy = math.max(0, math.floor((camY - scanRadius) / BUCKET_SIZE))
+                local maxBy = math.min(20, math.floor((camY + scanRadius) / BUCKET_SIZE))
+                local ordered = {}
+                for bx = minBx, maxBx do
+                    for by = minBy, maxBy do
+                        local bKey = by * 4096 + bx
+                        if grid[bKey] then
+                            local dx = bx - camBx
+                            local dy = by - camBy
+                            ordered[#ordered + 1] = { key = bKey, d2 = dx * dx + dy * dy }
+                        end
+                    end
+                end
+                table.sort(ordered, function(a, b) return a.d2 < b.d2 end)
+                for i = 1, #ordered do
+                    buckets[i] = ordered[i].key
+                end
+            end
+            pass = {
+                mgr = curMgr,
+                lod = curLod,
+                camX = camX,
+                camY = camY,
+                token = tok,
+                phase = "EVICT",
+                resNeedUpdate = resNeedNow,
+                evictKeys = evictKeys,
+                evictIdx = 1,
+                labelKeys = labelKeys,
+                labelIdx = 1,
+                restoreKeys = restoreKeys,
+                restoreIdx = 1,
+                buckets = buckets,
+                bucketIdx = 1,
+                curBucketKeys = nil,
+                itemIdx = 1,
+            }
+            _G._MasterReconcilePass = pass
+        end
+
+        if pass.phase == "EVICT" then
+            local nearMap = _G._MasterNear3DMonsters
+            local demoteOps = 0
+            while pass.evictIdx <= #pass.evictKeys do
+                local pIdx = pass.evictKeys[pass.evictIdx]
+                pass.evictIdx = pass.evictIdx + 1
+                local mObj = nearMap and nearMap[pIdx]
+                if mObj and mObj._ApplyMonsterLodState then
+                    local px = mObj._cachedTileX
+                    local py = mObj._cachedTileY
+                    if not px or not py then
+                        px, py = FastIndexToXY(pIdx)
+                        mObj._cachedTileX = px
+                        mObj._cachedTileY = py
+                    end
+                    local dist = math.max(math.abs(px - pass.camX), math.abs(py - pass.camY))
+                    if (pass.lod >= 3 or dist > MONSTER_EVICT_3D_RADIUS) and mObj.isInBattle ~= true then
+                        local info = curMgr.GetPointInfo and curMgr:GetPointInfo(pIdx)
+                        pcall(mObj._ApplyMonsterLodState, mObj, info)
+                    end
+                elseif nearMap then
+                    nearMap[pIdx] = nil
+                end
+                demoteOps = demoteOps + 1
+                if pass.evictIdx <= #pass.evictKeys and (demoteOps % 16 == 0) and (os.clock() - streamStart) >= 0.0025 then
+                    _G._MasterLodDirty = true
+                    return false
+                end
+            end
+            pass.phase = "LABELS"
+        end
+
+        if pass.phase == "LABELS" then
+            if pass.lod >= 5 and pass.labelKeys and pass.labelIdx <= #pass.labelKeys then
+                local lblMap = _G._MasterProxyMonsterLabels
+                local lr = curMgr.GetLabelRenderer and curMgr:GetLabelRenderer()
+                local lblOps = 0
+                while pass.labelIdx <= #pass.labelKeys do
+                    local pIdx = pass.labelKeys[pass.labelIdx]
+                    pass.labelIdx = pass.labelIdx + 1
+                    local mObj = lblMap and lblMap[pIdx]
+                    if mObj and mObj._proxyLabelHandle ~= nil then
+                        if lr and lr.RemoveLabel then
+                            pcall(lr.RemoveLabel, lr, mObj._proxyLabelHandle)
+                        end
+                        mObj._proxyLabelHandle = nil
+                        mObj._proxyLabelLv = nil
+                    end
+                    if lblMap then
+                        lblMap[pIdx] = nil
+                    end
+                    lblOps = lblOps + 1
+                    if pass.labelIdx <= #pass.labelKeys and (lblOps % 16 == 0) and (os.clock() - streamStart) >= 0.0025 then
+                        _G._MasterLodDirty = true
+                        return false
+                    end
+                end
+            end
+            pass.phase = "SCAN"
+        end
+
+        if pass.phase == "SCAN" then
+            local grid = _G._MasterSpatialGrid
+            if pass.lod <= 2 and grid and curMgr.allObj then
+                local ops = 0
+                while pass.bucketIdx <= #pass.buckets do
+                    local bKey = pass.buckets[pass.bucketIdx]
+                    local bucket = grid[bKey]
+                    if bucket then
+                        if not pass.curBucketKeys then
+                            local keys = {}
+                            for k in pairs(bucket) do
+                                keys[#keys + 1] = k
+                            end
+                            pass.curBucketKeys = keys
+                            pass.itemIdx = 1
+                        end
+                        while pass.itemIdx <= #pass.curBucketKeys do
+                            local k = pass.curBucketKeys[pass.itemIdx]
+                            pass.itemIdx = pass.itemIdx + 1
+                            local v = bucket[k]
+                            local obj = curMgr.allObj[k]
+                            if obj and obj._lastReconcileToken ~= pass.token then
+                                obj._lastReconcileToken = pass.token
+                                if obj._isProxyMode and obj._ApplyMonsterLodState then
+                                    local px = obj._cachedTileX or (type(v) == "table" and v._px)
+                                    local py = obj._cachedTileY or (type(v) == "table" and v._py)
+                                    if not px or not py then
+                                        px, py = FastIndexToXY(k)
+                                    end
+                                    if math.max(math.abs(px - pass.camX), math.abs(py - pass.camY)) <= MONSTER_NEAR_3D_RADIUS then
+                                        local info = (type(v) == "table" and v.pointInfo) or (curMgr.GetPointInfo and curMgr:GetPointInfo(k))
+                                        pcall(obj._ApplyMonsterLodState, obj, info)
+                                    end
+                                elseif obj._ApplyInstancedLodState then
+                                    if (obj.lodLv or 0) ~= pass.lod or pass.resNeedUpdate then
+                                        obj.lodLv = pass.lod
+                                        local info = (type(v) == "table" and v.pointInfo) or (curMgr.GetPointInfo and curMgr:GetPointInfo(k))
+                                        if info then pcall(obj._ApplyInstancedLodState, obj, info, false) end
+                                    end
+                                elseif obj.CreateMain and not obj.instance then
+                                    local px = obj._cachedTileX or (type(v) == "table" and v._px)
+                                    local py = obj._cachedTileY or (type(v) == "table" and v._py)
+                                    if not px or not py then
+                                        px, py = FastIndexToXY(k)
+                                        obj._cachedTileX = px
+                                        obj._cachedTileY = py
+                                    end
+                                    if math.abs(px - pass.camX) <= 110 and math.abs(py - pass.camY) <= 110 then
+                                        if obj.LodChange and (obj.lodLv or 0) ~= pass.lod then
+                                            pcall(obj.LodChange, obj, pass.lod)
+                                        elseif obj.CreateMain then
+                                            local info = (type(v) == "table" and v.pointInfo) or (curMgr.GetPointInfo and curMgr:GetPointInfo(k))
+                                            if info then pcall(obj.CreateMain, obj, info) end
+                                        end
+                                    end
+                                end
+                                ops = ops + 1
+                                local hasRemaining = (pass.itemIdx <= #pass.curBucketKeys) or (pass.bucketIdx < #pass.buckets)
+                                if hasRemaining and (ops % 32 == 0) and (os.clock() - streamStart) >= 0.0025 then
+                                    _G._MasterLodDirty = true
+                                    return false
+                                end
+                            end
+                        end
+                    end
+                    pass.curBucketKeys = nil
+                    pass.itemIdx = 1
+                    pass.bucketIdx = pass.bucketIdx + 1
+                end
+            end
+            pass.phase = "RESTORE_LABELS"
+        end
+
+        if pass.phase == "RESTORE_LABELS" then
+            if pass.lod <= 4 and pass.restoreKeys and pass.restoreIdx <= #pass.restoreKeys then
+                local proxyMap = _G._MasterProxyMonsters
+                local allObj = curMgr.allObj
+                local toggles = _G._MasterToggles
+                local restoreOps = 0
+                while pass.restoreIdx <= #pass.restoreKeys do
+                    local pIdx = pass.restoreKeys[pass.restoreIdx]
+                    pass.restoreIdx = pass.restoreIdx + 1
+                    local obj = proxyMap and proxyMap[pIdx]
+                    if obj and obj._isProxyMode and obj._proxyLabelHandle == nil and obj._EnsureProxyVisual then
+                        if allObj and allObj[pIdx] ~= obj then
+                            if proxyMap then proxyMap[pIdx] = nil end
+                        else
+                            local vp = curMgr.allViewPoints and curMgr.allViewPoints[pIdx]
+                            local info = (vp and vp.pointInfo) or (curMgr.GetPointInfo and curMgr:GetPointInfo(pIdx))
+                            local allowed = true
+                            if toggles then
+                                if toggles.masterEnabled == false then
+                                    local px = obj._cachedTileX
+                                    local py = obj._cachedTileY
+                                    if not px or not py then
+                                        px, py = FastIndexToXY(pIdx)
+                                        obj._cachedTileX = px
+                                        obj._cachedTileY = py
+                                    end
+                                    if math.max(math.abs(px - pass.camX), math.abs(py - pass.camY)) > 48 then
+                                        allowed = false
+                                    end
+                                end
+                                if allowed then
+                                    local cat = GetMonsterCategory({ pointInfo = info, _parsedExtra = obj.monsterInfo })
+                                    if (cat == "BOOMER" or cat == "BOSS") and toggles.showBoomers == false then
+                                        allowed = false
+                                    elseif cat == "ZOMBIE" and toggles.showZombies == false then
+                                        allowed = false
+                                    end
+                                end
+                            end
+                            if allowed then
+                                pcall(obj._EnsureProxyVisual, obj, info)
+                            end
+                        end
+                    end
+                    restoreOps = restoreOps + 1
+                    if pass.restoreIdx <= #pass.restoreKeys and (restoreOps % 16 == 0) and (os.clock() - streamStart) >= 0.0025 then
+                        _G._MasterLodDirty = true
+                        return false
+                    end
+                end
+            end
+        end
+        _G._MasterReconcilePass = nil
+        return true
+    end
+
     local function _streamWork()
         local curMgr = DataCenter and DataCenter.WorldPointManager
         local curWs = SceneManager and SceneManager.World
         if not (curMgr and curMgr.isInit == true) then
             streamHasMoreWork = true
+            _G._MasterStreamActive = false
             return
         end
 
+        local streamStart = os.clock()
         SyncSpatialGridIfReplaced(curMgr)
         if _G._MasterStreamReset then
             _G._MasterStreamReset = false
@@ -2441,18 +3847,50 @@ if TimerManager then
             _pendingBucketIdx = 1
             _pendingBucketSeen = {}
             lastStreamCamX, lastStreamCamY = -9999, -9999
+            lastLodReconcile = -1
+            lastLodCamX, lastLodCamY = -9999, -9999
+            lastResLodReconcile = -1
+            _G._MasterLastResLodCamX = -9999
+            _G._MasterLastResLodCamY = -9999
+            _G._MasterReconcilePass = nil
             streamHasMoreWork = false
         end
         local camX, camY = GetActualCameraTilePos(curMgr, curWs)
+        local curLod = (curMgr and curMgr.lodLv) or 1
         local camBx = math.floor(camX / BUCKET_SIZE)
         local camBy = math.floor(camY / BUCKET_SIZE)
         local moved = (math.abs(camX - lastStreamCamX) >= 6 or math.abs(camY - lastStreamCamY) >= 6)
+        if moved then
+            _G._LastCameraMoveClock = streamStart
+        end
+        local resMoved = (curLod ~= lastResLodReconcile)
+            or (math.abs(camX - (_G._MasterLastResLodCamX or -9999)) >= 6)
+            or (math.abs(camY - (_G._MasterLastResLodCamY or -9999)) >= 6)
+        local lodChanged = (curLod ~= lastLodReconcile)
+            or (_G._MasterLodDirty == true)
+            or (math.abs(camX - lastLodCamX) >= 4 or math.abs(camY - lastLodCamY) >= 4)
+            or resMoved
+        if lodChanged then
+            _G._MasterLodDirty = false
+            local lodDone = _reconcileMonsterAndResourceLods(curMgr, camX, camY, curLod, streamStart)
+            if lodDone then
+                lastLodReconcile = curLod
+                lastLodCamX = camX
+                lastLodCamY = camY
+                if resMoved then
+                    lastResLodReconcile = curLod
+                    _G._MasterLastResLodCamX = camX
+                    _G._MasterLastResLodCamY = camY
+                end
+            end
+        end
         local forced = (_G._ForceStreamRescan == true)
         local dirtyBuckets = _G._MasterDirtyBuckets
         local hasDirty = (dirtyBuckets ~= nil and next(dirtyBuckets) ~= nil)
         local hasPending = (_pendingBucketIdx <= #_pendingBucketKeys)
         if not moved and not forced and not hasDirty and not hasPending then
-            streamHasMoreWork = false
+            streamHasMoreWork = (_G._MasterLodDirty == true)
+            _G._MasterStreamActive = streamHasMoreWork
             return
         end
 
@@ -2511,12 +3949,12 @@ if TimerManager then
                 local bucket = grid[bKey]
                 if bucket then
                     for k, v in pairs(bucket) do
-                        if type(v) == "table" and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
+                        if type(v) == "table" and (v.mainIndex == nil or v.mainIndex == k) and (v.pointInfo ~= nil or v.desertInfo ~= nil) then
                             if not (curMgr.allObj and curMgr.allObj[k]) and not (curMgr.toBuildSet and curMgr.toBuildSet[k]) then
                                 if _G.ShouldBuildPointNow(curMgr, k, v, camX, camY, false) then
                                     curMgr:AddToBuildList(k)
                                     queuedThisTick = queuedThisTick + 1
-                                    if (not isViewportCore) and queuedThisTick >= 600 then
+                                    if (not isViewportCore) and (queuedThisTick >= 400 or ((queuedThisTick % 16 == 0) and (os.clock() - streamStart) >= 0.0025)) then
                                         hitCap = true
                                         break
                                     end
@@ -2536,10 +3974,11 @@ if TimerManager then
             _pendingBucketKeys = {}
             _pendingBucketIdx = 1
             _pendingBucketSeen = {}
-            streamHasMoreWork = false
+            streamHasMoreWork = (_G._MasterLodDirty == true)
         else
             streamHasMoreWork = true
         end
+        _G._MasterStreamActive = streamHasMoreWork
     end
 
     local function runCameraStreamer()
@@ -3184,18 +4623,32 @@ def _resolve_target(explicit_pid=None):
     return None
 
 
+def resolve_runtime_cache_dir():
+    env_data_dir = os.environ.get("HEINZ_DATA_DIR", "").strip()
+    if env_data_dir:
+        return os.path.abspath(os.path.join(env_data_dir, "cache"))
+    return os.path.abspath(
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "cache")
+    )
+
+
+def build_master_lua_payload(force_full_map_load=False, cache_dir=None):
+    body = MASTER_LUA_CODE.replace("__FORCE_FULL_LOAD_FLAG__", "true" if force_full_map_load else "false")
+    if cache_dir:
+        norm_dir = str(cache_dir).replace("\\", "/").rstrip("/")
+        if norm_dir:
+            return f"_G._MasterCacheDirOverride = {json.dumps(norm_dir)}\n" + body
+    return body
+
+
 def main(pid=None, full_map_load=False):
     target_pid = _resolve_target(pid)
     if not target_pid:
         print("[-] No running Last Z client found")
         return False
+    cache_dir = ""
     try:
-        env_data_dir = os.environ.get("HEINZ_DATA_DIR", "").strip()
-        cache_dir = (
-            os.path.join(env_data_dir, "cache")
-            if env_data_dir
-            else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "cache")
-        )
+        cache_dir = resolve_runtime_cache_dir()
         os.makedirs(cache_dir, exist_ok=True)
     except Exception:
         pass
@@ -3214,7 +4667,7 @@ def main(pid=None, full_map_load=False):
         print("[-] Target client is still booting (xlua.dll not loaded)")
         return False
 
-    payload = MASTER_LUA_CODE.replace("__FORCE_FULL_LOAD_FLAG__", "true" if full_map_load else "false")
+    payload = build_master_lua_payload(force_full_map_load=full_map_load, cache_dir=cache_dir)
     ok, res = cd.frida_eval_lua(int(target_pid), payload, timeout=10.0, retries=2)
     if ok:
         print(f"[+] Result: {res}")

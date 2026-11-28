@@ -1424,12 +1424,14 @@ class HeinZ(ctk.CTk):
         c_hh = self.create_card(body, "HOSPITAL AUTO-HEAL & ALLIANCE DAILY", expand=False)
         hh_row = ctk.CTkFrame(c_hh, fg_color="transparent")
         hh_row.pack(fill="x", padx=10, pady=4)
-        ctk.CTkLabel(hh_row, text="Heal Batch (min):").pack(side="left")
+        ctk.CTkLabel(hh_row, text="Fallback (min):").pack(side="left")
         hh_batch_e = ctk.CTkEntry(hh_row, width=44, height=24)
         hh_batch_e.insert(0, str(int(hh.get("batch_minutes", 30))))
-        hh_batch_e.pack(side="left", padx=(4, 12))
+        hh_batch_e.pack(side="left", padx=(4, 10))
+        hh_pass_var = ctk.BooleanVar(value=bool(hh.get("auto_pass_active_sizing", True)))
+        ctk.CTkCheckBox(hh_row, text="Pass+Active Max", variable=hh_pass_var, height=22).pack(side="left", padx=(0, 10))
         hh_help_var = ctk.BooleanVar(value=bool(hh.get("call_alliance_help", True)))
-        ctk.CTkCheckBox(hh_row, text="Auto Alliance Help", variable=hh_help_var, height=22).pack(side="left", padx=(0, 12))
+        ctk.CTkCheckBox(hh_row, text="Auto Help", variable=hh_help_var, height=22).pack(side="left", padx=(0, 10))
         ad_tech_var = ctk.BooleanVar(value=bool(ad.get("donate_tech", True)))
         ctk.CTkCheckBox(hh_row, text="Donate Tech", variable=ad_tech_var, height=22).pack(side="left")
 
@@ -1617,6 +1619,8 @@ class HeinZ(ctk.CTk):
                     "recall_gatherers_on_attack": bool(ws_recall_var.get()),
                 })
                 rc.setdefault("hospital_heal", {}).update({
+                    "headless": True,
+                    "auto_pass_active_sizing": bool(hh_pass_var.get()),
                     "batch_minutes": hh_batch,
                     "call_alliance_help": bool(hh_help_var.get()),
                 })

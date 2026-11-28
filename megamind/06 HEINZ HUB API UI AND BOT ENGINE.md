@@ -959,8 +959,8 @@
 | `view-game` | `-` | Export Tech Tree | `doAction('export_tech')` | `-` |
 | `view-game` | `-` | Open Data Folder | `doAction('open_data_folder')` | `-` |
 | `view-game` | `-` | Open Working Folder | `doAction('open_scratch_folder')` | `-` |
-| `view-alliances` | `-` | 📸 Save Baseline | `loadAllianceDeltas(true)` | `-` |
-| `view-alliances` | `-` | 🔄 Refresh | `loadAllianceDeltas(false)` | `-` |
+| `view-alliances` | `-` | Save Baseline | `loadAllianceDeltas(true)` | `-` |
+| `view-alliances` | `-` | Refresh | `loadAllianceDeltas(false)` | `-` |
 | `view-alliances` | `btn-export-vs` | Export VS Duel (Excel) | `doAction('export_vs')` | `-` |
 | `view-alliances` | `-` | Open VS Workbook | `doAction('open_vs_excel')` | `-` |
 | `view-alliances` | `btn-export-roster` | Export Alliance Roster | `doAction('export_roster')` | `-` |
@@ -983,21 +983,21 @@
 | `view-map` | `-` | Refresh | `refreshMapTable()` | `-` |
 | `view-bots` | `-` | Apply Preset | `applySelectedPreset()` | `-` |
 | `view-bots` | `-` | + Save As... | `saveCurrentAsPreset()` | `-` |
-| `view-bots` | `-` | 🗑️ | `deleteSelectedPreset()` | `-` |
+| `view-bots` | `-` | [Delete] | `deleteSelectedPreset()` | `-` |
 | `view-bots` | `-` | Run Bot Cycle | `runCycleClick(false)` | `-` |
-| `view-bots` | `-` | 🚀 Launch All Farms | `doAction('launch_all_farms', {mode: cfgLaunchMode()})` | `-` |
+| `view-bots` | `-` | Launch All Farms | `doAction('launch_all_farms', {mode: cfgLaunchMode()})` | `-` |
 | `view-bots` | `-` | ⏹ Stop All Farms | `doAction('stop_all_farms')` | `-` |
-| `view-bots` | `-` | ⚙️ Fleet Tools ▾ | `toggleFleetToolsMenu(event)` | `-` |
-| `view-bots` | `-` | 🔍 Scan Active Clients | `doAction('scan_fleet'); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | 🛠️ Setup / Patch Base Game | `openSetupModal(); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | 🔄 Sync Farm Game Builds | `doAction('sync_farm_builds'); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | ➕ Add Account / Clone Farm | `openProvisionModal(); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | 📋 Detailed Rules & Trucks... | `openRulesModal(); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | 📊 Sync 16 Bracket Sheets | `doAction('sync_google_bracket'); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | 🟢 Start Background Loop Daemon | `doAction('start_bot_daemon'); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | 🔴 Stop Background Loop Daemon | `doAction('stop_bot_daemon'); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | ⏱️ Register Windows Task Scheduler | `doAction('install_bot_task'); toggleFleetToolsMenu();` | `-` |
-| `view-bots` | `-` | ❌ Remove Windows Schedule | `doAction('uninstall_bot_task'); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | ⚙ Fleet Tools ▾ | `toggleFleetToolsMenu(event)` | `-` |
+| `view-bots` | `-` | Scan Active Clients | `doAction('scan_fleet'); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Setup / Patch Base Game | `openSetupModal(); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Sync Farm Game Builds | `doAction('sync_farm_builds'); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Add Account / Clone Farm | `openProvisionModal(); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Detailed Rules & Trucks... | `openRulesModal(); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Sync 16 Bracket Sheets | `doAction('sync_google_bracket'); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Start Background Loop Daemon | `doAction('start_bot_daemon'); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Stop Background Loop Daemon | `doAction('stop_bot_daemon'); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | ⏱ Register Windows Task Scheduler | `doAction('install_bot_task'); toggleFleetToolsMenu();` | `-` |
+| `view-bots` | `-` | Remove Windows Schedule | `doAction('uninstall_bot_task'); toggleFleetToolsMenu();` | `-` |
 | `view-bots` | `-` | Save Settings | `saveBotSettings(false)` | `-` |
 | `view-bots` | `-` | All | `setConsoleFilter('all')` | `data-console-filter=all` |
 | `view-bots` | `-` | Errors & Tips | `setConsoleFilter('errors_tips')` | `data-console-filter=errors_tips` |
@@ -1043,7 +1043,7 @@
 | `rules-modal-body` | `-` | Save All Rules | `saveRulesModal()` | `-` |
 | `troops-modal` | `-` | Close | `closeTroopsModal()` | `-` |
 | `troops-modal` | `-` | Close | `closeTroopsModal()` | `-` |
-| `troops-modal` | `-` | 🔄 Sync Live from Game | `refreshTroopsOverview(true)` | `-` |
+| `troops-modal` | `-` | Sync Live from Game | `refreshTroopsOverview(true)` | `-` |
 
 ### All Frontend JavaScript Functions (98 Functions)
 | Function Name | Parameters | Line |

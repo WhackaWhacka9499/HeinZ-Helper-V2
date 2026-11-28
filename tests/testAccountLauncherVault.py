@@ -15,13 +15,17 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import hashlib
+import http.server
 import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
+import threading
 import types
 import unittest
 from pathlib import Path
@@ -735,17 +739,15 @@ class TestAccountLauncherVault(unittest.TestCase):
             self.assertIn("auth_state", boot)
             self.assertFalse(boot["auth_state"]["signed_in"])
 
-            # Verify Login To Account RPC never stores passwords to disk
+            # Verify Login To Account RPC rejects bare password stub without OTP/device code and never writes secrets
             secret_pw = "SUPER_SECRET_NEVER_PERSIST_9911"
             login_res = backend.authenticate_heinz_account("player@example.com", secret_pw, remember=True, skip=False)
-            self.assertTrue(login_res["ok"])
-            self.assertTrue(login_res["signed_in"])
-            self.assertEqual(login_res["identifier"], "player@example.com")
+            self.assertFalse(login_res["ok"])
+            self.assertFalse(login_res["signed_in"])
+            self.assertEqual(login_res["code"], "AUTH_METHOD_REQUIRED")
             prefs_file = Path(backend._heinz_login_prefs_path())
-            self.assertTrue(prefs_file.is_file())
-            prefs_text = prefs_file.read_text(encoding="utf-8")
-            self.assertNotIn(secret_pw, prefs_text)
-            self.assertIn("player@example.com", prefs_text)
+            if prefs_file.is_file():
+                self.assertNotIn(secret_pw, prefs_file.read_text(encoding="utf-8"))
             so_res = backend.sign_out_heinz_account()
             self.assertTrue(so_res["ok"])
             self.assertFalse(so_res["signed_in"])
@@ -768,8 +770,14 @@ class TestAccountLauncherVault(unittest.TestCase):
         for dom_id in (
             "launcher-gate-overlay",
             "lg-step-login",
+            "lg-auth-tab-pair",
+            "lg-auth-tab-otp",
+            "lg-btn-device-pair",
+            "lg-device-user-code",
+            "lg-btn-open-communityz",
             "lg-login-identifier",
-            "lg-login-password",
+            "lg-btn-send-otp",
+            "lg-login-otp-code",
             "lg-btn-login-submit",
             "lg-btn-login-skip",
             "lg-step-launcher",
@@ -777,12 +785,768 @@ class TestAccountLauncherVault(unittest.TestCase):
             "lg-card-vanilla",
             "lg-card-enhanced",
             "lg-bind-email",
+            "lg-bind-pin",
+            "lg-btn-bind-pin-toggle",
+            "lg-btn-bind-pin-clear",
+            "lg-bind-auto-pin",
+            "lg-edit-pin",
+            "lg-btn-edit-pin-toggle",
+            "lg-btn-edit-pin-clear",
+            "lg-edit-auto-pin",
             "lg-window-style",
             "lg-btn-import-engine",
             "lg-btn-download-engine",
             "btn-open-launcher-gate",
         ):
             self.assertIn(f'id="{dom_id}"', html, f"Missing V2 Startup Gate DOM id: {dom_id}")
+        self.assertIn("Local Only - Encrypted on This PC, Never Uploaded", html)
+
+    def test_concurrent_bind_update_and_launch_preserve_all_accounts(self) -> None:
+        """Concurrent bind, update, and launch calls must not lose updates or collide on profiles."""
+        engine_root = Path(self.tmp.name) / "engine concurrent"
+        fake_gem = self._make_fake_engine_manager(engine_root)
+        unverified_reg = lambda _p: {}
+
+        errors: list[Exception] = []
+        bound_ids: list[str] = []
+        id_lock = threading.Lock()
+
+        def _bind_worker(idx: int) -> None:
+            try:
+                res = self.vault_mod.bind_new_account(
+                    f"worker{idx}@example.com",
+                    label=f"Worker {idx}",
+                    window_style="borderless",
+                    engine_root=engine_root,
+                    skip_registry_clear=True,
+                    reg_reader=unverified_reg,
+                )
+                if not res.get("ok"):
+                    raise AssertionError(res)
+                with id_lock:
+                    bound_ids.append(res["account"]["id"])
+            except Exception as exc:
+                errors.append(exc)
+
+        with mock.patch.object(self.vault_mod, "_load_game_engine_manager", return_value=fake_gem):
+            threads = [threading.Thread(target=_bind_worker, args=(i,)) for i in range(6)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=10.0)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(bound_ids), 6)
+        self.assertEqual(len(set(bound_ids)), 6)
+        stored = self.vault_mod.load_vault()["accounts"]
+        self.assertEqual(len(stored), 6)
+
+        # Concurrent update on account 0 + launch on account 1 preserves both mutations
+        with (
+            mock.patch.object(self.vault_mod, "stop_background_heinz_daemons", return_value={"ok": True, "stopped_count": 0}),
+            mock.patch.object(self.vault_mod, "_find_running_game_pids", return_value={}),
+        ):
+            t_upd = threading.Thread(
+                target=lambda: self.vault_mod.update_account(bound_ids[0], label="Renamed Zero", reg_reader=unverified_reg)
+            )
+            t_launch = threading.Thread(
+                target=lambda: self.vault_mod.launch_bound_account(
+                    bound_ids[1],
+                    mode="enhanced",
+                    engine_root=engine_root,
+                    popen_fn=lambda args, **kw: _FakePopenResult(pid=77111),
+                    reg_reader=unverified_reg,
+                )
+            )
+            t_upd.start()
+            t_launch.start()
+            t_upd.join(timeout=5.0)
+            t_launch.join(timeout=5.0)
+
+        after = {a["id"]: a for a in self.vault_mod.load_vault()["accounts"]}
+        self.assertEqual(after[bound_ids[0]]["label"], "Renamed Zero")
+        self.assertEqual(after[bound_ids[1]]["last_mode"], "enhanced")
+        self.assertGreater(after[bound_ids[1]]["last_launched_at"], 0)
+
+    def test_load_vault_retries_permission_error_and_backs_up_corrupt_json(self) -> None:
+        """load_vault retries transient PermissionError and moves corrupt JSON aside before returning empty."""
+        vpath = self.vault_mod.resolve_vault_path()
+        vpath.parent.mkdir(parents=True, exist_ok=True)
+        vpath.write_text('{"schema_version": 1, "accounts": [{"id": "hz01z"}]}', encoding="utf-8")
+
+        calls = {"n": 0}
+        orig_read_text = Path.read_text
+
+        def _flaky_read_text(path_obj: Path, *args, **kwargs):
+            if path_obj == vpath and calls["n"] < 2:
+                calls["n"] += 1
+                raise PermissionError("Locked transiently")
+            return orig_read_text(path_obj, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", autospec=True, side_effect=_flaky_read_text):
+            loaded = self.vault_mod.load_vault()
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(len(loaded["accounts"]), 1)
+
+        vpath.write_text("{corrupt json", encoding="utf-8")
+        empty = self.vault_mod.load_vault()
+        self.assertEqual(empty["accounts"], [])
+        backups = list(vpath.parent.glob("bound accounts.corrupt.*.json"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(encoding="utf-8"), "{corrupt json")
+
+    def test_stop_background_heinz_daemons_name_first_real_psutil_and_access_denied(self) -> None:
+        """stop_background_heinz_daemons reads cmdline lazily by name and tolerates AccessDenied."""
+        class _NameOnlyProc:
+            def __init__(self, pid: int, name: str, cmdline: list[str] | None, deny: bool = False) -> None:
+                self.info = {"pid": pid, "name": name}
+                self._cmdline = cmdline
+                self._deny = deny
+                self.cmdline_called = False
+                self.terminated = False
+                self.waited = False
+
+            def cmdline(self) -> list[str]:
+                self.cmdline_called = True
+                if self._deny:
+                    raise psutil.AccessDenied(self.info["pid"])
+                return list(self._cmdline or [])
+
+            def terminate(self) -> None:
+                self.terminated = True
+
+            def wait(self, timeout: float | None = None) -> int:
+                self.waited = True
+                return 0
+
+        import psutil
+        non_py = _NameOnlyProc(9101, "explorer.exe", ["explorer.exe"])
+        denied_py = _NameOnlyProc(9102, "python.exe", None, deny=True)
+        target_daemon = _NameOnlyProc(9103, "python.exe", ["python.exe", "daemon/lastz auto engine daemon.py"])
+
+        with mock.patch.object(self.vault_mod.psutil, "process_iter", return_value=[non_py, denied_py, target_daemon]):
+            res = self.vault_mod.stop_background_heinz_daemons()
+
+        self.assertTrue(res["ok"])
+        self.assertFalse(non_py.cmdline_called)
+        self.assertTrue(denied_py.cmdline_called)
+        self.assertTrue(target_daemon.cmdline_called)
+        self.assertTrue(target_daemon.terminated)
+        self.assertEqual(res["stopped_count"], 1)
+
+    def test_launch_bound_account_already_running_guard(self) -> None:
+        """Duplicate live launch for an already running slot returns cleanly without spawning a duplicate."""
+        engine_root = Path(self.tmp.name) / "engine dup"
+        fake_gem = self._make_fake_engine_manager(engine_root)
+        unverified_reg = lambda _p: {}
+
+        with mock.patch.object(self.vault_mod, "_load_game_engine_manager", return_value=fake_gem):
+            bound = self.vault_mod.bind_new_account(
+                "dup.guard@example.com",
+                label="Dup Guard",
+                window_style="borderless",
+                engine_root=engine_root,
+                skip_registry_clear=True,
+                reg_reader=unverified_reg,
+            )
+        acc_id = bound["account"]["id"]
+        spawn_calls = {"n": 0}
+
+        def _spy_popen(args, **kw):
+            spawn_calls["n"] += 1
+            return _FakePopenResult(pid=88888)
+
+        with mock.patch.object(self.vault_mod, "_find_running_game_pids", return_value={acc_id: 99123}):
+            res = self.vault_mod.launch_bound_account(
+                acc_id,
+                mode="enhanced",
+                engine_root=engine_root,
+                dry_run=False,
+                popen_fn=_spy_popen,
+                reg_reader=unverified_reg,
+            )
+        self.assertTrue(res["ok"])
+        self.assertTrue(res.get("already_running"))
+        self.assertEqual(res["pid"], 99123)
+        self.assertEqual(spawn_calls["n"], 0)
+
+    def test_dpapi_protect_unprotect_roundtrip_and_vault_persistence(self) -> None:
+        """Verify Windows DPAPI current-user encryption, gitignored local vault file, and failure paths."""
+        dpapi_path = self.vault_mod.resolve_dpapi_vault_path()
+        self.assertEqual(dpapi_path, self.data_dir / "json cache" / "local dpapi vault.json")
+        self.assertNotIn("_", dpapi_path.name)
+
+        gitignore_text = (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("data/json cache/local dpapi vault.json", gitignore_text)
+        self.assertIn("data/json cache/*.corrupt.*.json", gitignore_text)
+
+        self.assertEqual(self.vault_mod.dpapi_protect_text(""), "")
+        self.assertEqual(self.vault_mod.dpapi_unprotect_text(""), "")
+
+        if os.name == "nt":
+            sample_secret = "849201_TEST_SENTINEL"
+            blob = self.vault_mod.dpapi_protect_text(sample_secret)
+            self.assertTrue(bool(blob))
+            self.assertNotIn(sample_secret, blob)
+            self.assertEqual(self.vault_mod.dpapi_unprotect_text(blob), sample_secret)
+
+            self.assertTrue(self.vault_mod.set_dpapi_secret("translator", "deepl_api_key", sample_secret))
+            self.assertTrue(self.vault_mod.has_dpapi_secret("translator", "deepl_api_key"))
+            self.assertEqual(self.vault_mod.get_dpapi_secret("translator", "deepl_api_key"), sample_secret)
+            raw_file = dpapi_path.read_text(encoding="utf-8")
+            self.assertNotIn(sample_secret, raw_file)
+
+            self.assertTrue(self.vault_mod.delete_dpapi_secret("translator", "deepl_api_key"))
+            self.assertFalse(self.vault_mod.has_dpapi_secret("translator", "deepl_api_key"))
+            self.assertIsNone(self.vault_mod.get_dpapi_secret("translator", "deepl_api_key"))
+
+        # Corrupt JSON in local dpapi vault.json must back up and recover cleanly.
+        dpapi_path.parent.mkdir(parents=True, exist_ok=True)
+        dpapi_path.write_text("{corrupt_dpapi", encoding="utf-8")
+        self.assertFalse(self.vault_mod.has_dpapi_secret("account_pin", "hz01z"))
+        self.assertEqual(len(list(dpapi_path.parent.glob("local dpapi vault.corrupt.*.json"))), 1)
+
+        # Non-Windows platform guard and CryptUnprotectData failure handling.
+        with mock.patch.object(self.vault_mod.os, "name", "posix"):
+            with self.assertRaises(RuntimeError):
+                self.vault_mod.dpapi_protect_text("1234")
+        fake_crypt = mock.MagicMock()
+        fake_crypt.CryptUnprotectData.return_value = 0
+        fake_k32 = mock.MagicMock()
+        with mock.patch.object(self.vault_mod, "_get_dpapi_libs", return_value=(fake_crypt, fake_k32)):
+            with self.assertRaises(RuntimeError):
+                self.vault_mod.dpapi_unprotect_text(base64.b64encode(b"bad_cipher").decode("ascii"))
+
+    def test_forbidden_key_stripping_and_strip_local_secrets_for_sync(self) -> None:
+        """Verify secret fragments are stripped while safe bool flags and ping/spin keys survive."""
+        payload = {
+            "account": {
+                "id": "hz01z",
+                "pin": "112233",
+                "security_pin": "445566",  # TEST_SENTINEL
+                "game_pin": "778899",  # TEST_SENTINEL
+                "securityPin": "001122",
+                "password": "pw",
+                "passwd": "pw2",
+                "setoken": "raw_st",
+                "secret": "sec",
+                "raw_token": "rt",
+                "session_token": "st",
+                "auth_token": "at",
+                "access_token": "hz_dt_TEST_SENTINEL_EXAMPLE",
+                "bearer": "TEST_SENTINEL_BEARER_EXAMPLE",
+                "api_key": "key1",
+                "deepl_api_key": "key2",
+                "gemini_api_key": "key3",
+                "has_security_pin": True,
+                "auto_enter_pin": True,
+                "has_deepl_key": False,
+                "has_gemini_key": True,
+                "ping_ms": 42,
+                "spin_count": 3,
+            },
+            "items": [
+                {"name": "ok", "ping": 15, "user_pin": "9999"},
+                {"pin_code": "1234", "mapping_id": "m1"},
+            ],
+        }
+        cleaned = self.vault_mod.strip_local_secrets_for_sync(payload)
+        # Input must not be mutated in place.
+        self.assertIn("security_pin", payload["account"])
+
+        acc_clean = cleaned["account"]
+        for forbidden in (
+            "pin",
+            "security_pin",
+            "game_pin",
+            "securityPin",
+            "password",
+            "passwd",
+            "setoken",
+            "secret",
+            "raw_token",
+            "session_token",
+            "auth_token",
+            "access_token",
+            "bearer",
+            "api_key",
+            "deepl_api_key",
+            "gemini_api_key",
+        ):
+            self.assertNotIn(forbidden, acc_clean)
+
+        self.assertIs(acc_clean["has_security_pin"], True)
+        self.assertIs(acc_clean["auto_enter_pin"], True)
+        self.assertIs(acc_clean["has_deepl_key"], False)
+        self.assertIs(acc_clean["has_gemini_key"], True)
+        self.assertEqual(acc_clean["ping_ms"], 42)
+        self.assertEqual(acc_clean["spin_count"], 3)
+        self.assertEqual(cleaned["items"][0], {"name": "ok", "ping": 15})
+        self.assertEqual(cleaned["items"][1], {"mapping_id": "m1"})
+
+        # save_vault must also strip secrets while preserving auto_enter_pin bool.
+        self.vault_mod.save_vault({"accounts": [dict(payload["account"])]})
+        saved_acc = self.vault_mod.load_vault()["accounts"][0]
+        self.assertNotIn("security_pin", saved_acc)
+        self.assertNotIn("deepl_api_key", saved_acc)
+        self.assertIs(saved_acc["auto_enter_pin"], True)
+
+    def test_account_pin_crud_and_hub_rpc_never_expose_raw_pin(self) -> None:
+        """Verify PIN bind/update/clear/unbind store encrypted DPAPI blobs and return booleans only."""
+        empty_reg = lambda _p: {}
+        pin_one = "739104"
+        pin_two = "558219"
+
+        hub_path = PROJECT_ROOT / "launcher" / "heinzhubweb.py"
+        spec = importlib.util.spec_from_file_location("test_v2_pin_hub_mod", str(hub_path))
+        assert spec is not None and spec.loader is not None
+        hub_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hub_mod)
+
+        with (
+            mock.patch.object(self.vault_mod, "_load_game_engine_manager", return_value=None),
+            mock.patch.object(hub_mod.HubBackend, "_load_cached_state"),
+            mock.patch.object(hub_mod.HubBackend, "_load_always_on_daemon_config"),
+            mock.patch.object(hub_mod.HubBackend, "_start_always_on_daemon"),
+            mock.patch.object(hub_mod.HubBackend, "log"),
+        ):
+            backend = hub_mod.HubBackend(defer_enhanced=True)
+            backend._account_vault_mod_cache = self.vault_mod
+
+            res_bind = backend.bind_email_account(
+                "pin.user@example.com",
+                "PinMain",
+                "borderless",
+                pin_one,
+                True,
+            )
+            self.assertTrue(res_bind["ok"])
+            acc = res_bind["account"]
+            self.assertTrue(acc["has_security_pin"])
+            self.assertTrue(acc["auto_enter_pin"])
+            self.assertEqual(self.vault_mod.get_account_security_pin_for_launch(acc["id"]), pin_one)
+
+            # Update PIN and auto_enter_pin via HubBackend.
+            res_upd = backend.update_bound_account(
+                acc["id"],
+                security_pin=pin_two,
+                auto_enter_pin=False,
+            )
+            self.assertTrue(res_upd["ok"])
+            self.assertTrue(res_upd["account"]["has_security_pin"])
+            self.assertFalse(res_upd["account"]["auto_enter_pin"])
+            self.assertEqual(self.vault_mod.get_account_security_pin_for_launch(acc["id"]), pin_two)
+
+            # Raw PIN must NEVER appear in bound accounts.json, DPAPI JSON, or list_bound_accounts.
+            listed = self.vault_mod.list_bound_accounts(sync_discovered=False, reg_reader=empty_reg)
+            vault_json = self.vault_mod.resolve_vault_path().read_text(encoding="utf-8")
+            dpapi_json = self.vault_mod.resolve_dpapi_vault_path().read_text(encoding="utf-8")
+            for raw_pin in (pin_one, pin_two):
+                self.assertNotIn(raw_pin, json.dumps(listed))
+                self.assertNotIn(raw_pin, vault_json)
+                self.assertNotIn(raw_pin, dpapi_json)
+
+            # Clear PIN via HubBackend.
+            res_clr = backend.clear_bound_account_pin(acc["id"])
+            self.assertTrue(res_clr["ok"])
+            self.assertFalse(res_clr["has_security_pin"])
+            self.assertIsNone(self.vault_mod.get_account_security_pin_for_launch(acc["id"]))
+
+            # Unbind removes orphaned DPAPI PIN as well.
+            self.vault_mod.set_account_security_pin(acc["id"], pin_one)
+            self.assertTrue(self.vault_mod.has_account_security_pin(acc["id"]))
+            rem = self.vault_mod.unbind_account(acc["id"], clear_session=False)
+            self.assertTrue(rem["ok"])
+            self.assertFalse(self.vault_mod.has_account_security_pin(acc["id"]))
+
+    def test_enhanced_only_auto_pin_launch_gating_and_vanilla_isolation(self) -> None:
+        """Vanilla NEVER decrypts PIN or touches Frida/client discovery; Enhanced schedules transient auto-PIN."""
+        engine_root = Path(self.tmp.name) / "engine autopin"
+        fake_gem = self._make_fake_engine_manager(engine_root)
+        empty_reg = lambda _p: {}
+        secret_pin = "614920"
+
+        with mock.patch.object(self.vault_mod, "_load_game_engine_manager", return_value=fake_gem):
+            bound = self.vault_mod.bind_new_account(
+                "autopin@example.com",
+                label="AutoPin",
+                window_style="borderless",
+                engine_root=engine_root,
+                skip_registry_clear=True,
+                reg_reader=empty_reg,
+                security_pin=secret_pin,
+                auto_enter_pin=True,
+            )
+        self.assertTrue(bound["ok"])
+        acc_id = bound["account"]["id"]
+
+        # 1. Pure Vanilla must NEVER decrypt PIN, schedule auto-PIN, or load client discovery.
+        with (
+            mock.patch.object(self.vault_mod, "stop_background_heinz_daemons", return_value={"ok": True, "stopped_count": 0}),
+            mock.patch.object(self.vault_mod, "get_account_security_pin_for_launch") as mock_get_pin,
+            mock.patch.object(self.vault_mod, "_schedule_enhanced_auto_pin") as mock_sched,
+        ):
+            v_res = self.vault_mod.launch_bound_account(
+                acc_id,
+                mode="vanilla",
+                engine_root=engine_root,
+                dry_run=False,
+                popen_fn=lambda args, **kw: _FakePopenResult(pid=41001),
+                reg_reader=empty_reg,
+            )
+        self.assertTrue(v_res["ok"])
+        self.assertFalse(v_res["auto_pin_scheduled"])
+        mock_get_pin.assert_not_called()
+        mock_sched.assert_not_called()
+        self.assertNotIn("heinz_vault_client_discovery", self.vault_mod._LOADED_MODULES)
+
+        # 2. Enhanced mode with auto_enter_pin=True schedules transient auto-PIN hook.
+        with mock.patch.object(self.vault_mod, "_schedule_enhanced_auto_pin") as mock_sched:
+            e_res = self.vault_mod.launch_bound_account(
+                acc_id,
+                mode="enhanced",
+                engine_root=engine_root,
+                dry_run=False,
+                popen_fn=lambda args, **kw: _FakePopenResult(pid=41002),
+                reg_reader=empty_reg,
+            )
+        self.assertTrue(e_res["ok"])
+        self.assertTrue(e_res["auto_pin_scheduled"])
+        mock_sched.assert_called_once_with(41002, secret_pin)
+        self.assertNotIn(secret_pin, json.dumps(e_res))
+
+        # 3. Verify _run_enhanced_auto_pin_worker delegates via _load_client_discovery() -> frida_eval_lua.
+        fake_cd = types.SimpleNamespace(
+            _xlua_loaded=lambda pid, min_uptime_sec=2.0: True,
+            frida_eval_lua=mock.Mock(return_value=(True, "SUBMITTED_UIPIN")),
+        )
+        with (
+            mock.patch.object(self.vault_mod, "_load_client_discovery", return_value=fake_cd),
+            mock.patch.object(self.vault_mod.psutil, "pid_exists", return_value=True),
+        ):
+            worker_status = self.vault_mod._run_enhanced_auto_pin_worker(41002, secret_pin, timeout_sec=2.0)
+        self.assertEqual(worker_status, "SUBMITTED_UIPIN")
+        fake_cd.frida_eval_lua.assert_called_once()
+        lua_sent = fake_cd.frida_eval_lua.call_args[0][1]
+        self.assertIn("UIPinInput", lua_sent)
+        self.assertIn("UIPINCodeInput", lua_sent)
+        self.assertIn("UserPasswordCheck", lua_sent)
+
+        # 4. Enhanced mode with auto_enter_pin=False does NOT schedule auto-PIN.
+        self.vault_mod.update_account(acc_id, auto_enter_pin=False, reg_reader=empty_reg)
+        with mock.patch.object(self.vault_mod, "_schedule_enhanced_auto_pin") as mock_sched:
+            e_off = self.vault_mod.launch_bound_account(
+                acc_id,
+                mode="enhanced",
+                engine_root=engine_root,
+                dry_run=False,
+                popen_fn=lambda args, **kw: _FakePopenResult(pid=41003),
+                reg_reader=empty_reg,
+            )
+        self.assertTrue(e_off["ok"])
+        self.assertFalse(e_off["auto_pin_scheduled"])
+        mock_sched.assert_not_called()
+
+    def test_page1_communityz_auth_flows_against_mock_server(self) -> None:
+        """Verify Page 1 CommunityZ Device-Code, PoW+OTP, Pro vs Free 403, 401 revoke, offline, and Guest."""
+        state: dict[str, object] = {
+            "device_status": "pending",
+            "device_tier": "pro",
+            "bootstrap_mode": "ok",
+            "challenge_id": "ch_TEST_SENTINEL_1",
+            "challenge_salt": "salt_EXAMPLE_99",
+            "challenge_diff": 2,
+            "otp_tier": "pro",
+            "logout_called": False,
+            "last_pow_website": None,
+        }
+
+        class _Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, _fmt: str, *_args) -> None:
+                return
+
+            def _send(self, status: int, body: dict, cookies: list[str] | None = None) -> None:
+                raw = json.dumps(body).encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                for ck in cookies or []:
+                    self.send_header("Set-Cookie", ck)
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def _read_json(self) -> dict:
+                n = int(self.headers.get("Content-Length") or 0)
+                if n <= 0:
+                    return {}
+                return json.loads(self.rfile.read(n).decode("utf-8"))
+
+            def do_GET(self) -> None:  # noqa: N802
+                if self.path == "/api/auth/challenge":
+                    self._send(
+                        200,
+                        {
+                            "ok": True,
+                            "challenge": {
+                                "id": state["challenge_id"],
+                                "salt": state["challenge_salt"],
+                                "difficulty": state["challenge_diff"],
+                                "algorithm": "SHA-256",
+                            },
+                        },
+                    )
+                    return
+                if self.path == "/api/desktop/bootstrap":
+                    auth_hdr = self.headers.get("Authorization") or ""
+                    if auth_hdr != "Bearer hz_dt_TEST_SENTINEL_EXAMPLE_TOKEN":
+                        self._send(401, {"ok": False, "error": "Desktop token invalid or revoked."})
+                        return
+                    if state["bootstrap_mode"] == "sub_req":
+                        self._send(403, {"ok": False, "code": "SUBSCRIPTION_REQUIRED", "error": "Subscription inactive; Desktop Bridge paused."})
+                        return
+                    if state["bootstrap_mode"] == "revoked":
+                        self._send(401, {"ok": False, "error": "Desktop token invalid or revoked."})
+                        return
+                    self._send(
+                        200,
+                        {
+                            "ok": True,
+                            "deviceName": "HeinZ V2 Desktop",
+                            "user": {
+                                "id": "usr_1",
+                                "email": "sub@example.com",
+                                "displayName": "ProSubscriber",
+                                "tier": "pro",
+                                "entitlements": {"tier": "pro", "desktopBridge": True},
+                            },
+                            "uids": [{"gameUid": "1092847561", "serverId": 694, "ign": "ProSubscriber", "isMain": True}],
+                        },
+                    )
+                    return
+                self._send(404, {"ok": False, "error": "Not found"})
+
+            def do_POST(self) -> None:  # noqa: N802
+                body = self._read_json()
+                if self.path == "/api/desktop/device-code":
+                    self._send(
+                        200,
+                        {
+                            "ok": True,
+                            "deviceCode": "dc_TEST_SENTINEL_1",
+                            "userCode": "HZ-A7K-9M2",
+                            "expiresInSeconds": 600,
+                            "pollIntervalSeconds": 5,
+                        },
+                    )
+                    return
+                if self.path == "/api/desktop/authorize":
+                    cookie_hdr = self.headers.get("Cookie") or ""
+                    csrf_hdr = self.headers.get("X-CSRF-Token") or ""
+                    if "heinz_sid=TEST_SENTINEL_SID_EXAMPLE" not in cookie_hdr or csrf_hdr != "TEST_SENTINEL_CSRF_EXAMPLE":
+                        self._send(401, {"ok": False, "error": "Authentication required."})
+                        return
+                    state["device_status"] = "approved"
+                    self._send(200, {"ok": True, "approved": True, "userCode": body.get("userCode")})
+                    return
+                if self.path == "/api/desktop/token":
+                    ds = state["device_status"]
+                    if ds == "pending":
+                        self._send(202, {"ok": False, "code": "AUTHORIZATION_PENDING", "error": "Waiting for subscriber approval."})
+                        return
+                    if ds == "sub_req":
+                        self._send(403, {"ok": False, "code": "SUBSCRIPTION_REQUIRED", "error": "Active Pro or Alliance subscription required."})
+                        return
+                    if ds == "expired":
+                        self._send(400, {"ok": False, "code": "EXPIRED_TOKEN", "error": "Device code expired."})
+                        return
+                    self._send(
+                        200,
+                        {
+                            "ok": True,
+                            "accessToken": "hz_dt_TEST_SENTINEL_EXAMPLE_TOKEN",
+                            "deviceId": "dev_1",
+                            "user": {
+                                "id": "usr_1",
+                                "email": "sub@example.com",
+                                "displayName": "ProSubscriber",
+                                "tier": "pro",
+                                "entitlements": {"tier": "pro", "desktopBridge": True},
+                            },
+                        },
+                    )
+                    return
+                if self.path == "/api/auth/precheck":
+                    self._send(200, {"ok": True, "email": str(body.get("email") or "").lower()})
+                    return
+                if self.path == "/api/auth/request-otp":
+                    state["last_pow_website"] = body.get("website")
+                    digest = hashlib.sha256(
+                        f"{state['challenge_id']}:{state['challenge_salt']}:{body.get('powNonce')}".encode("utf-8")
+                    ).hexdigest()
+                    if not digest.startswith("0" * int(state["challenge_diff"])):  # type: ignore[arg-type]
+                        self._send(400, {"ok": False, "error": "Invalid PoW"})
+                        return
+                    self._send(200, {"ok": True, "otpId": "otp_1", "email": body.get("email"), "expiresInSeconds": 600, "delivery": "local_dev", "devPreviewCode": "654321"})
+                    return
+                if self.path == "/api/auth/verify-otp":
+                    tier = str(state["otp_tier"])
+                    ent = {"tier": tier, "desktopBridge": tier in ("pro", "alliance", "admin")}
+                    self._send(
+                        200,
+                        {
+                            "ok": True,
+                            "csrfToken": "TEST_SENTINEL_CSRF_EXAMPLE",
+                            "user": {"id": "usr_1", "email": body.get("email"), "displayName": "ProSubscriber", "tier": tier, "entitlements": ent},
+                        },
+                        cookies=[
+                            "heinz_sid=TEST_SENTINEL_SID_EXAMPLE; Path=/; HttpOnly",
+                            "heinz_csrf=TEST_SENTINEL_CSRF_EXAMPLE; Path=/",
+                        ],
+                    )
+                    return
+                if self.path == "/api/auth/logout":
+                    state["logout_called"] = True
+                    self._send(200, {"ok": True})
+                    return
+                self._send(404, {"ok": False, "error": "Not found"})
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        port = server.server_address[1]
+        srv_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        srv_thread.start()
+
+        hub_path = PROJECT_ROOT / "launcher" / "heinzhubweb.py"
+        spec = importlib.util.spec_from_file_location("test_v2_cz_hub_mod", str(hub_path))
+        assert spec is not None and spec.loader is not None
+        hub_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hub_mod)
+
+        orig_cz_url = os.environ.get("HEINZ_COMMUNITYZ_API_URL")
+        os.environ["HEINZ_COMMUNITYZ_API_URL"] = f"http://127.0.0.1:{port}"
+        try:
+            with (
+                mock.patch.object(hub_mod.HubBackend, "_load_cached_state"),
+                mock.patch.object(hub_mod.HubBackend, "_load_always_on_daemon_config"),
+                mock.patch.object(hub_mod.HubBackend, "_start_always_on_daemon"),
+                mock.patch.object(hub_mod.HubBackend, "log"),
+            ):
+                backend = hub_mod.HubBackend(defer_enhanced=True)
+                backend._account_vault_mod_cache = self.vault_mod
+
+                # 1. Device-code pairing: pending -> approved -> boot verification.
+                dc = backend.start_communityz_device_login("TestRig")
+                self.assertTrue(dc["ok"])
+                self.assertEqual(dc["user_code"], "HZ-A7K-9M2")
+
+                pend = backend.poll_communityz_device_login(dc["device_code"])
+                self.assertTrue(pend["ok"])
+                self.assertEqual(pend["status"], "pending")
+
+                state["device_status"] = "approved"
+                auth_ok = backend.poll_communityz_device_login(dc["device_code"], remember=True)
+                self.assertTrue(auth_ok["ok"])
+                self.assertTrue(auth_ok["signed_in"])
+                self.assertEqual(auth_ok["tier"], "pro")
+                self.assertNotIn("accessToken", json.dumps(auth_ok))
+                self.assertEqual(
+                    self.vault_mod.get_communityz_bearer_token(),
+                    "hz_dt_TEST_SENTINEL_EXAMPLE_TOKEN",
+                )
+
+                # Boot state auto-verifies DPAPI token via /api/desktop/bootstrap.
+                boot_ok = backend.get_launcher_boot_state(check_remote=False)
+                self.assertTrue(boot_ok["auth_state"]["signed_in"])
+                self.assertEqual(boot_ok["auth_state"]["mode"], "communityz")
+
+                # 403 SUBSCRIPTION_REQUIRED on bootstrap.
+                state["bootstrap_mode"] = "sub_req"
+                sub_err = backend.get_heinz_auth_status(verify_remote=True)
+                self.assertFalse(sub_err["signed_in"])
+                self.assertEqual(sub_err["code"], "SUBSCRIPTION_REQUIRED")
+                self.assertTrue(self.vault_mod.has_dpapi_secret("communityz", "bearer_token"))
+
+                # 401 revoked clears stale DPAPI token.
+                state["bootstrap_mode"] = "revoked"
+                rev_err = backend.get_heinz_auth_status(verify_remote=True)
+                self.assertFalse(rev_err["signed_in"])
+                self.assertEqual(rev_err["code"], "TOKEN_REVOKED")
+                self.assertFalse(self.vault_mod.has_dpapi_secret("communityz", "bearer_token"))
+
+                # 2. Email PoW + OTP flow: free tier gets 403 SUBSCRIPTION_REQUIRED; pro tier bridges cleanly.
+                otp_req = backend.request_communityz_otp("sub@example.com")
+                self.assertTrue(otp_req["ok"])
+                self.assertEqual(state["last_pow_website"], "")
+                self.assertEqual(otp_req.get("dev_preview_code"), "654321")
+
+                state["otp_tier"] = "free"
+                free_res = backend.verify_communityz_otp("sub@example.com", "654321")
+                self.assertFalse(free_res["ok"])
+                self.assertEqual(free_res["code"], "SUBSCRIPTION_REQUIRED")
+                self.assertTrue(state["logout_called"])
+                self.assertFalse(self.vault_mod.has_dpapi_secret("communityz", "bearer_token"))
+
+                state["otp_tier"] = "pro"
+                state["bootstrap_mode"] = "ok"
+                pro_res = backend.verify_communityz_otp("sub@example.com", "654321")
+                self.assertTrue(pro_res["ok"])
+                self.assertTrue(pro_res["signed_in"])
+                self.assertEqual(pro_res["tier"], "pro")
+                self.assertTrue(self.vault_mod.has_dpapi_secret("communityz", "bearer_token"))
+
+                # 3. Offline NETWORK_ERROR preserves DPAPI token.
+                server.shutdown()
+                off_res = backend.get_heinz_auth_status(verify_remote=True)
+                self.assertFalse(off_res["signed_in"])
+                self.assertTrue(off_res["network_offline"])
+                self.assertTrue(self.vault_mod.has_dpapi_secret("communityz", "bearer_token"))
+
+                # 4. Logout clears DPAPI token cleanly.
+                out_res = backend.logout_heinz_account()
+                self.assertTrue(out_res["ok"])
+                self.assertFalse(out_res["signed_in"])
+                self.assertFalse(self.vault_mod.has_dpapi_secret("communityz", "bearer_token"))
+        finally:
+            try:
+                server.shutdown()
+            except Exception:
+                pass
+            server.server_close()
+            if orig_cz_url is None:
+                os.environ.pop("HEINZ_COMMUNITYZ_API_URL", None)
+            else:
+                os.environ["HEINZ_COMMUNITYZ_API_URL"] = orig_cz_url
+
+    def test_m1_extended_hygiene_no_dashes_or_emojis_in_owned_files(self) -> None:
+        """All M1 owned files must contain zero em/en dashes, zero astral emojis, and clean M1 HTML/JS sections."""
+        astral_emoji_re = re.compile(r"[\U0001F300-\U0001FAFF]")
+        full_emoji_re = re.compile(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]")
+        owned = (
+            PROJECT_ROOT / ".gitignore",
+            PROJECT_ROOT / "tools" / "account launcher vault.py",
+            PROJECT_ROOT / "launcher" / "heinzhubweb.py",
+            PROJECT_ROOT / "launcher" / "web" / "index.html",
+            PROJECT_ROOT / "tests" / "testAccountLauncherVault.py",
+        )
+        em_dash = chr(0x2014)
+        en_dash = chr(0x2013)
+        html_mdash = "&md" + "ash;"
+        html_ndash = "&nd" + "ash;"
+        for fp in owned:
+            txt = fp.read_text(encoding="utf-8")
+            self.assertNotIn(em_dash, txt, f"U+2014 em dash found in {fp.name}")
+            self.assertNotIn(en_dash, txt, f"U+2013 en dash found in {fp.name}")
+            self.assertIsNone(astral_emoji_re.search(txt), f"Astral emoji found in {fp.name}")
+            if fp.suffix.lower() != ".html":
+                self.assertNotIn(html_mdash, txt.lower(), f"HTML mdash entity found in {fp.name}")
+                self.assertNotIn(html_ndash, txt.lower(), f"HTML ndash entity found in {fp.name}")
+                self.assertIsNone(full_emoji_re.search(txt), f"Emoji/symbol found in {fp.name}")
+            else:
+                self.assertNotIn(html_mdash, txt.lower(), f"HTML mdash entity found in {fp.name}")
+                m_gate = txt.split("<!-- V2 STANDALONE LAUNCHER POPUP", 1)[1].split('<div class="app-shell">', 1)[0]
+                m_ctrl = txt.split("/* === V2 STANDALONE LAUNCHER GATE CONTROLLER === */", 1)[1]
+                for seg_name, seg in (("gate_html", m_gate), ("gate_js", m_ctrl)):
+                    self.assertNotIn(html_ndash, seg.lower(), f"HTML ndash entity found in {seg_name}")
+                    self.assertIsNone(full_emoji_re.search(seg), f"Emoji/symbol found in {seg_name}")
 
 
 if __name__ == "__main__":

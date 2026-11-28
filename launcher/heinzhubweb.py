@@ -8,8 +8,10 @@ preserving 100% of the Last Z fleet orchestration, map intel, export tools, and
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import copy
 import glob
+import hashlib
 import importlib.util
 import inspect
 import json
@@ -23,6 +25,8 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
+import urllib.request
 import webbrowser
 from typing import Any
 
@@ -434,11 +438,22 @@ for _p in (TOOLS_DIR, API_DIR, DAEMON_DIR, SCRATCH_DIR):
 _USER_WIN_PATH_RE = re.compile(r"([A-Za-z]:\\+Users\\+)([^\\/:*?\"<>|\r\n]+)", re.IGNORECASE)
 _USER_POSIX_PATH_RE = re.compile(r"([A-Za-z]:/Users/)([^/:*?\"<>|\r\n]+)", re.IGNORECASE)
 _TOKEN_SCRUB_RE = re.compile(r"(SeToken[^\s:=]*\s*[:=]\s*)(\S+)", re.IGNORECASE)
+_BEARER_SCRUB_RE = re.compile(r"(Bearer\s+|hz_dt_)[A-Za-z0-9._\-+/=]{6,}", re.IGNORECASE)
+_COOKIE_SCRUB_RE = re.compile(r"((?:heinz_sid|heinz_csrf)\s*=\s*)([^;\s]+)", re.IGNORECASE)
+_API_KEY_KV_SCRUB_RE = re.compile(
+    r"((?:deepl_api_key|gemini_api_key|x-goog-api-key)\s*[:=]\s*|DeepL-Auth-Key(?:\s*[:=]\s*|\s+))(\S+)",
+    re.IGNORECASE,
+)
+_GEMINI_KEY_SCRUB_RE = re.compile(r"\bAIza[0-9A-Za-z_\-]{20,}\b")
+_DEEPL_KEY_SCRUB_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?::fx)?\b",
+    re.IGNORECASE,
+)
 _UID_SCRUB_RE = re.compile(r"\b\d{12,20}\b")
 
 
 def _redact_text(text: Any) -> str:
-    """Scrub local OS usernames, user profile paths, auth tokens, and long UIDs from logs."""
+    """Scrub local OS usernames, user profile paths, auth tokens, API keys, and long UIDs from logs."""
     raw = str(text or "")
     hd = globals().get("heinz_diagnostics")
     if hd is not None and hasattr(hd, "redact_text"):
@@ -449,6 +464,11 @@ def _redact_text(text: Any) -> str:
     raw = _USER_WIN_PATH_RE.sub(r"\1<USER>", raw)
     raw = _USER_POSIX_PATH_RE.sub(r"\1<USER>", raw)
     raw = _TOKEN_SCRUB_RE.sub(r"\1<REDACTED>", raw)
+    raw = _BEARER_SCRUB_RE.sub("<REDACTED>", raw)
+    raw = _COOKIE_SCRUB_RE.sub(r"\1<REDACTED>", raw)
+    raw = _API_KEY_KV_SCRUB_RE.sub(r"\1<REDACTED>", raw)
+    raw = _GEMINI_KEY_SCRUB_RE.sub("<REDACTED_KEY>", raw)
+    raw = _DEEPL_KEY_SCRUB_RE.sub("<REDACTED_KEY>", raw)
     raw = _UID_SCRUB_RE.sub("<ID>", raw)
     return raw
 
@@ -954,6 +974,36 @@ def _resolve_map_data_dir() -> str:
     return os.path.abspath(str(cur_data_dir))
 
 
+_WORLD_CACHE_SIG_MEMO: dict[str, tuple[float, str]] = {}
+
+
+def _get_world_map_cache_sig(max_age_sec: float = 1.2) -> str:
+    """Fast throttled stat signature of world_map_cache*.json so Map Rip auto-refreshes live."""
+    data_dir = _resolve_map_data_dir()
+    now_mono = time.monotonic()
+    cached = _WORLD_CACHE_SIG_MEMO.get(data_dir)
+    if cached is not None and (now_mono - cached[0]) < max_age_sec:
+        return cached[1]
+    cache_dir = os.path.join(data_dir, "cache")
+    parts: list[str] = []
+    try:
+        if os.path.isdir(cache_dir):
+            with os.scandir(cache_dir) as it:
+                for entry in it:
+                    nm = entry.name
+                    if nm.startswith("world_map_cache") and nm.endswith(".json") and entry.is_file():
+                        st = entry.stat()
+                        parts.append(f"{nm}:{int(st.st_size)}:{int(st.st_mtime_ns)}")
+            parts.sort()
+    except OSError:
+        pass
+    sig = "|".join(parts)
+    if len(_WORLD_CACHE_SIG_MEMO) > 8:
+        _WORLD_CACHE_SIG_MEMO.clear()
+    _WORLD_CACHE_SIG_MEMO[data_dir] = (now_mono, sig)
+    return sig
+
+
 def _safe_int(val: Any, default: Any = 0) -> Any:
     """Safely coerce a value to int, returning `default` for None, bool, empty/non-numeric strings, or NaN/Inf."""
     if val is None or isinstance(val, bool):
@@ -1276,11 +1326,14 @@ def _get_world_map_index(data_dir: str, dedup_by_uid: bool = True, cache_file: s
                     f_st = os.fstat(fh.fileno())
                     f_sig = _stat_sig_from_stat(f_st)
                     newest_mt = max(newest_mt, float(f_st.st_mtime))
-                    raw_text = fh.read().decode("utf-8", errors="replace")
+                    raw_bytes = fh.read()
                 exp_sig = expected_sigs.get(abs_ap)
                 if exp_sig is not None and f_sig != exp_sig:
                     read_err = True
-                raw_obj = json.loads(raw_text)
+                try:
+                    raw_obj = json.loads(raw_bytes)
+                except UnicodeDecodeError:
+                    raw_obj = json.loads(raw_bytes.decode("utf-8", errors="replace"))
             except Exception:
                 read_err = True
                 continue
@@ -1288,64 +1341,91 @@ def _get_world_map_index(data_dir: str, dedup_by_uid: bool = True, cache_file: s
                 read_err = True
                 continue
             tot_raw += len(raw_obj)
+            _fast_int = _safe_int
             for k, entry in raw_obj.items():
                 try:
                     if not isinstance(entry, dict) or entry.get("test"):
                         continue
-                    pt = _safe_int(entry.get("pointType") or entry.get("PointType"), 0)
+                    pt_raw = entry.get("pointType")
+                    if pt_raw is None or pt_raw == 0:
+                        pt_raw = entry.get("PointType")
+                    pt = pt_raw if (isinstance(pt_raw, int) and not isinstance(pt_raw, bool)) else _fast_int(pt_raw, 0)
                     if pt > 0:
                         pt_counts_local[pt] = pt_counts_local.get(pt, 0) + 1
-                    p_idx_val = _safe_int(entry.get("pointIndex"), 0)
-                    m_idx_val = _safe_int(entry.get("mainIndex"), 0)
+                    pi_raw = entry.get("pointIndex")
+                    mi_raw = entry.get("mainIndex")
+                    p_idx_val = pi_raw if (isinstance(pi_raw, int) and not isinstance(pi_raw, bool)) else _fast_int(pi_raw, 0)
+                    m_idx_val = mi_raw if (isinstance(mi_raw, int) and not isinstance(mi_raw, bool)) else _fast_int(mi_raw, 0)
                     cand_idx = m_idx_val if m_idx_val > p_idx_val else p_idx_val
                     if cand_idx <= 0:
-                        cand_idx = _safe_int(k, 0)
+                        cand_idx = k if (isinstance(k, int) and not isinstance(k, bool)) else _fast_int(k, 0)
                     if cand_idx > max_point_index_local:
                         max_point_index_local = cand_idx
                     ex_raw = entry.get("x")
                     if ex_raw is not None:
-                        ex_val = _safe_int(ex_raw, -1)
+                        ex_val = ex_raw if (isinstance(ex_raw, int) and not isinstance(ex_raw, bool)) else _fast_int(ex_raw, -1)
                         if ex_val > max_coord_local:
                             max_coord_local = ex_val
                     ey_raw = entry.get("y")
                     if ey_raw is not None:
-                        ey_val = _safe_int(ey_raw, -1)
+                        ey_val = ey_raw if (isinstance(ey_raw, int) and not isinstance(ey_raw, bool)) else _fast_int(ey_raw, -1)
                         if ey_val > max_coord_local:
                             max_coord_local = ey_val
+                    if pt not in (6, 7, 11, 15, 16, 29, 32):
+                        continue
                     srv_raw = entry.get("serverId")
                     if pt == 6:
                         bi = entry.get("buildInfo")
                         if not isinstance(bi, dict):
                             continue
-                        if _safe_int(bi.get("buildId"), 0) != 400000:
+                        bid_raw = bi.get("buildId")
+                        bid_val = bid_raw if (isinstance(bid_raw, int) and not isinstance(bid_raw, bool)) else _fast_int(bid_raw, 0)
+                        if bid_val != 400000:
                             continue
-                        server_id = _safe_int(srv_raw, None)
+                        server_id = srv_raw if (isinstance(srv_raw, int) and not isinstance(srv_raw, bool)) else _fast_int(srv_raw, None)
                         if server_id is None:
                             continue
                         owner_uid = str(bi.get("ownerUid") or "").strip()
                         if not owner_uid:
                             continue
-                        raw_idx = entry.get("mainIndex") or entry.get("pointIndex") or k
-                        idx = _safe_int(raw_idx, None)
+                        idx = cand_idx if (m_idx_val > 0 or p_idx_val > 0) else _fast_int(k, None)
                         if idx is None or idx < 0:
                             continue
                         srvs_local.add(server_id)
                         raw_hqs += 1
-                        x, y = _fast_index_to_xy(idx)
+                        if idx <= 0:
+                            x, y = 0, 0
+                        else:
+                            z = idx - 1
+                            y = z // 1000
+                            x = z - y * 1000
                         if x > max_coord_local:
                             max_coord_local = x
                         if y > max_coord_local:
                             max_coord_local = y
-                        k_int = _safe_int(k, 0)
-                        main_idx = _safe_int(entry.get("mainIndex") or -1, -1)
-                        aoi_ver = _safe_int(entry.get("aoiVersion"), 0)
-                        last_hp_t = _safe_int(bi.get("lastHpTime"), 0)
+                        k_int = _fast_int(k, 0)
+                        main_idx = m_idx_val if m_idx_val > 0 else _fast_int(mi_raw if mi_raw is not None else -1, -1)
+                        av_raw = entry.get("aoiVersion")
+                        aoi_ver = av_raw if (isinstance(av_raw, int) and not isinstance(av_raw, bool)) else _fast_int(av_raw, 0)
+                        lhp_raw = bi.get("lastHpTime")
+                        last_hp_t = lhp_raw if (isinstance(lhp_raw, int) and not isinstance(lhp_raw, bool)) else _fast_int(lhp_raw, 0)
                         tie_score = (aoi_ver, last_hp_t, k_int == main_idx, k_int)
 
-                        r_info = roster_map.get((server_id, owner_uid))
+                        dkey = (server_id, owner_uid)
+                        prev = hq_dedup_local.get(dkey)
+                        is_winner = (prev is None or tie_score > prev[0])
+                        if dedup_by_uid and not is_winner:
+                            continue
+
+                        r_info = roster_map.get(dkey)
                         pwr_val = r_info["power"] if r_info is not None else None
                         al_abbr = str(bi.get("alAbbr") or "").strip()
                         pname = str(bi.get("name") or "").strip() or f"Player #{owner_uid[-6:]}"
+                        lv_raw = bi.get("level")
+                        pe_raw = bi.get("protectEndTime")
+                        bs_raw = bi.get("buildState")
+                        hp_raw = bi.get("currentHp")
+                        fe_raw = bi.get("fireEndTime")
                         rec = {
                             "kind": "base",
                             "uid": owner_uid,
@@ -1353,25 +1433,22 @@ def _get_world_map_index(data_dir: str, dedup_by_uid: bool = True, cache_file: s
                             "tag": al_abbr,
                             "alliance": al_abbr,
                             "alliance_id": str(bi.get("allianceId") or "").strip(),
-                            "level": _safe_int(bi.get("level"), 0),
+                            "level": lv_raw if (isinstance(lv_raw, int) and not isinstance(lv_raw, bool)) else _fast_int(lv_raw, 0),
                             "x": x,
                             "y": y,
                             "server_id": server_id,
-                            "protect_end_time": _safe_int(bi.get("protectEndTime"), 0),
-                            "build_state": _safe_int(bi.get("buildState"), 0),
-                            "current_hp": _safe_int(bi.get("currentHp"), 0),
-                            "fire_end_time": _safe_int(bi.get("fireEndTime"), 0),
+                            "protect_end_time": pe_raw if (isinstance(pe_raw, int) and not isinstance(pe_raw, bool)) else _fast_int(pe_raw, 0),
+                            "build_state": bs_raw if (isinstance(bs_raw, int) and not isinstance(bs_raw, bool)) else _fast_int(bs_raw, 0),
+                            "current_hp": hp_raw if (isinstance(hp_raw, int) and not isinstance(hp_raw, bool)) else _fast_int(hp_raw, 0),
+                            "fire_end_time": fe_raw if (isinstance(fe_raw, int) and not isinstance(fe_raw, bool)) else _fast_int(fe_raw, 0),
                             "aoi_version": aoi_ver,
                             "power": pwr_val,
                             "known_power": pwr_val is not None,
                             "army_kill": r_info["army_kill"] if r_info is not None else None,
                             "online": r_info["online"] if r_info is not None else None,
                             "roster_rank": r_info["roster_rank"] if r_info is not None else None,
-                            "_search_hay": f"{pname} {al_abbr} {owner_uid} {x} {y} ({x},{y}) s{server_id}".lower(),
                         }
-                        dkey = (server_id, owner_uid)
-                        prev = hq_dedup_local.get(dkey)
-                        if prev is None or tie_score > prev[0]:
+                        if is_winner:
                             hq_dedup_local[dkey] = (tie_score, rec)
                         if not dedup_by_uid:
                             hq_all_local.append(rec)
@@ -1379,27 +1456,38 @@ def _get_world_map_index(data_dir: str, dedup_by_uid: bool = True, cache_file: s
                         ri = entry.get("resourceInfo")
                         if not isinstance(ri, dict):
                             continue
-                        server_id = _safe_int(srv_raw, 0)
-                        raw_idx = entry.get("mainIndex") or entry.get("pointIndex") or k
-                        idx = _safe_int(raw_idx, None)
+                        server_id = srv_raw if (isinstance(srv_raw, int) and not isinstance(srv_raw, bool)) else _fast_int(srv_raw, 0)
+                        idx = cand_idx if (m_idx_val > 0 or p_idx_val > 0) else _fast_int(k, None)
                         if idx is None or idx < 0:
                             continue
                         if server_id > 0:
                             srvs_local.add(server_id)
-                        x, y = _fast_index_to_xy(idx)
+                        if idx <= 0:
+                            x, y = 0, 0
+                        else:
+                            z = idx - 1
+                            y = z // 1000
+                            x = z - y * 1000
                         if x > max_coord_local:
                             max_coord_local = x
                         if y > max_coord_local:
                             max_coord_local = y
-                        rid = _safe_int(ri.get("resourceId"), 0)
+                        av_raw = entry.get("aoiVersion")
+                        aoi_ver = av_raw if (isinstance(av_raw, int) and not isinstance(av_raw, bool)) else _fast_int(av_raw, 0)
+                        rkey = (server_id, idx)
+                        prev_r = rss_best_local.get(rkey)
+                        if prev_r is not None and aoi_ver <= prev_r[0]:
+                            continue
+                        rid_raw = ri.get("resourceId")
+                        rid = rid_raw if (isinstance(rid_raw, int) and not isinstance(rid_raw, bool)) else _fast_int(rid_raw, 0)
                         rtype, r_lvl, r_reserve, tbl_ev = gather_tbl.get(rid, (0, 0, 0, False))
-                        gather_uuid = _safe_int(ri.get("gatherUuid"), 0)
+                        gu_raw = ri.get("gatherUuid")
+                        gather_uuid = gu_raw if (isinstance(gu_raw, int) and not isinstance(gu_raw, bool)) else _fast_int(gu_raw, 0)
                         rss_owner = str(ri.get("ownerUid") or "").strip()
                         occupied = (gather_uuid != 0) or (rss_owner not in ("", "0"))
                         event_id = str(ri.get("eventId") or "").strip()
                         is_event_node = bool(tbl_ev or (rid in _SPECIAL_EVENT_RESOURCE_IDS) or event_id)
                         r_name = _RESOURCE_TYPE_LABELS.get(rtype, f"Resource #{rid}")
-                        aoi_ver = _safe_int(entry.get("aoiVersion"), 0)
                         rss_rec = {
                             "kind": "rss",
                             "uid": f"rss:{server_id}:{idx}",
@@ -1422,24 +1510,25 @@ def _get_world_map_index(data_dir: str, dedup_by_uid: bool = True, cache_file: s
                             "has_shield": False,
                             "power": None,
                             "known_power": False,
-                            "_search_hay": f"Lv.{r_lvl} {r_name} {x} {y} ({x},{y}) s{server_id}".lower(),
                         }
-                        rkey = (server_id, idx)
-                        prev_r = rss_best_local.get(rkey)
-                        if prev_r is None or aoi_ver > prev_r[0]:
-                            rss_best_local[rkey] = (aoi_ver, rss_rec)
+                        rss_best_local[rkey] = (aoi_ver, rss_rec)
                     elif pt in (11, 15, 16, 29, 32):
-                        server_id = _safe_int(srv_raw, 0)
-                        raw_idx = entry.get("mainIndex") or entry.get("pointIndex") or k
-                        idx = _safe_int(raw_idx, None)
+                        server_id = srv_raw if (isinstance(srv_raw, int) and not isinstance(srv_raw, bool)) else _fast_int(srv_raw, 0)
+                        idx = cand_idx if (m_idx_val > 0 or p_idx_val > 0) else _fast_int(k, None)
                         if idx is None or idx < 0:
                             continue
-                        x, y = _fast_index_to_xy(idx)
+                        if idx <= 0:
+                            x, y = 0, 0
+                        else:
+                            z = idx - 1
+                            y = z // 1000
+                            x = z - y * 1000
                         if x > max_coord_local:
                             max_coord_local = x
                         if y > max_coord_local:
                             max_coord_local = y
-                        aoi_ver = _safe_int(entry.get("aoiVersion"), 0)
+                        av_raw = entry.get("aoiVersion")
+                        aoi_ver = av_raw if (isinstance(av_raw, int) and not isinstance(av_raw, bool)) else _fast_int(av_raw, 0)
                         skey = (server_id, idx)
                         prev_s = seasonal_best_local.get(skey)
                         if prev_s is None or aoi_ver > prev_s[0]:
@@ -2399,7 +2488,10 @@ class HubBackend:
         self._daemon_proc: Any = None
         self._config_snapshot_cache: tuple[str, tuple[int, int, int, int] | None, int, dict[str, Any]] | None = None
         self._last_good_config_snapshot: tuple[int, dict[str, Any]] | None = None
+        self._config_snap_lock = threading.RLock()
         self._config_version: int = 1
+        self._setup_version: int = 1
+        self._deferred_ui_assets_cache: dict[str, Any] | None = None
         self._log_dir_ready: bool = False
 
         self.is_online = False
@@ -2459,12 +2551,21 @@ class HubBackend:
         self._hospital_watcher_thread_started: bool = False
         self._hospital_watcher_dry_run: bool = False
         self._hospital_watcher_last_summary: dict[str, Any] = {
+            "headless": True,
             "wounded_total": 0,
             "in_treatment_total": 0,
             "untreated_total": 0,
             "queued_troops": 0,
             "batches_chained": 0,
             "cross_client_helps_triggered": 0,
+            "pass_active_helpers": 0,
+            "pass_total_members": 0,
+            "online_members": 0,
+            "player_max_helps": 0,
+            "effective_max_helps": 0,
+            "per_help_sec": 0,
+            "dynamic_batch_sec": 0,
+            "batch_sizing_mode": "pass_plus_active",
             "updated_at": 0.0,
         }
 
@@ -2784,6 +2885,32 @@ class HubBackend:
         except Exception as exc:
             return {"ok": False, "mode": mode, "error": str(exc)}
 
+    def _build_deferred_ui_assets(self) -> dict[str, Any]:
+        cached = getattr(self, "_deferred_ui_assets_cache", None)
+        if cached is not None:
+            return cached
+        core_icons, hero_payload, item_payload = _collect_game_icons_data(
+            include_heavy_packs=True,
+            include_hub_assets=True,
+        )
+        banner_uri = ""
+        banner_path = os.path.join(RES_ROOT, "assets", "hero banner.png")
+        if os.path.exists(banner_path):
+            try:
+                with open(banner_path, "rb") as bf:
+                    b64 = base64.b64encode(bf.read()).decode("ascii")
+                banner_uri = f"data:image/png;base64,{b64}"
+            except OSError:
+                banner_uri = ""
+        bundle = {
+            "core_icons": core_icons,
+            "hero_icons": hero_payload,
+            "item_icons": item_payload,
+            "hero_banner_data_uri": banner_uri,
+        }
+        self._deferred_ui_assets_cache = bundle
+        return bundle
+
     def activate_enhanced_mode(self) -> dict[str, Any]:
         """Activate Enhanced mode lazily (starts monitors, 180 FPS daemon, live translator & Always-On automation)."""
         was_active = bool(getattr(self, "_enhanced_active", False) and getattr(self, "_monitors_started", False))
@@ -2791,7 +2918,16 @@ class HubBackend:
         self.set_launcher_window_mode("hub")
         if not was_active:
             self.log("Enhanced Mode activated - HeinZ Helper, 180 FPS Daemon & Smart Translator active.", "ok")
-        return {"ok": True, "enhanced_active": True}
+        out: dict[str, Any] = {"ok": True, "enhanced_active": True}
+        if getattr(self, "_defer_enhanced", False):
+            out["ui_assets"] = self._build_deferred_ui_assets()
+            threading.Thread(
+                target=_get_or_build_hydrated_ui_url,
+                kwargs={"include_heavy_packs": True, "include_hub_assets": True},
+                daemon=True,
+                name="WarmHubUiCache",
+            ).start()
+        return out
 
     def shutdown(self) -> None:
         """Cleanly stop background loops, wake blocking hotkey & watcher threads, and terminate owned daemon."""
@@ -2972,8 +3108,8 @@ class HubBackend:
             },
             "intervals": {
                 "auto_help_sec": int(round(self._alliance_help_interval_sec)),
-                "hospital_active_sec": 5,
-                "hospital_dormant_sec": 10,
+                "hospital_active_sec": 1.5,
+                "hospital_dormant_sec": 8,
                 "alliance_tech_sec": int(round(self._alliance_tech_interval_sec)),
             },
         }
@@ -3229,12 +3365,21 @@ class HubBackend:
             else:
                 self._hospital_watcher_state = "off"
                 self._hospital_watcher_last_summary = {
+                    "headless": True,
                     "wounded_total": 0,
                     "in_treatment_total": 0,
                     "untreated_total": 0,
                     "queued_troops": 0,
                     "batches_chained": 0,
                     "cross_client_helps_triggered": 0,
+                    "pass_active_helpers": 0,
+                    "pass_total_members": 0,
+                    "online_members": 0,
+                    "player_max_helps": 0,
+                    "effective_max_helps": 0,
+                    "per_help_sec": 0,
+                    "dynamic_batch_sec": 0,
+                    "batch_sizing_mode": "pass_plus_active",
                     "updated_at": time.time(),
                 }
             self._recompute_always_on_state_locked()
@@ -3243,7 +3388,7 @@ class HubBackend:
         if new_enabled:
             suffix = "" if self._always_on_daemon_enabled else " (Master Always-On switch is currently paused)"
             self.log(
-                f"[Always-On Daemon] Hospital Auto-Heal turned ON: auto-heals wounded in alliance-help batches and stays dormant when 0 wounded{suffix}.",
+                f"[Always-On Daemon] Hospital Auto-Heal turned ON (100% Headless, dynamic Pass+Active max help sizing, 0 click interruption){suffix}.",
                 "ok",
             )
         else:
@@ -3366,12 +3511,16 @@ class HubBackend:
             if not targets:
                 with self._lock:
                     self._hospital_watcher_last_summary.update({
+                        "headless": True,
                         "wounded_total": 0,
                         "in_treatment_total": 0,
                         "untreated_total": 0,
                         "queued_troops": 0,
                         "batches_chained": 0,
                         "cross_client_helps_triggered": 0,
+                        "pass_active_helpers": 0,
+                        "effective_max_helps": 0,
+                        "dynamic_batch_sec": 0,
                         "updated_at": time.time(),
                     })
                 return {"skipped": False, "all_dormant": True, "no_clients": True, "results": []}
@@ -3393,6 +3542,14 @@ class HubBackend:
             tot_queued = 0
             tot_batches = 0
             tot_cross_helps = 0
+            max_pass_active = 0
+            max_pass_total = 0
+            max_online = 0
+            max_player_helps = 0
+            max_eff_helps = 0
+            max_per_help_sec = 0
+            max_dyn_batch_sec = 0
+            sizing_mode = "pass_plus_active"
 
             for proc in targets:
                 if not self._hospital_watcher_enabled and dry_run is None:
@@ -3420,6 +3577,7 @@ class HubBackend:
                             {},
                             c_cfg,
                             dry_run=is_dry,
+                            headless=True,
                         )
                     except Exception as exc:
                         res = {"ok": False, "task": "hospital_heal", "dormant": False, "error": str(exc)}
@@ -3464,16 +3622,34 @@ class HubBackend:
                 tot_queued += queued
                 tot_batches += batches
                 tot_cross_helps += cross_h
+                max_pass_active = max(max_pass_active, int(res.get("pass_active_helpers") or 0))
+                max_pass_total = max(max_pass_total, int(res.get("pass_total_members") or 0))
+                max_online = max(max_online, int(res.get("online_members") or 0))
+                max_player_helps = max(max_player_helps, int(res.get("player_max_helps") or 0))
+                max_eff_helps = max(max_eff_helps, int(res.get("effective_max_helps") or 0))
+                max_per_help_sec = max(max_per_help_sec, int(res.get("per_help_sec") or 0))
+                max_dyn_batch_sec = max(max_dyn_batch_sec, int(res.get("dynamic_batch_sec") or 0))
+                if res.get("batch_sizing_mode"):
+                    sizing_mode = str(res.get("batch_sizing_mode"))
                 results.append({"pid": c_pid, "label": c_disp, "res": res, "dormant": c_dormant})
 
             with self._lock:
                 self._hospital_watcher_last_summary = {
+                    "headless": True,
                     "wounded_total": tot_wounded,
                     "in_treatment_total": tot_in_treat,
                     "untreated_total": tot_untreated,
                     "queued_troops": tot_queued,
                     "batches_chained": tot_batches,
                     "cross_client_helps_triggered": tot_cross_helps,
+                    "pass_active_helpers": max_pass_active,
+                    "pass_total_members": max_pass_total,
+                    "online_members": max_online,
+                    "player_max_helps": max_player_helps,
+                    "effective_max_helps": max_eff_helps,
+                    "per_help_sec": max_per_help_sec,
+                    "dynamic_batch_sec": max_dyn_batch_sec,
+                    "batch_sizing_mode": sizing_mode,
                     "updated_at": time.time(),
                 }
 
@@ -3577,6 +3753,15 @@ class HubBackend:
                 res: dict[str, Any] | None = None
                 if bot_actions is not None and client_discovery is not None:
                     try:
+                        res = bot_actions.run_auto_help(
+                            client_discovery,
+                            c_pid,
+                            {},
+                            c_cfg,
+                            dry_run=False,
+                            headless=True,
+                        )
+                    except TypeError:
                         res = bot_actions.run_auto_help(
                             client_discovery,
                             c_pid,
@@ -3809,6 +3994,7 @@ class HubBackend:
                 ad_cfg.update({
                     "donate_tech": True,
                     "tech_only": True,
+                    "headless": True,
                     "claim_gifts": False,
                     "claim_red_packets": False,
                     "claim_tasks": False,
@@ -4058,7 +4244,7 @@ class HubBackend:
                     if at_on:
                         soonest_list.append(next_tech_ts)
                     soonest = min(soonest_list) if soonest_list else (now + 2.0)
-                    wait_s = max(0.5, min(5.0, soonest - now))
+                    wait_s = max(0.25, min(5.0, soonest - now))
                     if self._always_on_gen == gen_before:
                         self._always_on_wake.wait(wait_s)
                         self._always_on_wake.clear()
@@ -4100,14 +4286,14 @@ class HubBackend:
                                         last_hosp_sig.clear()
                                         last_hosp_ts.clear()
                                         self.log(
-                                            "[Always-On Daemon] [Hospital] No injured troops detected (0 wounded) - staying dormant and watching...",
+                                            "[Always-On Daemon] [Hospital] No injured troops detected (0 wounded) - staying dormant (headless)...",
                                             "info",
                                         )
-                                    next_hosp_ts = time.time() + 10.0
+                                    next_hosp_ts = time.time() + 8.0
                                 else:
                                     if prev_hosp_mode == "dormant":
                                         self.log(
-                                            "[Always-On Daemon] [Hospital] Detected injured troops! Waking from dormant state and starting batch healing...",
+                                            "[Always-On Daemon] [Hospital] Detected injured troops! Starting fast headless Pass+Active batch healing...",
                                             "info",
                                         )
                                     with self._lock:
@@ -4116,6 +4302,7 @@ class HubBackend:
                                     prev_hosp_mode = "healing"
 
                                     log_now = time.time()
+                                    any_fast_ready = False
                                     for entry in tick_h.get("results") or []:
                                         if entry.get("dormant"):
                                             continue
@@ -4128,10 +4315,15 @@ class HubBackend:
                                         rem_sec = int(r.get("queue_remaining_sec") or 0)
                                         batches = int(r.get("batches_chained") or 0)
                                         cross_h = int(r.get("cross_client_helps_triggered") or 0)
+                                        pass_act = int(r.get("pass_active_helpers") or 0)
+                                        eff_helps = int(r.get("effective_max_helps") or 0)
+                                        dyn_sec = int(r.get("dynamic_batch_sec") or 0)
                                         collected = bool(r.get("collected", False))
                                         help_req = bool(r.get("help_requested") or r.get("is_helped"))
                                         action_str = str(r.get("action") or "healing")
-                                        sig = (action_str, queued, in_treat, untreated, help_req, collected)
+                                        if untreated > 0 and (rem_sec <= 3 or eff_helps > 0):
+                                            any_fast_ready = True
+                                        sig = (action_str, queued, in_treat, untreated, help_req, collected, pass_act, eff_helps)
                                         should_log = (
                                             queued > 0
                                             or collected
@@ -4142,6 +4334,8 @@ class HubBackend:
                                         )
                                         if should_log:
                                             extra_bits: list[str] = []
+                                            if pass_act > 0 or eff_helps > 0:
+                                                extra_bits.append(f"Pass+Active={pass_act} [helps={eff_helps}, target={dyn_sec}s]")
                                             if batches > 0:
                                                 extra_bits.append(f"batches={batches}")
                                             if cross_h > 0:
@@ -4157,7 +4351,7 @@ class HubBackend:
                                                 self.log(f"[Always-On Daemon] [Hospital] [{c_lbl}] In-game tip: {tip}", "info")
                                             last_hosp_sig[c_pid] = sig
                                             last_hosp_ts[c_pid] = log_now
-                                    next_hosp_ts = time.time() + 5.0
+                                    next_hosp_ts = time.time() + (0.8 if any_fast_ready else 1.5)
 
                     # 2) Auto-Help Alliance & Both Gift Tabs
                     if due_help and self._always_on_daemon_enabled and self._alliance_help_watcher_enabled:
@@ -4636,26 +4830,47 @@ class HubBackend:
                     self._live_info_by_pid.pop(dead_pid, None)
 
         force_set = set(force_pids or [])
+        probe_pids: list[int] = []
         for item in running:
             pid = int(item["pid"])
             with self._lock:
                 cached_live = dict(self._live_info_by_pid[pid]) if pid in self._live_info_by_pid else None
-            need_query = query_lua and (cached_live is None or not cached_live.get("loggedIn") or pid in force_set)
-            if need_query and client_discovery is not None:
-                try:
-                    if client_discovery._xlua_loaded(pid):
-                        ok, out = client_discovery.frida_eval_lua(pid, client_discovery.LUA_QUICK_STATUS)
-                        if ok:
-                            data = json.loads(out)
-                            if isinstance(data, dict):
-                                uid_str = str(data.get("uid") or "").strip()
-                                nm_str = str(data.get("name") or "").strip()
-                                with self._lock:
-                                    self._live_info_by_pid[pid] = data
-                                    if uid_str and nm_str:
-                                        self._uid_name_cache[uid_str] = nm_str
-                except Exception:
-                    pass
+            if query_lua and (cached_live is None or not cached_live.get("loggedIn") or pid in force_set):
+                probe_pids.append(pid)
+
+        def _probe_quick_status(target_pid: int) -> tuple[int, dict[str, Any] | None]:
+            if client_discovery is None:
+                return (target_pid, None)
+            try:
+                if client_discovery._xlua_loaded(target_pid):
+                    ok, out = client_discovery.frida_eval_lua(target_pid, client_discovery.LUA_QUICK_STATUS)
+                    if ok:
+                        data = json.loads(out)
+                        if isinstance(data, dict):
+                            return (target_pid, data)
+            except Exception:
+                pass
+            return (target_pid, None)
+
+        if probe_pids and client_discovery is not None:
+            probe_results: list[tuple[int, dict[str, Any] | None]]
+            if len(probe_pids) > 1:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(probe_pids))) as pool:
+                    probe_results = list(pool.map(_probe_quick_status, probe_pids))
+            else:
+                probe_results = [_probe_quick_status(probe_pids[0])]
+            with self._lock:
+                for target_pid, data in probe_results:
+                    if data is None:
+                        continue
+                    self._live_info_by_pid[target_pid] = data
+                    uid_str = str(data.get("uid") or "").strip()
+                    nm_str = str(data.get("name") or "").strip()
+                    if uid_str and nm_str:
+                        self._uid_name_cache[uid_str] = nm_str
+
+        for item in running:
+            pid = int(item["pid"])
             with self._lock:
                 live = dict(self._live_info_by_pid.get(pid) or {})
             if live:
@@ -4677,7 +4892,9 @@ class HubBackend:
             )
             if isinstance(st, dict):
                 with self._lock:
-                    self.setup_status = st
+                    if st != self.setup_status:
+                        self.setup_status = st
+                        self._setup_version = int(getattr(self, "_setup_version", 1)) + 1
         except Exception as exc:
             self.log(f"Setup scan note: {exc}", "warn")
         with self._lock:
@@ -4737,104 +4954,114 @@ class HubBackend:
                 status_data = {}
 
         with self._lock:
-            last_by_label: dict[str, Any] = {}
-            last_cycle = status_data.get("last_cycle") or {}
-            for c in last_cycle.get("clients", []):
-                if isinstance(c, dict):
-                    last_by_label[str(c.get("label") or "")] = c
+            running_snapshot = [dict(r) for r in self.running_clients]
+            discovered_snapshot = [dict(c) for c in (self.discovered_clients or self.running_clients)]
+            live_snapshot = {pid: dict(info) for pid, info in self._live_info_by_pid.items() if isinstance(info, dict)}
+            uid_names_snapshot = dict(self._uid_name_cache)
+            prev_win_txt = str((getattr(self, "fleet_state", None) or {}).get("win_task_text") or "").strip()
 
-            running_by_label = {str(r.get("label") or ""): r for r in self.running_clients}
-            snap_by_label = live_snapshots or {}
-            discovered = list(self.discovered_clients) or list(self.running_clients)
+        last_by_label: dict[str, Any] = {}
+        last_cycle = status_data.get("last_cycle") or {}
+        for c in last_cycle.get("clients", []):
+            if isinstance(c, dict):
+                last_by_label[str(c.get("label") or "")] = c
 
-            cards = []
-            summary_parts = []
-            for client in discovered:
-                lbl = str(client.get("label") or client.get("unity_profile") or "Client")
-                role = str(client.get("role") or "farm")
-                run_info = running_by_label.get(lbl)
-                pid = int(run_info["pid"]) if run_info else None
-                pid_txt = f"PID {pid}" if pid else "Stopped"
-                summary_parts.append(f"{lbl}: {pid_txt}")
-                snap = snap_by_label.get(lbl) or (last_by_label.get(lbl, {}).get("snapshot") or {})
-                live = (self._live_info_by_pid.get(pid) if pid else None) or {}
-                now_sec = time.time()
+        running_by_label = {str(r.get("label") or ""): r for r in running_snapshot}
+        snap_by_label = live_snapshots or {}
 
-                shield_end = int(live.get("shieldEndTime") or snap.get("shieldEndTime") or snap.get("shield_end_time") or 0)
-                is_shielded = (shield_end > now_sec) or bool(snap.get("shielded"))
-                shield_sec = max(0, int(shield_end - now_sec)) if shield_end > now_sec else 0
-                if is_shielded and shield_sec > 0:
-                    h = shield_sec // 3600
-                    m = (shield_sec % 3600) // 60
-                    shield_text = f"{h}h {m}m" if h > 0 else f"{m}m"
-                elif is_shielded:
-                    shield_text = "Shield Active"
-                else:
-                    shield_text = "UNSHIELDED"
+        cards = []
+        summary_parts = []
+        now_sec = time.time()
+        for client in discovered_snapshot:
+            lbl = str(client.get("label") or client.get("unity_profile") or "Client")
+            role = str(client.get("role") or "farm")
+            run_info = running_by_label.get(lbl)
+            pid = int(run_info["pid"]) if run_info else None
+            pid_txt = f"PID {pid}" if pid else "Stopped"
+            summary_parts.append(f"{lbl}: {pid_txt}")
+            snap = snap_by_label.get(lbl) or (last_by_label.get(lbl, {}).get("snapshot") or {})
+            live = (live_snapshot.get(pid) if pid else None) or {}
 
-                power_val = live.get("power") or snap.get("power") or 0
-                hq_val = live.get("hqLevel") or snap.get("hqLv") or (run_info.get("hqLv") if run_info else None)
-                stamina_val = live.get("stamina") if live.get("stamina") is not None else snap.get("stamina")
-                diamond_val = live.get("diamond") if live.get("diamond") is not None else snap.get("diamond")
-                free_f = live.get("freeFormations") if live.get("freeFormations") is not None else snap.get("freeFormations")
-                total_f = live.get("totalFormations") if live.get("totalFormations") is not None else snap.get("unlockFormations")
-                under_attack = bool(live.get("underAttack") or snap.get("underAttack"))
-                incoming_attacks = int(live.get("incomingAttacks") or snap.get("incomingAttacks") or 0)
-                active_marches = int(live.get("activeMarches") or snap.get("activeMarches") or 0)
-                server_id_val = live.get("selfServerId") or live.get("serverId") or snap.get("serverId") or client.get("server_id")
-                display_name = live.get("name") or snap.get("name") or (self._client_display_name(run_info) if run_info else lbl)
-                alliance_tag = live.get("allianceTag") or snap.get("allianceTag") or ""
-
-                cards.append({
-                    "label": lbl,
-                    "role": role,
-                    "running": bool(run_info),
-                    "pid": pid,
-                    "exe_name": client.get("exe_name") or "",
-                    "name": display_name,
-                    "allianceTag": alliance_tag,
-                    "hqLv": hq_val,
-                    "serverId": server_id_val,
-                    "powerM": round(int(power_val) / 1_000_000, 1) if power_val else None,
-                    "stamina": stamina_val,
-                    "diamond": diamond_val,
-                    "freeFormations": free_f,
-                    "unlockFormations": total_f,
-                    "activeMarches": active_marches,
-                    "shielded": is_shielded,
-                    "shieldEndTime": shield_end,
-                    "shieldSec": shield_sec,
-                    "shieldText": shield_text,
-                    "underAttack": under_attack,
-                    "incomingAttacks": incoming_attacks,
-                })
-
-            sched_root = status_data.get("schedule") or {}
-            primary = sched_root.get("primary") or {}
-            if primary.get("skipped"):
-                prev_win_txt = str((getattr(self, "fleet_state", None) or {}).get("win_task_text") or "").strip()
-                sched_txt = prev_win_txt if prev_win_txt else "Checking..."
-            elif primary.get("exists"):
-                next_run = "Scheduled"
-                for line in str(primary.get("raw") or "").splitlines():
-                    if line.startswith("Next Run Time:"):
-                        next_run = line.split(":", 1)[1].strip()
-                        break
-                sched_txt = f"Installed ({next_run})"
+            shield_end = int(live.get("shieldEndTime") or snap.get("shieldEndTime") or snap.get("shield_end_time") or 0)
+            is_shielded = (shield_end > now_sec) or bool(snap.get("shielded"))
+            shield_sec = max(0, int(shield_end - now_sec)) if shield_end > now_sec else 0
+            if is_shielded and shield_sec > 0:
+                h = shield_sec // 3600
+                m = (shield_sec % 3600) // 60
+                shield_text = f"{h}h {m}m" if h > 0 else f"{m}m"
+            elif is_shielded:
+                shield_text = "Shield Active"
             else:
-                sched_txt = "Not Registered"
+                shield_text = "UNSHIELDED"
 
-            fin_txt = last_cycle.get("finished_at", "Never")
-            if isinstance(fin_txt, str) and len(fin_txt) > 19:
-                fin_txt = fin_txt[:19].replace("T", " ")
+            power_val = live.get("power") or snap.get("power") or 0
+            hq_val = live.get("hqLevel") or snap.get("hqLv") or (run_info.get("hqLv") if run_info else None)
+            stamina_val = live.get("stamina") if live.get("stamina") is not None else snap.get("stamina")
+            diamond_val = live.get("diamond") if live.get("diamond") is not None else snap.get("diamond")
+            free_f = live.get("freeFormations") if live.get("freeFormations") is not None else snap.get("freeFormations")
+            total_f = live.get("totalFormations") if live.get("totalFormations") is not None else snap.get("unlockFormations")
+            under_attack = bool(live.get("underAttack") or snap.get("underAttack"))
+            incoming_attacks = int(live.get("incomingAttacks") or snap.get("incomingAttacks") or 0)
+            active_marches = int(live.get("activeMarches") or snap.get("activeMarches") or 0)
+            server_id_val = live.get("selfServerId") or live.get("serverId") or snap.get("serverId") or client.get("server_id")
+            fallback_name = lbl
+            if run_info:
+                uid_r = str(run_info.get("uid") or "").strip()
+                fallback_name = str(run_info.get("name") or "").strip() or (uid_names_snapshot.get(uid_r, "") if uid_r else "") or str(run_info.get("label") or lbl)
+            display_name = live.get("name") or snap.get("name") or fallback_name
+            alliance_tag = live.get("allianceTag") or snap.get("allianceTag") or ""
 
-            self.fleet_state = {
-                "summary": " • ".join(summary_parts) if summary_parts else "No clients found yet",
-                "daemon_running": bool(status_data.get("daemon_running")),
-                "win_task_text": sched_txt,
-                "last_cycle_text": fin_txt,
-                "clients": cards,
-            }
+            cards.append({
+                "label": lbl,
+                "role": role,
+                "running": bool(run_info),
+                "pid": pid,
+                "exe_name": client.get("exe_name") or "",
+                "name": display_name,
+                "allianceTag": alliance_tag,
+                "hqLv": hq_val,
+                "serverId": server_id_val,
+                "powerM": round(int(power_val) / 1_000_000, 1) if power_val else None,
+                "stamina": stamina_val,
+                "diamond": diamond_val,
+                "freeFormations": free_f,
+                "unlockFormations": total_f,
+                "activeMarches": active_marches,
+                "shielded": is_shielded,
+                "shieldEndTime": shield_end,
+                "shieldSec": shield_sec,
+                "shieldText": shield_text,
+                "underAttack": under_attack,
+                "incomingAttacks": incoming_attacks,
+            })
+
+        sched_root = status_data.get("schedule") or {}
+        primary = sched_root.get("primary") or {}
+        if primary.get("skipped"):
+            sched_txt = prev_win_txt if prev_win_txt else "Checking..."
+        elif primary.get("exists"):
+            next_run = "Scheduled"
+            for line in str(primary.get("raw") or "").splitlines():
+                if line.startswith("Next Run Time:"):
+                    next_run = line.split(":", 1)[1].strip()
+                    break
+            sched_txt = f"Installed ({next_run})"
+        else:
+            sched_txt = "Not Registered"
+
+        fin_txt = last_cycle.get("finished_at", "Never")
+        if isinstance(fin_txt, str) and len(fin_txt) > 19:
+            fin_txt = fin_txt[:19].replace("T", " ")
+
+        new_fleet_state = {
+            "summary": " • ".join(summary_parts) if summary_parts else "No clients found yet",
+            "daemon_running": bool(status_data.get("daemon_running")),
+            "win_task_text": sched_txt,
+            "last_cycle_text": fin_txt,
+            "clients": cards,
+        }
+        with self._lock:
+            self.fleet_state = new_fleet_state
 
     def _poll_loop(self) -> None:
         loop_idx = 0
@@ -4932,8 +5159,7 @@ class HubBackend:
                             bot_status = {}
                     if loop_idx % 12 == 0:
                         self._refresh_setup_status()
-                    with self._lock:
-                        self._refresh_fleet_state(status_data=bot_status)
+                    self._refresh_fleet_state(status_data=bot_status)
             except Exception:
                 pass
             loop_idx += 1
@@ -4982,10 +5208,16 @@ class HubBackend:
         "research_queue", "radar_events", "free_recruits", "garage_upgrades", "hero_progression", "daily_tasks_complete",
     )
 
-    def _build_config_snapshot(self) -> tuple[int, dict[str, Any]]:
+    def _build_config_snapshot(
+        self,
+        copy_data: bool = True,
+        known_cfg_ver: int | None = None,
+    ) -> tuple[int, dict[str, Any]]:
         if multi_client_bot is None:
             return (0, {})
-        with self._lock:
+        snap_lock = getattr(self, "_config_snap_lock", None) or self._lock
+        known_ver_int = _safe_int(known_cfg_ver, None) if known_cfg_ver is not None else None
+        with snap_lock:
             try:
                 cfg_path = str(getattr(multi_client_bot, "CONFIG_PATH", "") or "")
                 file_sig: tuple[int, int, int, int] | None = None
@@ -4993,7 +5225,10 @@ class HubBackend:
                     file_sig = _stat_sig_from_stat(os.stat(cfg_path))
                     cached = getattr(self, "_config_snapshot_cache", None)
                     if cached is not None and cached[0] == cfg_path and cached[1] == file_sig:
-                        return (cached[2], copy.deepcopy(cached[3]))
+                        c_ver = cached[2]
+                        if (not copy_data) or (known_ver_int is not None and known_ver_int == c_ver):
+                            return (c_ver, {})
+                        return (c_ver, copy.deepcopy(cached[3]))
                 cfg = multi_client_bot.load_config()
                 if not isinstance(cfg, dict):
                     raise ValueError("Invalid config payload")
@@ -5002,10 +5237,16 @@ class HubBackend:
             except Exception:
                 last_good = getattr(self, "_last_good_config_snapshot", None)
                 if last_good is not None:
-                    return (last_good[0], copy.deepcopy(last_good[1]))
+                    lg_ver = last_good[0]
+                    if (not copy_data) or (known_ver_int is not None and known_ver_int == lg_ver):
+                        return (lg_ver, {})
+                    return (lg_ver, copy.deepcopy(last_good[1]))
                 cached_fb = getattr(self, "_config_snapshot_cache", None)
                 if cached_fb is not None:
-                    return (cached_fb[2], copy.deepcopy(cached_fb[3]))
+                    fb_ver = cached_fb[2]
+                    if (not copy_data) or (known_ver_int is not None and known_ver_int == fb_ver):
+                        return (fb_ver, {})
+                    return (fb_ver, copy.deepcopy(cached_fb[3]))
                 return (0, {})
 
             defs = cfg.get("client_defaults") or {}
@@ -5030,6 +5271,8 @@ class HubBackend:
             self._last_good_config_snapshot = (ver, snap_copy)
             if cfg_path and file_sig is not None:
                 self._config_snapshot_cache = (cfg_path, file_sig, ver, copy.deepcopy(snap))
+            if (not copy_data) or (known_ver_int is not None and known_ver_int == ver):
+                return (ver, {})
             return (ver, snap)
 
     # ------------------------------------------------------------------
@@ -5411,7 +5654,10 @@ class HubBackend:
             "options": clean_opts,
         }
 
-    def _build_farm_loops_snapshot_locked(self) -> dict[str, Any]:
+    def _build_farm_loops_snapshot_locked(
+        self,
+        scope_pids: tuple[Any, Any] | None = None,
+    ) -> dict[str, Any]:
         """Build fast, tiny JSON-safe snapshot of active farm loops, per-category summaries, and live detection.
 
         `rss` / `kills` / `detection` are scoped to the currently selected client PID. When the target is
@@ -5419,12 +5665,16 @@ class HubBackend:
         loop of that category. `active_loops` always lists every running loop across all PIDs.
         """
         flock = self._ensure_farm_loop_attrs()
-        sel_raw = getattr(self, "selected_client_pid", None)
-        tgt_raw = getattr(self, "target_pid", None)
+        if scope_pids is not None:
+            sel_raw, tgt_raw = scope_pids
+        else:
+            sel_raw = getattr(self, "selected_client_pid", None)
+            tgt_raw = getattr(self, "target_pid", None)
         sel_pid = _safe_int(sel_raw, None) if sel_raw not in (None, "", 0) else None
         tgt_pid = _safe_int(tgt_raw, None) if tgt_raw not in (None, "", 0) else None
         explicit = sel_pid is not None and sel_pid > 0
         scope_pid = sel_pid if explicit else (tgt_pid if tgt_pid and tgt_pid > 0 else None)
+        det_src: Any = None
         with flock:
             active_entries = [
                 e for e in self._farm_loops.values()
@@ -5461,7 +5711,6 @@ class HubBackend:
                         dflt["pid"] = int(scope_pid)
                     cat_out[cat] = dflt
 
-            det_src: Any = None
             det_pid = scope_pid
             if det_pid is None and len({int(e.get("pid") or 0) for e in active_entries}) == 1:
                 det_pid = int(active_entries[0].get("pid") or 0) or None
@@ -5469,7 +5718,7 @@ class HubBackend:
                 det_src = self._last_kill_detection_by_pid.get(int(det_pid))
             elif not explicit:
                 det_src = self._last_kill_detection
-            det_copy = copy.deepcopy(det_src) if isinstance(det_src, dict) else {}
+        det_copy = copy.deepcopy(det_src) if isinstance(det_src, dict) else {}
 
         return {
             "active_loops": active_loops,
@@ -5485,7 +5734,8 @@ class HubBackend:
         base_lock = getattr(self, "_lock", None)
         if base_lock is not None:
             with base_lock:
-                return self._build_farm_loops_snapshot_locked()
+                scope_pids = (getattr(self, "selected_client_pid", None), getattr(self, "target_pid", None))
+            return self._build_farm_loops_snapshot_locked(scope_pids=scope_pids)
         return self._build_farm_loops_snapshot_locked()
 
     @staticmethod
@@ -7465,9 +7715,10 @@ class HubBackend:
         known_cfg_ver: int | None = None,
         include_catalog: bool = True,
         since_log_epoch: int | None = None,
+        known_setup_ver: int | None = None,
     ) -> dict[str, Any]:
+        cfg_ver, cfg_snap = self._build_config_snapshot(known_cfg_ver=known_cfg_ver)
         with self._lock:
-            cfg_ver, cfg_snap = self._build_config_snapshot()
             self._recompute_always_on_state_locked()
             cur_epoch = int(getattr(self, "_log_epoch", 0))
             cleared_seq = int(getattr(self, "_logs_cleared_seq", 0))
@@ -7500,6 +7751,15 @@ class HubBackend:
             if isinstance(fleet_copy.get("clients"), list):
                 fleet_copy["clients"] = [dict(c) for c in fleet_copy["clients"] if isinstance(c, dict)]
 
+            setup_ver = int(getattr(self, "_setup_version", 1))
+            known_setup_int = _safe_int(known_setup_ver, None) if known_setup_ver is not None else None
+            setup_copy = (
+                copy.deepcopy(self.setup_status)
+                if (known_setup_int is None or known_setup_int != setup_ver)
+                else None
+            )
+            scope_pids = (getattr(self, "selected_client_pid", None), getattr(self, "target_pid", None))
+
             out: dict[str, Any] = {
                 "is_online": self.is_online,
                 "status_text": self.status_text,
@@ -7508,8 +7768,9 @@ class HubBackend:
                 "selected_dropdown": self.selected_dropdown,
                 "env": dict(self.env),
                 "fleet": fleet_copy,
-                "setup": copy.deepcopy(self.setup_status),
+                "setup_ver": setup_ver,
                 "finder_status": dict(self.finder_status),
+                "world_cache_sig": _get_world_map_cache_sig(),
                 "logs": logs_payload,
                 "logs_delta": since_log_id is not None,
                 "logs_reset": logs_reset,
@@ -7528,15 +7789,17 @@ class HubBackend:
                 "alliance_tech_watcher_enabled": self._alliance_tech_watcher_enabled,
                 "alliance_tech_watcher_state": self._alliance_tech_watcher_state,
                 "alliance_tech_stats": dict(self._alliance_tech_stats),
-                "farm_loops": self._build_farm_loops_snapshot_locked(),
                 "config_ver": cfg_ver,
             }
+            if setup_copy is not None:
+                out["setup"] = setup_copy
             if include_catalog:
                 out["task_catalog"] = TASK_CATALOG
             known_ver_int = _safe_int(known_cfg_ver, None) if known_cfg_ver is not None else None
             if known_ver_int is None or known_ver_int != cfg_ver:
                 out["config"] = cfg_snap
-            return out
+        out["farm_loops"] = self._build_farm_loops_snapshot_locked(scope_pids=scope_pids)
+        return out
 
     def select_target_client(self, choice: str) -> dict[str, Any]:
         c = str(choice or "Auto").strip()
@@ -8389,7 +8652,10 @@ class HubBackend:
                     continue
 
                 if search:
-                    hay = hq.get("_search_hay") or f"{hq.get('name', '')} {tag} {hq.get('uid', '')} {hq['x']} {hq['y']} ({hq['x']},{hq['y']}) s{sid}".lower()
+                    hay = hq.get("_search_hay")
+                    if hay is None:
+                        hay = f"{hq.get('name', '')} {tag} {hq.get('uid', '')} {hq['x']} {hq['y']} ({hq['x']},{hq['y']}) s{sid}".lower()
+                        hq["_search_hay"] = hay
                     if search not in hay:
                         continue
 
@@ -8436,7 +8702,10 @@ class HubBackend:
                     continue
 
                 if search:
-                    hay = r.get("_search_hay") or f"{r.get('name', '')} {r.get('resource_name', '')} {r['x']} {r['y']} ({r['x']},{r['y']}) s{sid}".lower()
+                    hay = r.get("_search_hay")
+                    if hay is None:
+                        hay = f"{r.get('name', '')} {r.get('resource_name', '')} {r['x']} {r['y']} ({r['x']},{r['y']}) s{sid}".lower()
+                        r["_search_hay"] = hay
                     if search not in hay:
                         continue
 
@@ -9106,19 +9375,85 @@ class HubBackend:
             return None
 
     def get_translator_status(self) -> dict[str, Any]:
-        """Return live status, config, and metrics for the always-on Last Z in-game auto-translator."""
+        """Return live status, config, diagnostics, and metrics for the always-on Last Z in-game auto-translator."""
         mod = self._load_translator_mod()
         if mod is None:
             return {
                 "ok": False,
                 "running": False,
                 "enabled": False,
+                "attached_pids": [],
+                "hooked_pids": [],
+                "screen_translation": None,
+                "auto_tra_active": None,
+                "last_preview": None,
+                "client_diags": {},
                 "error": "Live translator module unavailable.",
             }
         try:
             cfg = mod.load_translator_config()
             info = mod.ensure_server_running()
             stats = mod.get_stats()
+            recent = stats.get("recent") if isinstance(stats, dict) else []
+            last_preview = recent[0] if isinstance(recent, list) and recent else None
+
+            attached_pids: list[int] = []
+            hooked_pids: list[int] = []
+            client_diags: dict[int, dict[str, Any]] = {}
+            screen_translation: bool | None = None
+            auto_tra_active: bool | None = None
+
+            diag_lua = ""
+            if hasattr(mod, "build_translator_diag_lua"):
+                try:
+                    diag_lua = str(mod.build_translator_diag_lua() or "")
+                except Exception:
+                    diag_lua = ""
+
+            if client_discovery is not None:
+                try:
+                    clients = self._discover_running_clients(query_lua=False) or []
+                except TypeError:
+                    try:
+                        clients = self._discover_running_clients() or []
+                    except Exception:
+                        clients = []
+                except Exception:
+                    clients = []
+
+                for proc in clients:
+                    pid = _safe_int((proc or {}).get("pid"), 0)
+                    if pid <= 0:
+                        continue
+                    try:
+                        loaded = bool(client_discovery._xlua_loaded(pid))
+                    except Exception:
+                        loaded = False
+                    if not loaded:
+                        continue
+                    attached_pids.append(pid)
+                    if not diag_lua:
+                        continue
+                    try:
+                        try:
+                            ok_d, raw_d = client_discovery.frida_eval_lua(pid, diag_lua, timeout=2.0, retries=0)
+                        except TypeError:
+                            ok_d, raw_d = client_discovery.frida_eval_lua(pid, diag_lua, timeout=2.0)
+                        if ok_d and raw_d:
+                            diag = raw_d if isinstance(raw_d, dict) else json.loads(str(raw_d))
+                            if isinstance(diag, dict):
+                                client_diags[pid] = diag
+                                if diag.get("hooked"):
+                                    hooked_pids.append(pid)
+                                if diag.get("screenTranslation") is not None:
+                                    val_st = bool(diag["screenTranslation"])
+                                    screen_translation = True if (screen_translation is True or val_st) else False
+                                if diag.get("autoTraActive") is not None:
+                                    val_at = bool(diag["autoTraActive"])
+                                    auto_tra_active = True if (auto_tra_active is True or val_at) else False
+                    except Exception:
+                        pass
+
             return {
                 "ok": True,
                 "running": bool(info.get("running", False)),
@@ -9130,9 +9465,25 @@ class HubBackend:
                 "has_deepl_key": bool(str(cfg.get("deepl_api_key") or "").strip()),
                 "has_gemini_key": bool(str(cfg.get("gemini_api_key") or "").strip()),
                 "stats": stats,
+                "last_preview": last_preview,
+                "attached_pids": attached_pids,
+                "hooked_pids": hooked_pids,
+                "screen_translation": screen_translation,
+                "auto_tra_active": auto_tra_active,
+                "client_diags": client_diags,
             }
         except Exception as exc:
-            return {"ok": False, "running": False, "error": str(exc)}
+            return {
+                "ok": False,
+                "running": False,
+                "attached_pids": [],
+                "hooked_pids": [],
+                "screen_translation": None,
+                "auto_tra_active": None,
+                "last_preview": None,
+                "client_diags": {},
+                "error": _redact_text(str(exc)),
+            }
 
     def save_translator_config(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         """Save translator preferences and immediately update Lua hooks on all running Last Z clients."""
@@ -9171,11 +9522,18 @@ class HubBackend:
                         target_lang=str(cfg.get("target_lang") or "auto"),
                         auto_translate_chat=bool(cfg.get("auto_translate_chat", True)),
                     )
-                    for proc in (self._discover_running_clients() or []):
-                        pid = _safe_int(proc.get("pid"), 0)
+                    try:
+                        clients = self._discover_running_clients(query_lua=False) or []
+                    except TypeError:
+                        clients = self._discover_running_clients() or []
+                    for proc in clients:
+                        pid = _safe_int((proc or {}).get("pid"), 0)
                         if pid > 0 and client_discovery._xlua_loaded(pid):
-                            ok_eval, _ = client_discovery.frida_eval_lua(pid, lua_hook, timeout=4.0)
-                            if ok_eval:
+                            try:
+                                ok_eval, res_eval = client_discovery.frida_eval_lua(pid, lua_hook, timeout=4.0, retries=0)
+                            except TypeError:
+                                ok_eval, res_eval = client_discovery.frida_eval_lua(pid, lua_hook, timeout=4.0)
+                            if ok_eval and not str(res_eval or "").strip().startswith("TRANSLATOR_HOOK_PENDING"):
                                 hooked_pids.append(pid)
                 except Exception:
                     pass
@@ -9187,11 +9545,82 @@ class HubBackend:
                     "ok",
                 )
             res = self.get_translator_status()
-            res["hooked_pids"] = hooked_pids
+            if hooked_pids:
+                existing = list(res.get("hooked_pids") or [])
+                res["hooked_pids"] = list(dict.fromkeys(existing + hooked_pids))
             return res
         except Exception as exc:
-            self.log(f"Translator config error: {exc}", "err")
-            return {"ok": False, "error": str(exc)}
+            safe_err = _redact_text(str(exc))
+            self.log(f"Translator config error: {safe_err}", "err")
+            return {"ok": False, "error": safe_err}
+
+    def rehook_translator(self) -> dict[str, Any]:
+        """Force re-application of the live translator Lua hook across all attached Last Z clients."""
+        mod = self._load_translator_mod()
+        if mod is None:
+            return {
+                "ok": False,
+                "error": "Live translator module unavailable.",
+                "hooked_pids": [],
+                "attached_pids": [],
+                "rehook_errors": [],
+            }
+        try:
+            cfg = mod.load_translator_config()
+            info = mod.ensure_server_running()
+            port = int(info.get("port") or 18765)
+            lua_hook = mod.build_translator_lua_hook(
+                port=port,
+                enabled=bool(cfg.get("enabled", True)),
+                target_lang=str(cfg.get("target_lang") or "auto"),
+                auto_translate_chat=bool(cfg.get("auto_translate_chat", True)),
+            )
+
+            applied_pids: list[int] = []
+            rehook_errors: list[dict[str, Any]] = []
+            if client_discovery is not None:
+                try:
+                    clients = self._discover_running_clients(query_lua=False) or []
+                except TypeError:
+                    clients = self._discover_running_clients() or []
+                for proc in clients:
+                    pid = _safe_int((proc or {}).get("pid"), 0)
+                    if pid <= 0:
+                        continue
+                    try:
+                        loaded = bool(client_discovery._xlua_loaded(pid))
+                    except Exception:
+                        loaded = False
+                    if not loaded:
+                        continue
+                    try:
+                        try:
+                            ok_eval, res_eval = client_discovery.frida_eval_lua(pid, lua_hook, timeout=4.0, retries=0)
+                        except TypeError:
+                            ok_eval, res_eval = client_discovery.frida_eval_lua(pid, lua_hook, timeout=4.0)
+                        res_str = str(res_eval or "").strip()
+                        if ok_eval and not res_str.startswith("TRANSLATOR_HOOK_PENDING"):
+                            applied_pids.append(pid)
+                        else:
+                            rehook_errors.append({"pid": pid, "error": _redact_text(res_str or "hook_eval_failed")})
+                    except Exception as exc:
+                        rehook_errors.append({"pid": pid, "error": _redact_text(str(exc))})
+
+            self.log(
+                f"Re-Hook Translator complete (clients={len(applied_pids)}, port={port}, errors={len(rehook_errors)}).",
+                "ok" if not rehook_errors else "warn",
+            )
+            res = self.get_translator_status()
+            res["rehooked"] = True
+            res["rehook_errors"] = rehook_errors
+            if applied_pids:
+                existing = list(res.get("hooked_pids") or [])
+                res["hooked_pids"] = list(dict.fromkeys(existing + applied_pids))
+            return res
+        except Exception as exc:
+            safe_err = _redact_text(str(exc))
+            self.log(f"Re-Hook Translator error: {safe_err}", "err")
+            return {"ok": False, "error": safe_err, "hooked_pids": [], "rehook_errors": []}
 
     def test_live_translator(
         self,
@@ -9214,7 +9643,7 @@ class HubBackend:
             res = mod.translate_text(src_text, target_lang=tl, source_lang=str(source_lang or ""), config=cfg)
             return {"ok": True, **res}
         except Exception as exc:
-            return {"ok": False, "error": str(exc)}
+            return {"ok": False, "error": _redact_text(str(exc))}
 
     # ------------------------------------------------------------------
     # Standalone Launcher Gate, Real Game Engine Manager & Account Vault
@@ -9275,18 +9704,32 @@ class HubBackend:
                     return {
                         "remember": bool(raw.get("remember", True)),
                         "identifier": str(raw.get("identifier") or "").strip()[:120],
+                        "communityz_url": str(raw.get("communityz_url") or "").strip()[:240],
                     }
         except Exception:
             pass
-        return {"remember": True, "identifier": ""}
+        return {"remember": True, "identifier": "", "communityz_url": ""}
 
-    def _write_heinz_login_prefs(self, remember: bool, identifier: str) -> None:
+    def _write_heinz_login_prefs(
+        self,
+        remember: bool,
+        identifier: str,
+        communityz_url: str | None = None,
+    ) -> None:
         """Persist only non-secret display identifier preference (NEVER stores passwords or tokens)."""
         path = self._heinz_login_prefs_path()
-        payload = {
+        existing = self._read_heinz_login_prefs()
+        eff_url = (
+            str(communityz_url).strip()[:240]
+            if communityz_url is not None
+            else str(existing.get("communityz_url") or "").strip()[:240]
+        )
+        payload: dict[str, Any] = {
             "remember": bool(remember),
             "identifier": str(identifier or "").strip()[:120] if remember else "",
         }
+        if eff_url:
+            payload["communityz_url"] = eff_url
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             tmp = f"{path}.{os.getpid()}.tmp"
@@ -9296,33 +9739,589 @@ class HubBackend:
         except OSError:
             pass
 
+    def _resolve_communityz_api_url(self) -> str:
+        env_url = os.environ.get("HEINZ_COMMUNITYZ_API_URL", "").strip().rstrip("/")
+        if env_url.startswith(("http://", "https://")):
+            return env_url
+        prefs = self._read_heinz_login_prefs()
+        pref_url = str(prefs.get("communityz_url") or "").strip().rstrip("/")
+        if pref_url.startswith(("http://", "https://")):
+            return pref_url
+        return "http://127.0.0.1:8787"
+
+    @staticmethod
+    def _parse_set_cookie_headers(headers: Any) -> dict[str, str]:
+        cookies: dict[str, str] = {}
+        if headers is None:
+            return cookies
+        try:
+            raw_list = headers.get_all("Set-Cookie") if hasattr(headers, "get_all") else []
+        except Exception:
+            raw_list = []
+        for header_val in raw_list or []:
+            first_part = str(header_val or "").split(";", 1)[0].strip()
+            if "=" in first_part:
+                cname, cval = first_part.split("=", 1)
+                cname = cname.strip()
+                if cname:
+                    cookies[cname] = cval.strip()
+        return cookies
+
+    def _communityz_request(
+        self,
+        method: str,
+        path: str,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        timeout: float = 6.0,
+    ) -> dict[str, Any]:
+        """Stdlib HTTP JSON request to CommunityZ API (never logs tokens, cookies, or secrets)."""
+        base = self._resolve_communityz_api_url()
+        rel = path if str(path).startswith("/") else f"/{path}"
+        url = f"{base}{rel}"
+        req_headers: dict[str, str] = {
+            "Accept": "application/json",
+            "User-Agent": "HeinZ-V2-Desktop",
+        }
+        data_bytes: bytes | None = None
+        if body is not None:
+            data_bytes = json.dumps(body).encode("utf-8")
+            req_headers["Content-Type"] = "application/json"
+        if headers:
+            for hk, hv in headers.items():
+                req_headers[str(hk)] = str(hv)
+        req = urllib.request.Request(url, data=data_bytes, headers=req_headers, method=str(method).upper())
+        try:
+            with urllib.request.urlopen(req, timeout=float(timeout)) as resp:
+                status = int(getattr(resp, "status", 200) or 200)
+                raw_body = resp.read().decode("utf-8", errors="replace")
+                parsed: dict[str, Any] = {}
+                if raw_body.strip():
+                    try:
+                        obj = json.loads(raw_body)
+                        if isinstance(obj, dict):
+                            parsed = obj
+                    except ValueError:
+                        parsed = {}
+                cookies = self._parse_set_cookie_headers(getattr(resp, "headers", None))
+                return {
+                    "ok": 200 <= status < 300 and status != 202,
+                    "status": status,
+                    "code": str(parsed.get("code") or ""),
+                    "error": str(parsed.get("error") or ""),
+                    "data": parsed,
+                    "cookies": cookies,
+                }
+        except urllib.error.HTTPError as err:
+            try:
+                status = int(getattr(err, "code", 0) or 0)
+                raw_body = ""
+                try:
+                    raw_body = err.read().decode("utf-8", errors="replace")
+                except Exception:
+                    raw_body = ""
+                parsed = {}
+                if raw_body.strip():
+                    try:
+                        obj = json.loads(raw_body)
+                        if isinstance(obj, dict):
+                            parsed = obj
+                    except ValueError:
+                        parsed = {}
+                cookies = self._parse_set_cookie_headers(getattr(err, "headers", None))
+                return {
+                    "ok": False,
+                    "status": status,
+                    "code": str(parsed.get("code") or ""),
+                    "error": str(parsed.get("error") or getattr(err, "reason", "") or f"HTTP {status}"),
+                    "data": parsed,
+                    "cookies": cookies,
+                }
+            finally:
+                try:
+                    err.close()
+                except Exception:
+                    pass
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            return {
+                "ok": False,
+                "status": 0,
+                "code": "NETWORK_ERROR",
+                "error": f"Cannot reach CommunityZ server ({exc}).",
+                "data": {},
+                "cookies": {},
+            }
+
+    @staticmethod
+    def _solve_communityz_pow(challenge_id: str, salt: str, difficulty: int) -> int:
+        diff = max(1, min(6, int(difficulty or 3)))
+        prefix = "0" * diff
+        cid = str(challenge_id or "")
+        slt = str(salt or "")
+        nonce = 0
+        while True:
+            digest = hashlib.sha256(f"{cid}:{slt}:{nonce}".encode("utf-8")).hexdigest()
+            if digest.startswith(prefix):
+                return nonce
+            nonce += 1
+
+    def _hydrate_communityz_session(
+        self,
+        bootstrap_data: dict[str, Any],
+        persist_email: bool = False,
+        remember: bool = True,
+    ) -> dict[str, Any]:
+        user = bootstrap_data.get("user") if isinstance(bootstrap_data.get("user"), dict) else {}
+        uids = bootstrap_data.get("uids") if isinstance(bootstrap_data.get("uids"), list) else []
+        email = str(user.get("email") or "").strip().lower()
+        display_name = str(user.get("displayName") or email or "Subscriber").strip()
+        entitlements = user.get("entitlements") if isinstance(user.get("entitlements"), dict) else {}
+        tier = str(user.get("tier") or entitlements.get("tier") or "").strip().lower()
+        session = {
+            "signed_in": True,
+            "mode": "communityz",
+            "identifier": display_name or email,
+            "email": email,
+            "display_name": display_name,
+            "tier": tier,
+            "entitlements": entitlements,
+            "uids": uids,
+            "code": "",
+            "error": "",
+            "network_offline": False,
+        }
+        with self._lock:
+            self._heinz_auth_session = dict(session)
+        if persist_email and email:
+            self._write_heinz_login_prefs(bool(remember), email)
+        return session
+
+    def open_communityz_portal(self) -> dict[str, Any]:
+        """Open the configured CommunityZ subscriber web portal in the default browser."""
+        url = self._resolve_communityz_api_url()
+        if not url.startswith(("http://", "https://")):
+            return {"ok": False, "error": "Invalid CommunityZ URL."}
+        try:
+            webbrowser.open(url)
+            return {"ok": True, "url": url}
+        except Exception as exc:
+            return {"ok": False, "url": url, "error": str(exc)}
+
+    def start_communityz_device_login(self, device_name: str = "") -> dict[str, Any]:
+        """Request a new CommunityZ Desktop Bridge pairing code (HZ-XXX-XXX)."""
+        clean_name = str(device_name or "HeinZ V2 Desktop").strip()[:64] or "HeinZ V2 Desktop"
+        resp = self._communityz_request("POST", "/api/desktop/device-code", body={"deviceName": clean_name})
+        if resp.get("status") != 200 or not resp.get("data", {}).get("ok"):
+            return {
+                "ok": False,
+                "status": int(resp.get("status") or 0),
+                "code": str(resp.get("code") or "DEVICE_CODE_FAILED"),
+                "error": str(resp.get("error") or "Failed to generate CommunityZ pairing code."),
+            }
+        data = resp["data"]
+        base_url = self._resolve_communityz_api_url()
+        return {
+            "ok": True,
+            "device_code": str(data.get("deviceCode") or ""),
+            "user_code": str(data.get("userCode") or ""),
+            "expires_in_seconds": int(data.get("expiresInSeconds") or 600),
+            "poll_interval_seconds": int(data.get("pollIntervalSeconds") or 5),
+            "communityz_url": base_url,
+            "authorize_url": base_url,
+        }
+
+    def poll_communityz_device_login(self, device_code: str = "", remember: bool = True) -> dict[str, Any]:
+        """Exchange a pending deviceCode for a DPAPI-protected hz_dt_... token when approved."""
+        code_clean = str(device_code or "").strip()
+        if not code_clean:
+            return {"ok": False, "status": "invalid", "code": "MISSING_DEVICE_CODE", "error": "Missing pairing session code."}
+        resp = self._communityz_request("POST", "/api/desktop/token", body={"deviceCode": code_clean})
+        status = int(resp.get("status") or 0)
+        err_code = str(resp.get("code") or "")
+        data = resp.get("data") if isinstance(resp.get("data"), dict) else {}
+
+        if status == 202 or err_code == "AUTHORIZATION_PENDING":
+            return {
+                "ok": True,
+                "status": "pending",
+                "code": "AUTHORIZATION_PENDING",
+                "signed_in": False,
+                "message": "Waiting for approval in CommunityZ...",
+            }
+        if status == 403 or err_code == "SUBSCRIPTION_REQUIRED":
+            return {
+                "ok": False,
+                "status": "subscription_required",
+                "code": "SUBSCRIPTION_REQUIRED",
+                "signed_in": False,
+                "error": str(resp.get("error") or "Active CommunityZ Pro or Alliance subscription required."),
+            }
+        if status == 400 and err_code in ("EXPIRED_TOKEN", "CONSUMED"):
+            return {
+                "ok": False,
+                "status": "expired",
+                "code": err_code,
+                "signed_in": False,
+                "error": str(resp.get("error") or "Pairing code expired. Generate a new code."),
+            }
+        if status != 200 or not data.get("ok") or not data.get("accessToken"):
+            return {
+                "ok": False,
+                "status": "error",
+                "code": err_code or "TOKEN_EXCHANGE_FAILED",
+                "signed_in": False,
+                "error": str(resp.get("error") or "Failed to exchange CommunityZ pairing token."),
+            }
+
+        access_token = str(data.get("accessToken") or "").strip()
+        av = self._load_account_vault_mod()
+        if av is None:
+            return {"ok": False, "status": "error", "code": "VAULT_UNAVAILABLE", "error": "Account Vault module unavailable."}
+        av.set_communityz_bearer_token(access_token)
+
+        boot_resp = self._communityz_request(
+            "GET",
+            "/api/desktop/bootstrap",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        del access_token
+        if boot_resp.get("status") == 403 or boot_resp.get("code") == "SUBSCRIPTION_REQUIRED":
+            return {
+                "ok": False,
+                "status": "subscription_required",
+                "code": "SUBSCRIPTION_REQUIRED",
+                "signed_in": False,
+                "error": str(boot_resp.get("error") or "Active CommunityZ Pro or Alliance subscription required."),
+            }
+        if boot_resp.get("status") == 401:
+            av.clear_communityz_bearer_token()
+            return {
+                "ok": False,
+                "status": "revoked",
+                "code": "TOKEN_REVOKED",
+                "signed_in": False,
+                "error": str(boot_resp.get("error") or "Desktop token invalid or revoked."),
+            }
+
+        hydrate_src = boot_resp.get("data") if boot_resp.get("status") == 200 and boot_resp.get("data") else data
+        session = self._hydrate_communityz_session(hydrate_src, persist_email=bool(remember), remember=bool(remember))
+        return {"ok": True, "status": "authorized", **session}
+
+    def request_communityz_otp(self, email: str = "") -> dict[str, Any]:
+        """Run precheck + SHA-256 PoW challenge and request a 6-digit CommunityZ email OTP."""
+        clean_email = str(email or "").strip().lower()
+        if not clean_email or "@" not in clean_email:
+            return {"ok": False, "code": "INVALID_EMAIL", "error": "Enter a valid email address."}
+
+        pre = self._communityz_request("POST", "/api/auth/precheck", body={"email": clean_email})
+        if pre.get("status") != 200 or not pre.get("data", {}).get("ok"):
+            return {
+                "ok": False,
+                "status": int(pre.get("status") or 0),
+                "code": str(pre.get("code") or "PRECHECK_FAILED"),
+                "error": str(pre.get("error") or "Email validation failed."),
+            }
+
+        ch = self._communityz_request("GET", "/api/auth/challenge")
+        ch_obj = ch.get("data", {}).get("challenge") if isinstance(ch.get("data"), dict) else None
+        if ch.get("status") != 200 or not isinstance(ch_obj, dict) or not ch_obj.get("id") or not ch_obj.get("salt"):
+            return {
+                "ok": False,
+                "status": int(ch.get("status") or 0),
+                "code": str(ch.get("code") or "CHALLENGE_FAILED"),
+                "error": str(ch.get("error") or "Could not fetch CommunityZ PoW challenge."),
+            }
+
+        nonce = self._solve_communityz_pow(
+            str(ch_obj["id"]),
+            str(ch_obj["salt"]),
+            int(ch_obj.get("difficulty") or 3),
+        )
+        otp_resp = self._communityz_request(
+            "POST",
+            "/api/auth/request-otp",
+            body={
+                "email": clean_email,
+                "powId": str(ch_obj["id"]),
+                "powNonce": nonce,
+                "website": "",
+            },
+        )
+        if otp_resp.get("status") != 200 or not otp_resp.get("data", {}).get("ok"):
+            return {
+                "ok": False,
+                "status": int(otp_resp.get("status") or 0),
+                "code": str(otp_resp.get("code") or "REQUEST_OTP_FAILED"),
+                "error": str(otp_resp.get("error") or "Failed to send OTP code."),
+            }
+
+        odata = otp_resp["data"]
+        out: dict[str, Any] = {
+            "ok": True,
+            "otp_id": str(odata.get("otpId") or ""),
+            "email": str(odata.get("email") or clean_email),
+            "expires_in_seconds": int(odata.get("expiresInSeconds") or 600),
+            "delivery": str(odata.get("delivery") or "email"),
+        }
+        if odata.get("devPreviewCode"):
+            out["dev_preview_code"] = str(odata["devPreviewCode"])
+        return out
+
+    def verify_communityz_otp(
+        self,
+        email: str = "",
+        code: str = "",
+        display_name: str = "",
+        remember: bool = True,
+    ) -> dict[str, Any]:
+        """Verify 6-digit CommunityZ OTP and bridge subscribed accounts into a DPAPI hz_dt_... token."""
+        clean_email = str(email or "").strip().lower()
+        clean_code = str(code or "").strip()
+        if not clean_email or "@" not in clean_email:
+            return {"ok": False, "code": "INVALID_EMAIL", "error": "Enter a valid email address."}
+        if not re.fullmatch(r"\d{6}", clean_code):
+            return {"ok": False, "code": "INVALID_OTP", "error": "Enter the 6-digit verification code."}
+
+        body: dict[str, Any] = {"email": clean_email, "code": clean_code}
+        if str(display_name or "").strip():
+            body["displayName"] = str(display_name).strip()[:64]
+
+        ver = self._communityz_request("POST", "/api/auth/verify-otp", body=body)
+        if ver.get("status") != 200 or not ver.get("data", {}).get("ok"):
+            return {
+                "ok": False,
+                "status": int(ver.get("status") or 0),
+                "code": str(ver.get("code") or "VERIFY_OTP_FAILED"),
+                "error": str(ver.get("error") or "Verification failed."),
+            }
+
+        vdata = ver["data"]
+        cookies = ver.get("cookies") if isinstance(ver.get("cookies"), dict) else {}
+        sid_val = str(cookies.get("heinz_sid") or "")
+        csrf_val = str(cookies.get("heinz_csrf") or vdata.get("csrfToken") or "")
+        user = vdata.get("user") if isinstance(vdata.get("user"), dict) else {}
+        entitlements = user.get("entitlements") if isinstance(user.get("entitlements"), dict) else {}
+
+        def _cleanup_web_cookie() -> None:
+            if sid_val and csrf_val:
+                self._communityz_request(
+                    "POST",
+                    "/api/auth/logout",
+                    headers={
+                        "Cookie": f"heinz_sid={sid_val}; heinz_csrf={csrf_val}",
+                        "X-CSRF-Token": csrf_val,
+                    },
+                )
+
+        if not bool(entitlements.get("desktopBridge")):
+            _cleanup_web_cookie()
+            return {
+                "ok": False,
+                "status": 403,
+                "code": "SUBSCRIPTION_REQUIRED",
+                "signed_in": False,
+                "error": "Active CommunityZ Pro or Alliance subscription required for Desktop Bridge access.",
+            }
+
+        if not sid_val or not csrf_val:
+            return {
+                "ok": False,
+                "status": 401,
+                "code": "SESSION_COOKIE_MISSING",
+                "signed_in": False,
+                "error": "CommunityZ did not issue session credentials for desktop pairing.",
+            }
+
+        dc = self._communityz_request("POST", "/api/desktop/device-code", body={"deviceName": "HeinZ V2 Desktop"})
+        dc_data = dc.get("data") if isinstance(dc.get("data"), dict) else {}
+        if dc.get("status") != 200 or not dc_data.get("deviceCode") or not dc_data.get("userCode"):
+            _cleanup_web_cookie()
+            return {
+                "ok": False,
+                "status": int(dc.get("status") or 0),
+                "code": str(dc.get("code") or "DEVICE_CODE_FAILED"),
+                "signed_in": False,
+                "error": str(dc.get("error") or "Could not initiate Desktop Bridge pairing."),
+            }
+
+        authz = self._communityz_request(
+            "POST",
+            "/api/desktop/authorize",
+            body={"userCode": str(dc_data["userCode"])},
+            headers={
+                "Cookie": f"heinz_sid={sid_val}; heinz_csrf={csrf_val}",
+                "X-CSRF-Token": csrf_val,
+            },
+        )
+        _cleanup_web_cookie()
+        if authz.get("status") != 200 or not authz.get("data", {}).get("ok"):
+            return {
+                "ok": False,
+                "status": int(authz.get("status") or 0),
+                "code": str(authz.get("code") or "AUTHORIZE_FAILED"),
+                "signed_in": False,
+                "error": str(authz.get("error") or "Desktop Bridge authorization rejected."),
+            }
+
+        return self.poll_communityz_device_login(device_code=str(dc_data["deviceCode"]), remember=bool(remember))
+
+    def get_heinz_auth_status(self, verify_remote: bool = True) -> dict[str, Any]:
+        """Return current CommunityZ or Guest auth state, verifying DPAPI Bearer token remotely."""
+        with self._lock:
+            cur_sess = dict(getattr(self, "_heinz_auth_session", {"signed_in": False, "mode": "", "identifier": ""}))
+        base_url = self._resolve_communityz_api_url()
+        if cur_sess.get("signed_in") and cur_sess.get("mode") == "guest":
+            return {"ok": True, "has_dpapi_token": False, "communityz_url": base_url, **cur_sess}
+
+        av = self._load_account_vault_mod()
+        token = av.get_communityz_bearer_token() if av is not None else None
+        if not token:
+            if cur_sess.get("mode") == "communityz":
+                with self._lock:
+                    self._heinz_auth_session = {"signed_in": False, "mode": "", "identifier": ""}
+            return {
+                "ok": True,
+                "signed_in": False,
+                "mode": "",
+                "identifier": "",
+                "has_dpapi_token": False,
+                "communityz_url": base_url,
+            }
+
+        if not verify_remote:
+            return {
+                "ok": True,
+                "has_dpapi_token": True,
+                "communityz_url": base_url,
+                **cur_sess,
+            }
+
+        boot = self._communityz_request(
+            "GET",
+            "/api/desktop/bootstrap",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        del token
+        status = int(boot.get("status") or 0)
+        code = str(boot.get("code") or "")
+        if status == 200 and boot.get("data", {}).get("ok"):
+            session = self._hydrate_communityz_session(boot["data"], persist_email=False, remember=True)
+            return {"ok": True, "has_dpapi_token": True, "communityz_url": base_url, **session}
+
+        if status == 401:
+            if av is not None:
+                av.clear_communityz_bearer_token()
+            err_msg = str(boot.get("error") or "CommunityZ desktop session expired or revoked.")
+            with self._lock:
+                self._heinz_auth_session = {
+                    "signed_in": False,
+                    "mode": "",
+                    "identifier": "",
+                    "code": "TOKEN_REVOKED",
+                    "error": err_msg,
+                }
+            return {
+                "ok": False,
+                "signed_in": False,
+                "mode": "",
+                "identifier": "",
+                "code": "TOKEN_REVOKED",
+                "error": err_msg,
+                "has_dpapi_token": False,
+                "communityz_url": base_url,
+            }
+
+        if status == 403 or code == "SUBSCRIPTION_REQUIRED":
+            err_msg = str(boot.get("error") or "Subscription inactive; Desktop Bridge paused.")
+            with self._lock:
+                self._heinz_auth_session = {
+                    "signed_in": False,
+                    "mode": "",
+                    "identifier": "",
+                    "code": "SUBSCRIPTION_REQUIRED",
+                    "error": err_msg,
+                }
+            return {
+                "ok": False,
+                "signed_in": False,
+                "mode": "",
+                "identifier": "",
+                "code": "SUBSCRIPTION_REQUIRED",
+                "error": err_msg,
+                "has_dpapi_token": True,
+                "communityz_url": base_url,
+            }
+
+        # NETWORK_ERROR or transient outage: preserve DPAPI token and report offline clearly.
+        err_msg = str(boot.get("error") or "CommunityZ server unreachable.")
+        with self._lock:
+            self._heinz_auth_session = {
+                "signed_in": False,
+                "mode": "",
+                "identifier": "",
+                "code": code or "NETWORK_ERROR",
+                "error": err_msg,
+                "network_offline": True,
+            }
+        return {
+            "ok": False,
+            "signed_in": False,
+            "mode": "",
+            "identifier": "",
+            "code": code or "NETWORK_ERROR",
+            "error": err_msg,
+            "network_offline": True,
+            "offline": True,
+            "has_dpapi_token": True,
+            "communityz_url": base_url,
+        }
+
     def authenticate_heinz_account(
         self,
         identifier: str = "",
         password: str = "",
         remember: bool = True,
         skip: bool = False,
+        otp_code: str = "",
+        device_code: str = "",
     ) -> dict[str, Any]:
-        """Future-ready HeinZ account login gate (stores zero passwords; allows local/guest entry)."""
-        del password  # Intentionally never stored or logged; ready to forward to future auth API.
+        """CommunityZ subscriber gate entry point (supports Guest bypass, OTP, or device_code; never stores passwords)."""
+        del password  # Intentionally never stored, logged, or sent over network.
         if bool(skip):
             with self._lock:
                 self._heinz_auth_session = {"signed_in": True, "mode": "guest", "identifier": "Guest"}
             return {"ok": True, "signed_in": True, "mode": "guest", "identifier": "Guest"}
 
+        if str(device_code or "").strip():
+            return self.poll_communityz_device_login(device_code=device_code, remember=bool(remember))
+
         clean_id = str(identifier or "").strip()[:120]
-        if not clean_id:
-            return {"ok": False, "error": "Enter your email or username, or click Continue as Guest."}
-        self._write_heinz_login_prefs(bool(remember), clean_id)
-        with self._lock:
-            self._heinz_auth_session = {"signed_in": True, "mode": "local", "identifier": clean_id}
-        return {"ok": True, "signed_in": True, "mode": "local", "identifier": clean_id}
+        clean_otp = str(otp_code or "").strip()
+        if clean_id and clean_otp:
+            return self.verify_communityz_otp(email=clean_id, code=clean_otp, remember=bool(remember))
+
+        return {
+            "ok": False,
+            "signed_in": False,
+            "code": "AUTH_METHOD_REQUIRED",
+            "error": "Sign in with CommunityZ Pairing Code, Email OTP, or click Continue as Guest.",
+        }
 
     def sign_out_heinz_account(self) -> dict[str, Any]:
-        """Return the standalone popup to the Login To Account screen."""
+        """Clear local DPAPI CommunityZ token and return to the Login To Account screen."""
+        av = self._load_account_vault_mod()
+        if av is not None:
+            try:
+                av.clear_communityz_bearer_token()
+            except Exception:
+                pass
         with self._lock:
             self._heinz_auth_session = {"signed_in": False, "mode": "", "identifier": ""}
         return {"ok": True, "signed_in": False}
+
+    def logout_heinz_account(self) -> dict[str, Any]:
+        """Alias for `sign_out_heinz_account`."""
+        return self.sign_out_heinz_account()
 
     def get_launcher_boot_state(self, check_remote: bool = False) -> dict[str, Any]:
         """Return standalone launcher boot status, auth state, game engine state, and bound accounts (zero hooks attached)."""
@@ -9344,9 +10343,18 @@ class HubBackend:
             task_copy = dict(self._engine_task_state)
         prefs = self._read_heinz_login_prefs()
         with self._lock:
+            cur_mode = str((self._heinz_auth_session or {}).get("mode") or "")
+        if av is not None and cur_mode != "guest":
+            try:
+                if av.has_dpapi_secret("communityz", "bearer_token"):
+                    self.get_heinz_auth_status(verify_remote=True)
+            except Exception:
+                pass
+        with self._lock:
             auth_copy = dict(getattr(self, "_heinz_auth_session", {"signed_in": False, "mode": "", "identifier": ""}))
         auth_copy["remember"] = bool(prefs.get("remember", True))
         auth_copy["remembered_identifier"] = str(prefs.get("identifier") or "")
+        auth_copy["communityz_url"] = self._resolve_communityz_api_url()
         return {
             "ok": True,
             "enhanced_active": bool(getattr(self, "_enhanced_active", False)),
@@ -9477,12 +10485,25 @@ class HubBackend:
         threading.Thread(target=_worker, daemon=True, name="EngineDownloadWorker").start()
         return {"ok": True, "started": True}
 
-    def bind_email_account(self, email: str = "", label: str = "", window_style: str = "borderless") -> dict[str, Any]:
+    def bind_email_account(
+        self,
+        email: str = "",
+        label: str = "",
+        window_style: str = "borderless",
+        security_pin: str = "",
+        auto_enter_pin: bool = False,
+    ) -> dict[str, Any]:
         av = self._load_account_vault_mod()
         if av is None:
             return {"ok": False, "error": "Account Vault module unavailable."}
         try:
-            res = av.bind_new_account(email=email, label=label, window_style=window_style)
+            res = av.bind_new_account(
+                email=email,
+                label=label,
+                window_style=window_style,
+                security_pin=security_pin,
+                auto_enter_pin=bool(auto_enter_pin),
+            )
             res["accounts"] = av.list_bound_accounts(sync_discovered=True)
             return res
         except Exception as exc:
@@ -9494,12 +10515,34 @@ class HubBackend:
         email: str | None = None,
         label: str | None = None,
         window_style: str | None = None,
+        security_pin: str | None = None,
+        clear_pin: bool = False,
+        auto_enter_pin: bool | None = None,
     ) -> dict[str, Any]:
         av = self._load_account_vault_mod()
         if av is None:
             return {"ok": False, "error": "Account Vault module unavailable."}
         try:
-            res = av.update_account(account_id=account_id, email=email, label=label, window_style=window_style)
+            res = av.update_account(
+                account_id=account_id,
+                email=email,
+                label=label,
+                window_style=window_style,
+                security_pin=security_pin,
+                clear_pin=bool(clear_pin),
+                auto_enter_pin=auto_enter_pin,
+            )
+            res["accounts"] = av.list_bound_accounts(sync_discovered=True)
+            return res
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def clear_bound_account_pin(self, account_id: str = "") -> dict[str, Any]:
+        av = self._load_account_vault_mod()
+        if av is None:
+            return {"ok": False, "error": "Account Vault module unavailable."}
+        try:
+            res = av.clear_account_security_pin(account_id=account_id)
             res["accounts"] = av.list_bound_accounts(sync_discovered=True)
             return res
         except Exception as exc:
@@ -9569,19 +10612,25 @@ class HubBackend:
             return {**res, "enhanced_active": False, "exiting_heinz": True}
 
         # Enhanced mode: activate full Hub + 180 FPS daemon + Live Translator + Always-On automation
-        self.activate_enhanced_mode()
+        enh_res = self.activate_enhanced_mode()
         lbl = str(res.get("label") or "").strip()
         if lbl:
             with self._lock:
                 self.selected_client_label = lbl
                 if res.get("pid"):
                     self.selected_client_pid = int(res["pid"])
-        return {**res, "enhanced_active": True, "exiting_heinz": False}
+        out_res = {**res, "enhanced_active": True, "exiting_heinz": False}
+        if isinstance(enh_res, dict) and enh_res.get("ui_assets"):
+            out_res["ui_assets"] = enh_res["ui_assets"]
+        return out_res
 
     def enter_enhanced_hub_only(self) -> dict[str, Any]:
         """Activate Enhanced Mode and open the Command Hub UI directly without launching a game window yet."""
-        self.activate_enhanced_mode()
-        return {"ok": True, "enhanced_active": True}
+        enh_res = self.activate_enhanced_mode()
+        out_res: dict[str, Any] = {"ok": True, "enhanced_active": True}
+        if isinstance(enh_res, dict) and enh_res.get("ui_assets"):
+            out_res["ui_assets"] = enh_res["ui_assets"]
+        return out_res
 
     def query_map_targets(self, search: str = "", category: str = "all", max_results: int = 50, **kwargs: Any) -> dict[str, Any]:
         """Search world_map_cache_*.json (or CSV fallback) for instant UI display."""
@@ -11784,8 +12833,48 @@ class HubBackend:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    _BG_ACTION_IDS: frozenset[str] = frozenset({
+        "apply_engine",
+        "dispatch_resource",
+        "export_alliance_members",
+        "export_elite_radar",
+        "export_inventory",
+        "export_map",
+        "export_mines",
+        "export_radar",
+        "export_roster",
+        "export_tech",
+        "export_vs",
+        "flush_ram",
+        "full_map_load",
+        "heal_farm_launchers",
+        "install_bot_task",
+        "launch_all_farms",
+        "launch_single_client",
+        "navigate_resource",
+        "open_map_summary",
+        "provision_farm",
+        "restart_daemon",
+        "run_alliance_help_now",
+        "run_always_on_sweep_now",
+        "run_bot_cycle",
+        "run_single_task",
+        "scan_fleet",
+        "setup_base_install",
+        "start_bot_daemon",
+        "stop_all_farms",
+        "stop_bot_daemon",
+        "stop_single_client",
+        "sync_farm_builds",
+        "sync_google_bracket",
+        "trigger_heli",
+        "uninstall_bot_task",
+    })
+
     def run_action(self, action_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        p = payload or {}
+        if not isinstance(action_id, str) or not action_id.strip():
+            return {"ok": False, "error": "Invalid or empty action_id."}
+        p = payload if isinstance(payload, dict) else {}
         if action_id == "toggle_always_on_daemon":
             return self.toggle_always_on_daemon(
                 enabled=p.get("enabled"),
@@ -11914,6 +13003,9 @@ class HubBackend:
         if action_id == "open_bracket_folder":
             self._open_bracket_folder()
             return {"ok": True}
+
+        if action_id not in self._BG_ACTION_IDS:
+            return {"ok": False, "error": f"Unknown action_id: {action_id}"}
 
         threading.Thread(target=self._exec_bg_action, args=(action_id, p), daemon=True).start()
         return {"ok": True, "queued": True}
@@ -12132,9 +13224,20 @@ class HubBackend:
                     self.running_clients = running
                 self._update_dropdown_values(running)
                 live_snaps = {}
-                if bot_actions is not None:
-                    for proc in running:
-                        live_snaps[str(proc.get("label") or "")] = bot_actions.snapshot_client(client_discovery, int(proc["pid"]))
+                if bot_actions is not None and running:
+                    if len(running) > 1:
+                        def _snap_proc(proc_item: dict[str, Any]) -> tuple[str, Any]:
+                            return (
+                                str(proc_item.get("label") or ""),
+                                bot_actions.snapshot_client(client_discovery, int(proc_item["pid"])),
+                            )
+
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(running))) as pool:
+                            for lbl_k, snap_v in pool.map(_snap_proc, running):
+                                live_snaps[lbl_k] = snap_v
+                    else:
+                        proc0 = running[0]
+                        live_snaps[str(proc0.get("label") or "")] = bot_actions.snapshot_client(client_discovery, int(proc0["pid"]))
                 self._refresh_fleet_state(live_snapshots=live_snaps)
                 self.log(f"Fleet scan complete: {len(disc_list)} configured, {len(running)} running.", "ok")
 
@@ -12649,15 +13752,18 @@ class HubBackend:
                     self.log(f"Google Sync: {res.stdout.strip() or res.stderr.strip() or 'Done'}", "ok" if res.returncode == 0 else "err")
                 finally:
                     self._end_action("sync_google_bracket")
+            else:
+                self.log(f"Unknown background action '{action_id}'.", "warn")
         except Exception as exc:
             self.log(f"Action '{action_id}' error: {exc}", "err")
 
 
-def _build_game_icons_bootstrap_js(
+def _collect_game_icons_data(
     icons_dir: str | None = None,
     include_heavy_packs: bool = True,
-) -> str:
-    """Build inline JS bootstrap assigning base64-encoded Last Z WebP game icons."""
+    include_hub_assets: bool = True,
+) -> tuple[dict[str, str], dict[str, Any], dict[str, Any]]:
+    """Load base64-encoded Last Z WebP game icons for inline bootstrap or deferred hydration."""
     base_dir = icons_dir if icons_dir is not None else os.path.join(RES_ROOT, "assets", "game icons")
     core_icons: dict[str, str] = {}
     hero_sprites: dict[str, str] = {}
@@ -12688,7 +13794,7 @@ def _build_game_icons_bootstrap_js(
                 continue
         return loaded
 
-    if os.path.isdir(base_dir):
+    if include_hub_assets and os.path.isdir(base_dir):
         core_icons = _load_webp_dir(base_dir)
         if include_heavy_packs:
             hero_sprites = _load_webp_dir(os.path.join(base_dir, "heroes"))
@@ -12717,27 +13823,88 @@ def _build_game_icons_bootstrap_js(
                             if k is not None and v is not None and str(k) != "" and str(v) != ""
                         }
 
+    hero_payload = {"sprites": hero_sprites, "byId": hero_by_id}
+    item_payload = {"sprites": item_sprites, "byId": item_by_id}
+    return core_icons, hero_payload, item_payload
+
+
+def _build_game_icons_bootstrap_js(
+    icons_dir: str | None = None,
+    include_heavy_packs: bool = True,
+    include_hub_assets: bool = True,
+) -> str:
+    """Build inline JS bootstrap assigning base64-encoded Last Z WebP game icons."""
+    core_icons, hero_payload, item_payload = _collect_game_icons_data(
+        icons_dir=icons_dir,
+        include_heavy_packs=include_heavy_packs,
+        include_hub_assets=include_hub_assets,
+    )
+
     def _safe_js_json(payload: Any) -> str:
         return json.dumps(payload, ensure_ascii=True, separators=(",", ":")).replace("</", "<\\/")
 
-    hero_payload = {"sprites": hero_sprites, "byId": hero_by_id}
-    item_payload = {"sprites": item_sprites, "byId": item_by_id}
+    hydrated_flag = "true" if (include_hub_assets and include_heavy_packs) else "false"
     return "\n".join(
         (
             f"window.__GAME_ICONS__ = {_safe_js_json(core_icons)};",
             f"window.__GAME_HERO_ICONS__ = {_safe_js_json(hero_payload)};",
             f"window.__GAME_ITEM_ICONS__ = {_safe_js_json(item_payload)};",
+            f"window.__GAME_ICONS_HYDRATED__ = {hydrated_flag};",
         )
     )
 
 
-def _load_html_with_assets(include_heavy_packs: bool = True) -> str:
+def _compute_ui_assets_sig(
+    include_heavy_packs: bool = True,
+    include_hub_assets: bool = True,
+) -> str:
+    """Compute fast stat-based SHA-256 signature for cached hydrated UI HTML."""
+    h = hashlib.sha256()
+    root_hash = hashlib.sha256(str(RES_ROOT).encode("utf-8", errors="replace")).hexdigest()[:16]
+    h.update(f"root={root_hash};heavy={int(bool(include_heavy_packs))};hub={int(bool(include_hub_assets))}\n".encode("ascii"))
+
+    def _feed_file(fpath: str, tag: str) -> None:
+        try:
+            st = os.stat(fpath)
+            sig = _stat_sig_from_stat(st)
+            h.update(f"{tag}:{sig[0]}:{sig[1]}:{sig[2]}:{sig[3]}\n".encode("utf-8"))
+        except OSError:
+            h.update(f"{tag}:missing\n".encode("utf-8"))
+
+    def _feed_webp_dir(folder: str, tag: str) -> None:
+        if not os.path.isdir(folder):
+            h.update(f"{tag}:nodir\n".encode("utf-8"))
+            return
+        try:
+            entries = sorted(f for f in os.listdir(folder) if f.lower().endswith(".webp"))
+        except OSError:
+            h.update(f"{tag}:err\n".encode("utf-8"))
+            return
+        for fname in entries:
+            fpath = os.path.join(folder, fname)
+            if os.path.isfile(fpath):
+                _feed_file(fpath, f"{tag}/{fname}")
+
+    _feed_file(os.path.join(RES_ROOT, "web", "index.html"), "index.html")
+    _feed_file(os.path.join(RES_ROOT, "assets", "heinz icon.png"), "heinz_icon")
+    if include_hub_assets:
+        _feed_file(os.path.join(RES_ROOT, "assets", "hero banner.png"), "hero_banner")
+        icons_dir = os.path.join(RES_ROOT, "assets", "game icons")
+        _feed_webp_dir(icons_dir, "core")
+        if include_heavy_packs:
+            _feed_file(os.path.join(icons_dir, "manifest.json"), "manifest")
+            _feed_webp_dir(os.path.join(icons_dir, "heroes"), "heroes")
+            _feed_webp_dir(os.path.join(icons_dir, "items"), "items")
+    return h.hexdigest()
+
+
+def _load_html_with_assets(include_heavy_packs: bool = True, include_hub_assets: bool = True) -> str:
     html_path = os.path.join(RES_ROOT, "web", "index.html")
     with open(html_path, "r", encoding="utf-8") as hf:
         html = hf.read()
 
     banner_path = os.path.join(RES_ROOT, "assets", "hero banner.png")
-    if os.path.exists(banner_path):
+    if include_hub_assets and os.path.exists(banner_path):
         with open(banner_path, "rb") as bf:
             b64 = base64.b64encode(bf.read()).decode("ascii")
         html = html.replace("__HERO_BANNER_DATA_URI__", f"data:image/png;base64,{b64}")
@@ -12755,12 +13922,19 @@ def _load_html_with_assets(include_heavy_packs: bool = True) -> str:
     if "/*__GAME_ICONS_BOOTSTRAP__*/" in html:
         html = html.replace(
             "/*__GAME_ICONS_BOOTSTRAP__*/",
-            _build_game_icons_bootstrap_js(include_heavy_packs=include_heavy_packs),
+            _build_game_icons_bootstrap_js(
+                include_heavy_packs=include_heavy_packs,
+                include_hub_assets=include_hub_assets,
+            ),
         )
     return html
 
 
-def _write_hydrated_html_cache(html: str) -> str:
+def _write_hydrated_html_cache(
+    html: str,
+    filename: str = "heinz_hub_ui.html",
+    sig: str | None = None,
+) -> str:
     """Write hydrated UI HTML atomically to disk and return a file:/// URI.
 
     Edge WebView2's NavigateToString() enforces a hard 2 MB string ceiling and
@@ -12772,8 +13946,8 @@ def _write_hydrated_html_cache(html: str) -> str:
     import tempfile
 
     candidates = [
-        os.path.join(HEINZ_DATA_DIR, "cache", "heinz_hub_ui.html"),
-        os.path.join(tempfile.gettempdir(), "heinz_hub_ui.html"),
+        os.path.join(HEINZ_DATA_DIR, "cache", filename),
+        os.path.join(tempfile.gettempdir(), filename),
     ]
     for target in candidates:
         try:
@@ -12782,10 +13956,53 @@ def _write_hydrated_html_cache(html: str) -> str:
             with open(tmp_path, "w", encoding="utf-8") as fh:
                 fh.write(html)
             os.replace(tmp_path, target)
+            if sig is not None:
+                sig_path = f"{target}.sig"
+                sig_tmp = f"{sig_path}.{os.getpid()}.tmp"
+                try:
+                    with open(sig_tmp, "w", encoding="utf-8") as sfh:
+                        sfh.write(sig)
+                    os.replace(sig_tmp, sig_path)
+                except OSError:
+                    pass
             return pathlib.Path(target).resolve().as_uri()
         except OSError:
             continue
     return ""
+
+
+def _get_or_build_hydrated_ui_url(
+    include_heavy_packs: bool = True,
+    include_hub_assets: bool = True,
+) -> str:
+    """Return cached hydrated HTML file:/// URI when asset signatures match, rebuilding only on changes."""
+    import pathlib
+    import tempfile
+
+    filename = "heinz_hub_ui.html" if include_hub_assets else "heinz_hub_gate_ui.html"
+    expected_sig = _compute_ui_assets_sig(
+        include_heavy_packs=include_heavy_packs,
+        include_hub_assets=include_hub_assets,
+    )
+    candidates = [
+        os.path.join(HEINZ_DATA_DIR, "cache", filename),
+        os.path.join(tempfile.gettempdir(), filename),
+    ]
+    for target in candidates:
+        sig_path = f"{target}.sig"
+        try:
+            if os.path.isfile(target) and os.path.isfile(sig_path):
+                with open(sig_path, "r", encoding="utf-8") as sfh:
+                    stored_sig = sfh.read().strip()
+                if stored_sig == expected_sig and os.path.getsize(target) > 0:
+                    return pathlib.Path(target).resolve().as_uri()
+        except OSError:
+            continue
+    html = _load_html_with_assets(
+        include_heavy_packs=include_heavy_packs,
+        include_hub_assets=include_hub_assets,
+    )
+    return _write_hydrated_html_cache(html, filename=filename, sig=expected_sig)
 
 
 WEBVIEW2_CLIENT_GUID = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
@@ -12911,8 +14128,10 @@ def main() -> None:
     backend = HubBackend(defer_enhanced=not start_enhanced_directly)
     if start_enhanced_directly:
         backend.start_monitors()
-    html = _load_html_with_assets(include_heavy_packs=True)
-    ui_url = _write_hydrated_html_cache(html)
+    ui_url = _get_or_build_hydrated_ui_url(
+        include_heavy_packs=start_enhanced_directly,
+        include_hub_assets=start_enhanced_directly,
+    )
     win_title = "HeinZ Helper" if start_enhanced_directly else "HeinZ Login"
     win_w, win_h = (1240, 840) if start_enhanced_directly else (440, 450)
     min_sz = (940, 680) if start_enhanced_directly else (400, 380)
@@ -12932,7 +14151,10 @@ def main() -> None:
             background_color="#0D0F12",
         )
     else:
-        compact_html = _load_html_with_assets(include_heavy_packs=False)
+        compact_html = _load_html_with_assets(
+            include_heavy_packs=False,
+            include_hub_assets=start_enhanced_directly,
+        )
         win = webview.create_window(
             win_title,
             html=compact_html,

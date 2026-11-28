@@ -19,6 +19,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    import psutil
+except Exception:
+    psutil = None  # type: ignore[assignment]
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 TOOLS_DIR = ROOT_DIR / "tools"
 DATA_DIR = Path(os.environ["HEINZ_DATA_DIR"]) if os.environ.get("HEINZ_DATA_DIR", "").strip() else (ROOT_DIR / "data")
@@ -286,7 +291,7 @@ def _build_default_config() -> dict[str, Any]:
         "hero_battlefield": {"auto_prefill_strongest_faction": True, "use_quick_deploy": True, "auto_skip_battle": True, "max_battles_per_faction": 5, "stop_on_fail": True, "skip_if_failed_this_period": True},
         "arena": {"max_battles_per_cycle": 5, "refresh_opponents": True, "auto_free_refresh": True, "pure_faction_teams": True, "pick_weakest": True, "min_win_odds_pct": 70, "min_power_advantage_ratio": 1.0},
         "war_safety": {"auto_shield_on_attack": True, "respect_war_fever": True, "recall_gatherers_on_attack": True, "max_eta_seconds": 300},
-        "hospital_heal": {"collect_finished": True, "batch_minutes": 30, "min_batch_troops": 25, "max_batch_troops": 1500, "call_alliance_help": True, "use_speedups": False, "max_speedup_mins": 0, "max_chain_batches": 5, "persistent_watcher_enabled": False},
+        "hospital_heal": {"headless": True, "auto_pass_active_sizing": True, "active_grace_minutes": 0, "collect_finished": True, "batch_minutes": 30, "min_batch_troops": 25, "max_batch_troops": 50000, "call_alliance_help": True, "use_speedups": False, "max_speedup_mins": 0, "max_chain_batches": 15, "persistent_watcher_enabled": False},
         "alliance_daily": {"donate_tech": True, "auto_tech_always_on": True, "use_gold_donate": False, "claim_gifts": True, "claim_red_packets": True, "claim_tasks": True},
         "research_queue": {"prefer_recommended": True, "call_alliance_help": True, "use_free_speed": True, "priority_tabs": [5, 1, 2, 3, 4]},
         "radar_events": {"trigger_scan": True, "claim_finished": True, "auto_dispatch": True, "auto_skip_battle": True, "max_dispatches_per_cycle": 20},
@@ -370,13 +375,18 @@ def _build_default_config() -> dict[str, Any]:
     }
 
 
-def default_config() -> dict[str, Any]:
-    """Return a fresh copy of the cached default bot configuration template."""
+def _default_config_ref() -> dict[str, Any]:
+    """Return the cached read-only default bot configuration template."""
     global _DEFAULT_CONFIG_TEMPLATE
     with _DEFAULT_CONFIG_LOCK:
         if _DEFAULT_CONFIG_TEMPLATE is None:
             _DEFAULT_CONFIG_TEMPLATE = _build_default_config()
-        return deepcopy(_DEFAULT_CONFIG_TEMPLATE)
+        return _DEFAULT_CONFIG_TEMPLATE
+
+
+def default_config() -> dict[str, Any]:
+    """Return a fresh copy of the cached default bot configuration template."""
+    return deepcopy(_default_config_ref())
 
 
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
@@ -462,13 +472,13 @@ def save_config(cfg: dict[str, Any], config_path: Path | None = None) -> None:
 
 
 def resolve_client_config(cfg_root: dict[str, Any], label: str, role: str) -> dict[str, Any]:
-    default_defs = default_config().get("client_defaults", {})
+    default_defs = _default_config_ref().get("client_defaults", {})
     defaults = cfg_root.get("client_defaults", {})
     role_key = "main" if str(role).lower() == "main" else "farm"
     base_default = default_defs.get(role_key, default_defs.get("farm", {}))
     base = _deep_merge(base_default, defaults.get(role_key, defaults.get("farm", {})))
     override = cfg_root.get("profiles", {}).get(label, {})
-    resolved = _deep_merge(base, override)
+    resolved = _deep_merge(base, override) if override else base
     global_tasks = cfg_root.get("enabled_tasks")
     if isinstance(global_tasks, dict):
         merged_tasks = dict(resolved.get("tasks", {}))
@@ -678,8 +688,11 @@ def _format_task_summary(tname: str, res: dict[str, Any]) -> str:
             details.append(f"{len(busy)} barracks busy ({', '.join(b_names)})")
         return "; ".join(details) if details else str(res.get("message") or "0 troops trained")
     elif tname == "hospital_heal":
+        pass_act = int(res.get("pass_active_helpers", 0) or 0)
+        eff_helps = int(res.get("effective_max_helps", 0) or 0)
         if res.get("dormant"):
-            return "dormant (0 wounded troops)"
+            suffix = f", Pass+Active={pass_act} (max_helps={eff_helps})" if eff_helps > 0 or pass_act > 0 else ""
+            return f"dormant (0 wounded troops, headless{suffix})"
         queued = int(res.get("total_queued_troops", res.get("queued_troops", 0)) or 0)
         in_treat = int(res.get("in_treatment_total", 0) or 0)
         untreated = int(res.get("untreated_total", 0) or 0)
@@ -690,6 +703,8 @@ def _format_task_summary(tname: str, res: dict[str, Any]) -> str:
         parts = []
         if queued > 0:
             parts.append(f"queued {queued} troops" + (f" ({batches} batches)" if batches > 1 else ""))
+        if pass_act > 0 or eff_helps > 0:
+            parts.append(f"Pass+Active={pass_act} (helps={eff_helps})")
         if cross_helps > 0:
             parts.append(f"{cross_helps} cross-client help(s)")
         if in_treat > 0:
@@ -1131,6 +1146,10 @@ def _compute_effective_gather_reserve(
     return max(1, base_reserve)
 
 
+_TASK_SIG_CACHE_LOCK = threading.Lock()
+_TASK_SIG_CACHE: dict[int, tuple[Any, str]] = {}
+
+
 def _invoke_stage_task(
     ba: Any,
     cd: Any,
@@ -1146,14 +1165,22 @@ def _invoke_stage_task(
     if fn is None:
         return {"ok": False, "task": tname, "dry_run": dry_run, "error": f"task_handler_not_found ({tname})"}
 
-    try:
-        sig = inspect.signature(fn)
-        params = list(sig.parameters.values())
-    except Exception:
-        params = []
-
-    # Check if function uses keyword-style signature like action_mine_melee_refresh(cd, pid, dry_run=True, ...)
-    third_param_name = params[2].name if len(params) >= 3 else ""
+    fn_id = id(fn)
+    with _TASK_SIG_CACHE_LOCK:
+        cached = _TASK_SIG_CACHE.get(fn_id)
+    if cached is not None and cached[0] is fn:
+        third_param_name = cached[1]
+    else:
+        try:
+            sig = inspect.signature(fn)
+            params = list(sig.parameters.values())
+            third_param_name = params[2].name if len(params) >= 3 else ""
+        except Exception:
+            third_param_name = ""
+        with _TASK_SIG_CACHE_LOCK:
+            if len(_TASK_SIG_CACHE) >= 256:
+                _TASK_SIG_CACHE.clear()
+            _TASK_SIG_CACHE[fn_id] = (fn, third_param_name)
     if third_param_name == "dry_run" or (tname == "mine_melee_refresh" and third_param_name not in ("client_state", "snap")):
         mm_cfg = ccfg.get("mine_melee_refresh") or {}
         eff_reserve = _compute_effective_gather_reserve(ccfg, snap, shared_ctx)
@@ -1414,7 +1441,7 @@ def _evaluate_stage_exit_guard(
     failed_tasks = [t for t, r in stage_task_results.items() if not isinstance(r, dict) or not r.get("ok", False)]
     all_ok = len(executed_tasks) > 0 and len(failed_tasks) == 0
 
-    # Completion verification: dismiss leftover modal dialogs only when needed (modal logged, failure, or final stage)
+    # Completion verification: dismiss leftover modal dialogs only when needed (modal logged, failure, or forced)
     popups_dismissed = 0
     client_responsive = True
     has_queued_modals = any(
@@ -1425,7 +1452,7 @@ def _evaluate_stage_exit_guard(
         not dry_run
         and bool(executed_tasks)
         and bool(sm_cfg.get("verify_client_between_stages", True))
-        and (has_queued_modals or bool(failed_tasks) or stage_id == 5 or bool(sm_cfg.get("always_sweep_popups_between_stages", False)))
+        and (has_queued_modals or bool(failed_tasks) or bool(sm_cfg.get("always_sweep_popups_between_stages", False)))
     )
     if need_popup_sweep:
         try:
@@ -1909,14 +1936,14 @@ def is_daemon_running() -> bool:
         return False
     if pid <= 0:
         return False
-    try:
-        import psutil
-        if psutil.pid_exists(pid):
-            pname = psutil.Process(pid).name().lower()
-            return ("python" in pname) or ("heinz" in pname)
-        return False
-    except Exception:
-        pass
+    if psutil is not None:
+        try:
+            if psutil.pid_exists(pid):
+                pname = psutil.Process(pid).name().lower()
+                return ("python" in pname) or ("heinz" in pname)
+            return False
+        except Exception:
+            pass
     try:
         res = subprocess.run(
             ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],

@@ -10,6 +10,7 @@ Probes and stress-tests:
 
 from __future__ import annotations
 
+import gc
 import json
 import os
 import sys
@@ -354,6 +355,146 @@ class TestFridaSessionHolderAndPopupDismissal(unittest.TestCase):
             t.join()
 
         self.assertEqual(len(exceptions), 0, f"Concurrent execution produced exceptions: {exceptions}")
+
+    def test_gc_finalizer_reentrancy_under_hz_bridge_lock(self) -> None:
+        """Force gc.collect() while holding _HZ_BRIDGE_LOCK to prove _cleanup_cd is GC-reentrant."""
+        was_enabled = gc.isenabled()
+        gc.disable()
+        cache_key = None
+        cd_id = None
+        try:
+            cyclic_cd = MagicMock()
+            cyclic_cd.frida_eval_lua.return_value = (
+                True,
+                json.dumps({"ok": True, "dismissed_count": 0, "dismissed_windows": [], "action": "none"}),
+            )
+            cyclic_cd._self_cycle = cyclic_cd
+            cd_id = id(cyclic_cd)
+            cache_key = (cd_id, 999991, 1.0)
+
+            res = bot_actions.dismiss_all_popups(cyclic_cd, 999991)
+            self.assertTrue(res.get("ok"))
+            bot_actions._mark_hz_bootstrapped(cyclic_cd, cache_key)
+            with bot_actions._HZ_BRIDGE_LOCK:
+                bot_actions._HZ_HOSPITAL_ENGINE_TARGETS[cache_key] = 1.0
+                self.assertIn(cache_key, bot_actions._HZ_BOOTSTRAPPED_TARGETS)
+                self.assertIn(cd_id, bot_actions._HZ_FINALIZED_BRIDGE_IDS)
+
+            del cyclic_cd
+            errors: List[Exception] = []
+            collected_counts: List[int] = []
+
+            def run_gc_under_lock() -> None:
+                try:
+                    with bot_actions._HZ_BRIDGE_LOCK:
+                        collected_counts.append(gc.collect())
+                except Exception as exc:
+                    errors.append(exc)
+
+            worker = threading.Thread(target=run_gc_under_lock)
+            worker.start()
+            worker.join(timeout=5.0)
+
+            self.assertFalse(worker.is_alive(), "Deadlock: gc.collect() under _HZ_BRIDGE_LOCK timed out")
+            self.assertEqual(errors, [])
+            self.assertEqual(len(collected_counts), 1)
+            self.assertNotIn(cache_key, bot_actions._HZ_BOOTSTRAPPED_TARGETS)
+            self.assertNotIn(cache_key, bot_actions._HZ_HOSPITAL_ENGINE_TARGETS)
+            self.assertNotIn(cd_id, bot_actions._HZ_FINALIZED_BRIDGE_IDS)
+        finally:
+            if cache_key is not None:
+                with bot_actions._HZ_BRIDGE_LOCK:
+                    bot_actions._HZ_BOOTSTRAPPED_TARGETS.pop(cache_key, None)
+                    bot_actions._HZ_HOSPITAL_ENGINE_TARGETS.pop(cache_key, None)
+            if cd_id is not None:
+                with bot_actions._HZ_BRIDGE_LOCK:
+                    bot_actions._HZ_FINALIZED_BRIDGE_IDS.discard(cd_id)
+            if was_enabled:
+                gc.enable()
+
+    def test_multithreaded_dismiss_all_popups_with_cyclic_cd_gc_stress(self) -> None:
+        """Stress concurrent dismiss_all_popups across cyclic MagicMock bridges while gc.collect() runs."""
+        exceptions: List[Exception] = []
+        payload = json.dumps({"ok": True, "dismissed_count": 0, "dismissed_windows": [], "action": "none"})
+
+        def worker(thread_id: int) -> None:
+            try:
+                for step in range(25):
+                    cd = MagicMock()
+                    cd.frida_eval_lua.return_value = (True, payload)
+                    cd._self_cycle = cd
+                    res = bot_actions.dismiss_all_popups(cd, 23900 + (thread_id % 3))
+                    if not res.get("ok"):
+                        exceptions.append(RuntimeError(f"Call failed: {res}"))
+                    del cd
+                    if step % 5 == 0:
+                        gc.collect()
+            except Exception as exc:
+                exceptions.append(exc)
+
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
+        for t in threads:
+            t.start()
+        for _ in range(10):
+            gc.collect()
+            time.sleep(0.002)
+        for t in threads:
+            t.join(timeout=10.0)
+            self.assertFalse(t.is_alive(), "Worker thread deadlocked during cyclic bridge GC stress")
+
+        self.assertEqual(exceptions, [])
+
+    def test_mine_melee_gc_finalizer_reentrancy_under_lock(self) -> None:
+        """Force gc.collect() while holding _HZ_MINE_BRIDGE_LOCK to prove bot mine melee cleanup is GC-reentrant."""
+        mine_mod = bot_actions._load_bot_mine_melee_module()
+        expected_path = (PROJECT_ROOT / "tools" / "bot mine melee.py").resolve()
+        self.assertEqual(Path(mine_mod.__file__).resolve(), expected_path)
+        self.assertIsInstance(mine_mod._HZ_MINE_BRIDGE_LOCK, type(threading.RLock()))
+
+        was_enabled = gc.isenabled()
+        gc.disable()
+        cache_key = None
+        cd_id = None
+        try:
+            cyclic_cd = MagicMock()
+            cyclic_cd._self_cycle = cyclic_cd
+            cd_id = id(cyclic_cd)
+            cache_key = (cd_id, 999992, 1.0)
+
+            mine_mod._mark_hz_mine_bootstrapped(cyclic_cd, cache_key)
+            with mine_mod._HZ_MINE_BRIDGE_LOCK:
+                self.assertIn(cache_key, mine_mod._HZ_MINE_BOOTSTRAPPED_TARGETS)
+                self.assertIn(cd_id, mine_mod._HZ_MINE_FINALIZED_IDS)
+
+            del cyclic_cd
+            errors: List[Exception] = []
+            collected_counts: List[int] = []
+
+            def run_gc_under_lock() -> None:
+                try:
+                    with mine_mod._HZ_MINE_BRIDGE_LOCK:
+                        collected_counts.append(gc.collect())
+                except Exception as exc:
+                    errors.append(exc)
+
+            worker = threading.Thread(target=run_gc_under_lock)
+            worker.start()
+            worker.join(timeout=5.0)
+
+            self.assertFalse(worker.is_alive(), "Deadlock: gc.collect() under _HZ_MINE_BRIDGE_LOCK timed out")
+            self.assertEqual(errors, [])
+            self.assertEqual(len(collected_counts), 1)
+            self.assertNotIn(cache_key, mine_mod._HZ_MINE_BOOTSTRAPPED_TARGETS)
+            self.assertNotIn(cd_id, mine_mod._HZ_MINE_FINALIZED_IDS)
+        finally:
+            if cache_key is not None:
+                with mine_mod._HZ_MINE_BRIDGE_LOCK:
+                    mine_mod._HZ_MINE_BOOTSTRAPPED_TARGETS.pop(cache_key, None)
+            if cd_id is not None:
+                with mine_mod._HZ_MINE_BRIDGE_LOCK:
+                    mine_mod._HZ_MINE_FINALIZED_IDS.discard(cd_id)
+            if was_enabled:
+                gc.enable()
 
     def test_dismiss_all_popups_resilience_to_lua_timeout_and_corrupted_json(self) -> None:
         """Verify robust error reporting when Lua times out or returns malformed JSON."""

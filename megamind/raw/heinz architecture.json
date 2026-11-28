@@ -2173,7 +2173,7 @@
         "onclick": "loadAllianceDeltas(true)",
         "title": "Save current state data as the baseline for delta comparison",
         "data_attrs": {},
-        "label": "📸 Save Baseline"
+        "label": "Save Baseline"
       },
       {
         "section": "view-alliances",
@@ -2182,7 +2182,7 @@
         "onclick": "loadAllianceDeltas(false)",
         "title": "",
         "data_attrs": {},
-        "label": "🔄 Refresh"
+        "label": "Refresh"
       },
       {
         "section": "view-alliances",
@@ -2389,7 +2389,7 @@
         "onclick": "deleteSelectedPreset()",
         "title": "Delete selected custom preset",
         "data_attrs": {},
-        "label": "🗑️"
+        "label": "[Delete]"
       },
       {
         "section": "view-bots",
@@ -2407,7 +2407,7 @@
         "onclick": "doAction('launch_all_farms', {mode: cfgLaunchMode()})",
         "title": "",
         "data_attrs": {},
-        "label": "🚀 Launch All Farms"
+        "label": "Launch All Farms"
       },
       {
         "section": "view-bots",
@@ -2425,7 +2425,7 @@
         "onclick": "toggleFleetToolsMenu(event)",
         "title": "",
         "data_attrs": {},
-        "label": "⚙️ Fleet Tools ▾"
+        "label": "⚙ Fleet Tools ▾"
       },
       {
         "section": "view-bots",
@@ -2434,7 +2434,7 @@
         "onclick": "doAction('scan_fleet'); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "🔍 Scan Active Clients"
+        "label": "Scan Active Clients"
       },
       {
         "section": "view-bots",
@@ -2443,7 +2443,7 @@
         "onclick": "openSetupModal(); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "🛠️ Setup / Patch Base Game"
+        "label": "Setup / Patch Base Game"
       },
       {
         "section": "view-bots",
@@ -2452,7 +2452,7 @@
         "onclick": "doAction('sync_farm_builds'); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "🔄 Sync Farm Game Builds"
+        "label": "Sync Farm Game Builds"
       },
       {
         "section": "view-bots",
@@ -2461,7 +2461,7 @@
         "onclick": "openProvisionModal(); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "➕ Add Account / Clone Farm"
+        "label": "Add Account / Clone Farm"
       },
       {
         "section": "view-bots",
@@ -2470,7 +2470,7 @@
         "onclick": "openRulesModal(); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "📋 Detailed Rules & Trucks..."
+        "label": "Detailed Rules & Trucks..."
       },
       {
         "section": "view-bots",
@@ -2479,7 +2479,7 @@
         "onclick": "doAction('sync_google_bracket'); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "📊 Sync 16 Bracket Sheets"
+        "label": "Sync 16 Bracket Sheets"
       },
       {
         "section": "view-bots",
@@ -2488,7 +2488,7 @@
         "onclick": "doAction('start_bot_daemon'); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "🟢 Start Background Loop Daemon"
+        "label": "Start Background Loop Daemon"
       },
       {
         "section": "view-bots",
@@ -2497,7 +2497,7 @@
         "onclick": "doAction('stop_bot_daemon'); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "🔴 Stop Background Loop Daemon"
+        "label": "Stop Background Loop Daemon"
       },
       {
         "section": "view-bots",
@@ -2506,7 +2506,7 @@
         "onclick": "doAction('install_bot_task'); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "⏱️ Register Windows Task Scheduler"
+        "label": "⏱ Register Windows Task Scheduler"
       },
       {
         "section": "view-bots",
@@ -2515,7 +2515,7 @@
         "onclick": "doAction('uninstall_bot_task'); toggleFleetToolsMenu();",
         "title": "",
         "data_attrs": {},
-        "label": "❌ Remove Windows Schedule"
+        "label": "Remove Windows Schedule"
       },
       {
         "section": "view-bots",
@@ -2965,7 +2965,7 @@
         "onclick": "refreshTroopsOverview(true)",
         "title": "",
         "data_attrs": {},
-        "label": "🔄 Sync Live from Game"
+        "label": "Sync Live from Game"
       }
     ],
     "inputs": [

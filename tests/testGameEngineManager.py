@@ -26,6 +26,7 @@ import importlib.util
 import json
 import os
 import socketserver
+import subprocess
 import sys
 import tempfile
 import threading
@@ -724,6 +725,99 @@ class TestGameEngineManager(unittest.TestCase):
         self.assertEqual((Path(res_fb["engine_game_dir"]) / "GameAssembly.dll").read_bytes(), big_payload)
         self.assertEqual(self.cdn.cdn_requests.count("GameAssembly.dll"), 1)
         self.assertEqual(self.cdn.range_requests, [])
+
+    def test_ensure_account_slot_skips_redundant_ggm_patch_when_unchanged(self) -> None:
+        """Idempotent re-runs of ensure_account_slot must not re-patch globalgamemanagers."""
+        src_dir = self.root / "local source skip"
+        for rel, data in _build_synthetic_game_files(version="585", profile="LastZ").items():
+            fp = src_dir / rel
+            fp.parent.mkdir(parents=True, exist_ok=True)
+            fp.write_bytes(data)
+
+        self.gem.import_local_engine(src_dir, engine_root=self.engine_root)
+        slot1 = self.gem.ensure_account_slot("Hz01Z", "Hz01Game.exe", engine_root=self.engine_root)
+        self.assertTrue(slot1["ok"], slot1)
+
+        with mock.patch.object(self.gem, "patch_unity_identity", wraps=self.gem.patch_unity_identity) as mock_patch:
+            slot2 = self.gem.ensure_account_slot("Hz01Z", "Hz01Game.exe", engine_root=self.engine_root)
+        self.assertTrue(slot2["ok"], slot2)
+        mock_patch.assert_not_called()
+
+    def test_download_ranged_failure_rolls_back_bytes_and_recovers_single_stream(self) -> None:
+        """Attempt 1 ranged failure rolls back done_bytes and recovers cleanly via single stream."""
+        big_payload = bytes((i * 17) & 0xFF for i in range(320_000))
+        files = _build_synthetic_game_files(version="586", profile="LastZ")
+        files["GameAssembly.dll"] = big_payload
+        self.cdn.version = "586"
+        self.cdn.files = files
+        self.cdn.support_ranges = True
+        self.cdn.reset_requests()
+
+        orig_open = open
+        slice_fail_state = {"done": False}
+
+        def _fail_once_ranged_open(file_arg, mode="r", *args, **kwargs):
+            if mode == "r+b" and str(file_arg).endswith(".part") and not slice_fail_state["done"]:
+                slice_fail_state["done"] = True
+                raise OSError("Simulated slice IO error")
+            return orig_open(file_arg, mode, *args, **kwargs)
+
+        events: list[dict] = []
+        with mock.patch("builtins.open", side_effect=_fail_once_ranged_open):
+            res = self.gem.download_or_update_engine(
+                engine_root=self.engine_root,
+                max_workers=2,
+                progress_cb=lambda ev: events.append(dict(ev)),
+                version_url=self.cdn.version_url,
+                manifest_url=self.cdn.manifest_url,
+                cdn_base=self.cdn.cdn_base,
+                range_threshold_bytes=100_000,
+                range_streams=4,
+            )
+
+        self.assertTrue(res["ok"], res)
+        self.assertTrue(slice_fail_state["done"])
+        game_dir = Path(res["engine_game_dir"])
+        self.assertEqual((game_dir / "GameAssembly.dll").read_bytes(), big_payload)
+        self.assertEqual(list(game_dir.rglob("*.part")), [])
+        done_evs = [e for e in events if e.get("stage") == "done"]
+        self.assertTrue(done_evs)
+        expected_total = sum(len(v) for v in files.values())
+        self.assertEqual(done_evs[-1]["done_bytes"], expected_total)
+
+    def test_import_local_engine_throttles_progress_and_handles_junctions(self) -> None:
+        """Verify import_local_engine throttles rapid copying progress callbacks while always emitting done."""
+        src_dir = self.root / "local source throttle"
+        base_files = _build_synthetic_game_files(version="587", profile="LastZ")
+        for i in range(40):
+            base_files[f"StreamingAssets/chunk_{i:02d}.bin"] = b"DATA" * 8
+        for rel, data in base_files.items():
+            fp = src_dir / rel
+            fp.parent.mkdir(parents=True, exist_ok=True)
+            fp.write_bytes(data)
+
+        # Create a stale junction in dst_dir prior to import to ensure safe rmdir without deleting source target
+        stale_target = self.root / "stale junction target"
+        stale_target.mkdir(parents=True, exist_ok=True)
+        (stale_target / "keep.txt").write_text("preserve", encoding="utf-8")
+        dst_game = self.engine_root / "game"
+        dst_game.mkdir(parents=True, exist_ok=True)
+        stale_link = dst_game / "OldLinkDir"
+        subprocess.run(["cmd", "/c", "mklink", "/j", str(stale_link), str(stale_target)], capture_output=True)
+
+        events: list[dict] = []
+        res = self.gem.import_local_engine(
+            src_dir,
+            engine_root=self.engine_root,
+            progress_cb=lambda ev: events.append(dict(ev)),
+        )
+        self.assertTrue(res["ok"], res)
+        self.assertTrue((stale_target / "keep.txt").is_file())
+        self.assertFalse(stale_link.exists())
+        copy_evs = [e for e in events if e.get("stage") == "copying"]
+        done_evs = [e for e in events if e.get("stage") == "done"]
+        self.assertEqual(len(done_evs), 1)
+        self.assertLess(len(copy_evs), len(base_files), f"Expected throttled copying events, got {len(copy_evs)}")
 
     def test_static_hygiene_and_strict_rules(self) -> None:
         """Enforce zero underscores in new filenames, zero em dashes, and zero forbidden terms."""

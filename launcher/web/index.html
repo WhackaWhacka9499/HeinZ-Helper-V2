@@ -55,7 +55,7 @@
     background:
       linear-gradient(90deg, rgba(13, 15, 18, 0.94) 0%, rgba(13, 15, 18, 0.62) 48%, rgba(13, 15, 18, 0.94) 100%),
       linear-gradient(180deg, rgba(13, 15, 18, 0.25) 0%, rgba(13, 15, 18, 0.96) 100%),
-      url("__HERO_BANNER_DATA_URI__") center center / cover no-repeat;
+      var(--hero-banner-bg, url("__HERO_BANNER_DATA_URI__")) center center / cover no-repeat;
     border-bottom: 1px solid var(--border-gold);
     padding: 14px 20px 10px 20px;
   }
@@ -3678,11 +3678,12 @@
     max-width: none;
     max-height: none;
     height: 100%;
+    overflow-y: auto;
     border-radius: 0;
     border: none;
     box-shadow: none;
     background: transparent;
-    padding: 16px 18px 14px;
+    padding: 14px 16px 12px;
   }
   .lg-header {
     display: flex;
@@ -3932,6 +3933,59 @@
     background: rgba(239, 68, 68, 0.14);
     color: #FECACA;
   }
+  .lg-auth-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 3px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .lg-auth-tab {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #9CA3AF;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .lg-auth-tab.active {
+    background: rgba(245, 158, 11, 0.18);
+    color: #FDE68A;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+  }
+  .lg-pair-box {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: rgba(19, 23, 33, 0.92);
+    border: 1px solid rgba(245, 158, 11, 0.32);
+  }
+  .lg-pair-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #FDE68A;
+  }
+  .lg-pin-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .lg-pin-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
   @media (max-width: 440px) {
     .lg-mode-grid { grid-template-columns: 1fr; }
   }
@@ -3960,39 +4014,65 @@
       </div>
     </div>
 
-    <!-- PAGE 1: LOGIN TO ACCOUNT (FIRST POPUP SCREEN) -->
+    <!-- PAGE 1: LOGIN TO ACCOUNT (COMMUNITYZ SUBSCRIBER AUTH) -->
     <div id="lg-step-login" class="lg-login-wrap">
       <div>
-        <div style="font-size:18px; font-weight:800; color:#F9FAFB; letter-spacing:-0.01em;">Login To Account</div>
-        <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">Sign in to your HeinZ account to continue.</div>
+        <div style="font-size:17px; font-weight:800; color:#F9FAFB; letter-spacing:-0.01em;">Login To Account</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:2px;">Sign in with CommunityZ Pro/Alliance or continue as Guest.</div>
       </div>
 
       <div id="lg-login-banner" class="lg-launch-banner"></div>
 
-      <div class="lg-field">
-        <label class="lg-field-label" for="lg-login-identifier">Email or Username</label>
-        <input id="lg-login-identifier" type="text" class="clean-input" style="padding:8px 10px; font-size:12.5px;" placeholder="you@example.com" autocomplete="username" onkeydown="if(event.key==='Enter') submitHeinzLogin(false)" />
+      <div class="lg-auth-tabs" role="tablist">
+        <button type="button" id="lg-auth-tab-pair" class="lg-auth-tab active" onclick="switchCommunityzAuthTab('pair')">Pair PC (Code)</button>
+        <button type="button" id="lg-auth-tab-otp" class="lg-auth-tab" onclick="switchCommunityzAuthTab('otp')">Email OTP</button>
       </div>
 
-      <div class="lg-field">
-        <label class="lg-field-label" for="lg-login-password">Password</label>
-        <div class="lg-pw-wrap">
-          <input id="lg-login-password" type="password" class="clean-input" style="width:100%; padding:8px 50px 8px 10px; font-size:12.5px;" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitHeinzLogin(false)" />
-          <button type="button" id="lg-btn-pw-toggle" class="lg-pw-toggle" onclick="toggleHeinzPasswordVis()">Show</button>
+      <!-- TAB 1: DESKTOP BRIDGE DEVICE PAIRING -->
+      <div id="lg-auth-pane-pair" style="display:flex; flex-direction:column; gap:8px;">
+        <div style="font-size:11px; color:#D1D5DB; line-height:1.4;">Generate a pairing code and approve this PC in your CommunityZ Subscriber Hub.</div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button type="button" id="lg-btn-device-pair" class="btn btn-primary-amber" style="flex:1; justify-content:center; padding:8px 12px; font-size:12.5px;" onclick="startCommunityzDevicePair()">Generate Pairing Code</button>
+          <button type="button" id="lg-btn-open-communityz" class="btn btn-ghost btn-sm" onclick="openCommunityzPortal()">Open Hub</button>
+        </div>
+        <div id="lg-device-code-box" class="lg-pair-box">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span id="lg-device-user-code" class="lg-pair-code">HZ-000-000</span>
+            <button type="button" id="lg-btn-poll-pair-now" class="btn btn-amber-soft btn-xs" onclick="pollCommunityzDevicePair(true)">Check Now</button>
+          </div>
+          <div id="lg-device-poll-status" style="font-size:10.5px; color:#9CA3AF;">Waiting for subscriber approval...</div>
         </div>
       </div>
 
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:2px;">
-        <label style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:#D1D5DB; cursor:pointer;">
+      <!-- TAB 2: PASSWORDLESS EMAIL POW + OTP -->
+      <div id="lg-auth-pane-otp" style="display:none; flex-direction:column; gap:7px;">
+        <div class="lg-field">
+          <label class="lg-field-label" for="lg-login-identifier">CommunityZ Email</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input id="lg-login-identifier" type="email" class="clean-input" style="flex:1; padding:7px 9px; font-size:12px;" placeholder="you@example.com" autocomplete="username" onkeydown="if(event.key==='Enter') requestCommunityzOtp()" />
+            <button type="button" id="lg-btn-send-otp" class="btn btn-amber-soft btn-sm" style="white-space:nowrap;" onclick="requestCommunityzOtp()">Send Code</button>
+          </div>
+        </div>
+
+        <div class="lg-field" id="lg-otp-code-row">
+          <label class="lg-field-label" for="lg-login-otp-code">6-Digit OTP Code</label>
+          <input id="lg-login-otp-code" type="text" inputmode="numeric" maxlength="6" class="clean-input" style="padding:7px 9px; font-size:12.5px; letter-spacing:0.12em;" placeholder="123456" autocomplete="one-time-code" onkeydown="if(event.key==='Enter') submitHeinzLogin(false)" />
+        </div>
+
+        <div id="lg-otp-dev-note" style="display:none; font-size:10.5px; color:#FDE68A;"></div>
+
+        <button type="button" id="lg-btn-login-submit" class="btn btn-primary-amber" style="width:100%; justify-content:center; padding:8px 12px; font-size:12.5px;" onclick="submitHeinzLogin(false)">Verify &amp; Sign In &rarr;</button>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:4px; border-top:1px solid rgba(255,255,255,0.06);">
+        <label style="display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#D1D5DB; cursor:pointer;">
           <input id="lg-login-remember" type="checkbox" checked />
           <span>Remember email</span>
         </label>
         <button type="button" id="lg-btn-login-skip" class="lg-link-btn" onclick="submitHeinzLogin(true)">Continue as Guest &rarr;</button>
       </div>
 
-      <button type="button" id="lg-btn-login-submit" class="btn btn-primary-amber" style="width:100%; justify-content:center; padding:9px 14px; font-size:13px; margin-top:4px;" onclick="submitHeinzLogin(false)">Login &rarr;</button>
-
-      <div style="font-size:10.5px; color:var(--muted); text-align:center; margin-top:2px;">Zero game hooks run while signing in.</div>
+      <div style="font-size:10px; color:var(--muted); text-align:center;">Zero game hooks run while signing in.</div>
     </div>
 
     <!-- PAGE 2: UNIFIED LAUNCHER (ENGINE + ACCOUNT SELECTION + VANILLA / ENHANCED) -->
@@ -4059,6 +4139,20 @@
             <button type="button" class="btn btn-blue btn-xs" onclick="saveEditAccountEmail()">Save</button>
             <button type="button" class="btn btn-ghost btn-xs" onclick="cancelEditAccountEmail()">Cancel</button>
           </div>
+          <div class="lg-pin-row">
+            <div class="lg-pw-wrap" style="flex:1; min-width:150px;">
+              <input id="lg-edit-pin" type="password" class="clean-input" style="width:100%; padding:5px 46px 5px 8px; font-size:11.5px;" placeholder="Optional Game Security PIN" autocomplete="off" />
+              <button type="button" id="lg-btn-edit-pin-toggle" class="lg-pw-toggle" onclick="toggleGatePinVis('lg-edit-pin', 'lg-btn-edit-pin-toggle')">Show</button>
+            </div>
+            <button type="button" id="lg-btn-edit-pin-clear" class="btn btn-ghost btn-xs" onclick="clearEditAccountPin()">Clear</button>
+          </div>
+          <div class="lg-pin-meta">
+            <span class="lg-badge-verified">Local Only - Encrypted on This PC, Never Uploaded</span>
+            <label style="display:inline-flex; align-items:center; gap:5px; font-size:10.5px; color:#D1D5DB; cursor:pointer;">
+              <input id="lg-edit-auto-pin" type="checkbox" />
+              <span>Auto-Enter PIN on Launch (Enhanced mode)</span>
+            </label>
+          </div>
         </div>
 
         <!-- Collapsible Bind New Account Drawer -->
@@ -4067,6 +4161,20 @@
             <input id="lg-bind-email" type="email" class="clean-input" style="flex:1; min-width:170px; padding:5px 8px; font-size:11.5px;" placeholder="Last Z account email..." onkeydown="if(event.key==='Enter') bindNewEmailAccount()" />
             <input id="lg-bind-label" type="text" class="clean-input" style="width:100px; padding:5px 8px; font-size:11.5px;" placeholder="Name" onkeydown="if(event.key==='Enter') bindNewEmailAccount()" />
             <button type="button" id="lg-btn-bind-account" class="btn btn-primary-amber btn-xs" onclick="bindNewEmailAccount()">Bind</button>
+          </div>
+          <div class="lg-pin-row">
+            <div class="lg-pw-wrap" style="flex:1; min-width:150px;">
+              <input id="lg-bind-pin" type="password" class="clean-input" style="width:100%; padding:5px 46px 5px 8px; font-size:11.5px;" placeholder="Optional Game Security PIN" autocomplete="off" />
+              <button type="button" id="lg-btn-bind-pin-toggle" class="lg-pw-toggle" onclick="toggleGatePinVis('lg-bind-pin', 'lg-btn-bind-pin-toggle')">Show</button>
+            </div>
+            <button type="button" id="lg-btn-bind-pin-clear" class="btn btn-ghost btn-xs" onclick="clearBindPinInput()">Clear</button>
+          </div>
+          <div class="lg-pin-meta">
+            <span class="lg-badge-verified">Local Only - Encrypted on This PC, Never Uploaded</span>
+            <label style="display:inline-flex; align-items:center; gap:5px; font-size:10.5px; color:#D1D5DB; cursor:pointer;">
+              <input id="lg-bind-auto-pin" type="checkbox" />
+              <span>Auto-Enter PIN on Launch (Enhanced mode)</span>
+            </label>
           </div>
           <div style="font-size:10px; color:var(--muted);">1st login always requires the verification code Last Z sends to your email; later launches auto-login borderlessly.</div>
         </div>
@@ -4713,6 +4821,15 @@
               <span class="inv-sub-chip" id="tr-stat-ms" style="color:#93C5FD;">Avg: 0 ms</span>
               <span class="inv-sub-chip" id="tr-stat-provider" style="color:#FDE68A;">Cascade: Free Zero-Setup</span>
             </div>
+
+            <div class="tr-diag-row" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;">
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+                <span id="tr-pid-badge" class="map-season-pill"><span class="map-season-dot"></span><span id="tr-pid-text">PIDs: Detached (No Client)</span></span>
+                <span class="inv-sub-chip" id="tr-switch-badge">screen_translation: --</span>
+              </div>
+              <button type="button" id="tr-rehook-btn" class="btn btn-amber-soft btn-sm" onclick="rehookTranslator()">Re-Hook Translator</button>
+            </div>
+            <div id="tr-last-preview" class="tr-test-out" style="font-size:11.5px; color:var(--muted);">Last Translated Chat: None yet</div>
 
             <details style="margin-top:8px;">
               <summary style="cursor:pointer; font-size:11.5px; color:var(--muted);" data-i18n="perf.translator_api_keys">Optional API Keys (DeepL / Gemini - not required, free cascade works automatically)</summary>
@@ -6430,9 +6547,11 @@ let lastRenderedLogId = 0;
 let _lastLogEpoch = null;
 let _stateReqId = 0;
 let _lastFleetSig = "";
+let _lastFleetStructSig = "";
 let _lastHighlightsSig = "";
 let _lastAlwaysOnSig = "";
 let _lastConfigVer = null;
+let _lastSetupVer = null;
 let _hasTaskCatalog = false;
 let _lastHeaderSig = "";
 let _lastSetupSig = "";
@@ -6490,6 +6609,7 @@ function safeStorageSet(key, val) {
 }
 
 let _allLogEntries = [];
+let _visibleLogCount = 0;
 let _consoleFilter = "all";
 let _consoleSearch = "";
 let _consoleAutoScroll = true;
@@ -6763,11 +6883,13 @@ function switchView(viewId) {
   currentView = viewId;
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === viewId));
   document.querySelectorAll(".view-pane").forEach(p => p.classList.toggle("active", p.id === "view-" + viewId));
-  if (viewId === "overview" && _overviewDirty && appState) {
-    _overviewDirty = false;
+  if (viewId === "overview" && appState) {
     renderAlwaysOnPanels();
-    renderOverviewFleet();
-    renderOverviewHighlights();
+    if (_overviewDirty) {
+      _overviewDirty = false;
+      renderOverviewFleet();
+      renderOverviewHighlights();
+    }
   } else if (viewId === "rss") {
     if (appState && _rssDirty) renderFarmLoops(appState, true);
   } else if (viewId === "kills") {
@@ -6775,13 +6897,17 @@ function switchView(viewId) {
     probeMapKillsStatus(false);
   } else if (viewId === "game") {
     if (typeof loadTranslatorStatus === "function") loadTranslatorStatus();
-  } else if (viewId === "bots" && _botsCardsDirty && appState) {
-    _botsCardsDirty = false;
+  } else if (viewId === "bots" && appState) {
     renderAlwaysOnPanels();
-    renderTaskCards();
+    if (_botsCardsDirty) {
+      _botsCardsDirty = false;
+      renderTaskCards();
+    }
   } else if (viewId === "map") {
     initMapRadarCanvas();
-    refreshMapFinder(false);
+    const forceMapReload = _mapCacheDirty;
+    _mapCacheDirty = false;
+    refreshMapFinder(forceMapReload);
     if (typeof refreshShieldWatchlist === "function") refreshShieldWatchlist(false);
     if (typeof _syncWatchlistTicker === "function") _syncWatchlistTicker();
   } else if (viewId === "inventory") {
@@ -6916,7 +7042,13 @@ function renderAllLogsFromBuffer() {
   const list = document.getElementById("activity-list");
   if (list) list.innerHTML = "";
 
-  const matched = _allLogEntries.filter(e => matchesConsoleFilter(e, _consoleFilter));
+  const matched = [];
+  for (const e of _allLogEntries) {
+    const isVis = matchesConsoleFilter(e, _consoleFilter);
+    if (e) e._vis = isVis;
+    if (isVis) matched.push(e);
+  }
+  _visibleLogCount = matched.length;
   if (list) {
     const frag = document.createDocumentFragment();
     for (const entry of matched) {
@@ -6925,7 +7057,7 @@ function renderAllLogsFromBuffer() {
     list.appendChild(frag);
     if (_consoleAutoScroll) list.scrollTop = list.scrollHeight;
   }
-  updateConsoleCountPills(matched.length, _allLogEntries.length);
+  updateConsoleCountPills(_visibleLogCount, _allLogEntries.length);
 }
 
 function setConsoleFilter(mode) {
@@ -6982,6 +7114,7 @@ async function clearLogs() {
     _lastLogEpoch = clearRes.log_epoch;
   }
   _allLogEntries = [];
+  _visibleLogCount = 0;
   lastRenderedLogId = 0;
   if (appState && appState.logs) appState.logs = [];
   renderAllLogsFromBuffer();
@@ -7002,6 +7135,7 @@ function syncLogs(logs, logsDelta = false, logsReset = false) {
 
   if (resetNeeded) {
     _allLogEntries = [];
+    _visibleLogCount = 0;
     lastRenderedLogId = 0;
     if (list) list.innerHTML = "";
   }
@@ -7013,17 +7147,27 @@ function syncLogs(logs, logsDelta = false, logsReset = false) {
 
     for (const entry of newLogs) {
       if (!entry) continue;
+      const isVis = matchesConsoleFilter(entry, _consoleFilter);
+      entry._vis = isVis;
       _allLogEntries.push(entry);
       if (entry.id > lastRenderedLogId) {
         lastRenderedLogId = entry.id;
       }
-      if (matchesConsoleFilter(entry, _consoleFilter)) {
+      if (isVis) {
+        _visibleLogCount++;
         if (frag) frag.appendChild(buildLogEntryEl(entry));
         appendedVisible++;
       }
     }
 
     if (_allLogEntries.length > _consoleMaxLines) {
+      const excess = _allLogEntries.length - _consoleMaxLines;
+      for (let i = 0; i < excess; i++) {
+        const oldEntry = _allLogEntries[i];
+        if (oldEntry && oldEntry._vis) {
+          _visibleLogCount = Math.max(0, _visibleLogCount - 1);
+        }
+      }
       _allLogEntries = _allLogEntries.slice(-_consoleMaxLines);
     }
 
@@ -7038,7 +7182,7 @@ function syncLogs(logs, logsDelta = false, logsReset = false) {
 
   const visibleCnt = (_consoleFilter === "all" && !_consoleSearch)
     ? _allLogEntries.length
-    : _allLogEntries.filter(e => matchesConsoleFilter(e, _consoleFilter)).length;
+    : _visibleLogCount;
   updateConsoleCountPills(visibleCnt, _allLogEntries.length);
 }
 
@@ -7423,9 +7567,62 @@ function renderOverviewFleet() {
   const wrap = _domRef("overview-fleet-cards");
   if (!wrap) return;
   const clients = (appState && appState.fleet && appState.fleet.clients) || [];
-  const sig = JSON.stringify(clients);
-  if (sig === _lastFleetSig) return;
-  _lastFleetSig = sig;
+  const structSig = JSON.stringify(clients.map(c => [
+    c.label || "",
+    c.role || "",
+    !!c.running,
+    c.pid || 0,
+    c.name || "",
+    c.allianceTag || "",
+    c.hqLv || 0,
+    c.serverId || 0,
+    !!c.underAttack,
+    c.incomingAttacks || 0,
+    !!c.shielded,
+  ]));
+  const fullSig = JSON.stringify(clients);
+  if (fullSig === _lastFleetSig && wrap.children.length > 0) return;
+  _lastFleetSig = fullSig;
+
+  if (structSig === _lastFleetStructSig && clients.length > 0 && wrap.children.length === clients.length) {
+    for (let i = 0; i < clients.length; i++) {
+      const c = clients[i];
+      const card = wrap.children[i];
+      if (!card || card.getAttribute("data-fleet-key") !== String(c.label || "")) {
+        _lastFleetStructSig = "";
+        break;
+      }
+      if (!c.running) continue;
+      const shEl = card.querySelector("[data-fleet-shield-txt]");
+      if (shEl) {
+        const nextSh = String(c.shieldText || "Shielded");
+        if (shEl.textContent !== nextSh) shEl.textContent = nextSh;
+      }
+      const pwrEl = card.querySelector("[data-fleet-pwr]");
+      if (pwrEl) {
+        const nextPwr = c.powerM ? `${c.powerM}M` : "--";
+        if (pwrEl.textContent !== nextPwr) pwrEl.textContent = nextPwr;
+      }
+      const stamEl = card.querySelector("[data-fleet-stam]");
+      if (stamEl) {
+        const nextStam = c.stamina != null ? Number(c.stamina).toLocaleString() : "--";
+        if (stamEl.textContent !== nextStam) stamEl.textContent = nextStam;
+      }
+      const diaEl = card.querySelector("[data-fleet-dia]");
+      if (diaEl) {
+        const nextDia = c.diamond != null ? Number(c.diamond).toLocaleString() : "--";
+        if (diaEl.textContent !== nextDia) diaEl.textContent = nextDia;
+      }
+      const sqEl = card.querySelector("[data-fleet-sq]");
+      if (sqEl) {
+        const nextSq = c.freeFormations != null ? `${c.freeFormations}/${c.unlockFormations ?? 3}` : "--";
+        if (sqEl.textContent !== nextSq) sqEl.textContent = nextSq;
+      }
+    }
+    if (_lastFleetStructSig === structSig) return;
+  }
+
+  _lastFleetStructSig = structSig;
   if (!clients.length) {
     wrap.innerHTML = `
       <div class="glass-card" style="grid-column: 1 / -1;">
@@ -7451,7 +7648,7 @@ function renderOverviewFleet() {
       const srv = c.serverId ? `#${c.serverId}` : "";
       const subLine = [srv, "Ready"].filter(Boolean).join(" \u00b7 ");
       return `
-        <div class="fleet-card">
+        <div class="fleet-card" data-fleet-key="${safeLbl}">
           <div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span class="${dotCls}"></span>
@@ -7466,8 +7663,8 @@ function renderOverviewFleet() {
     }
 
     const shieldBadge = c.shielded
-      ? `<span class="badge-shielded" style="display:inline-flex;align-items:center;gap:4px;">${gameIconHtml("shield", 18, "")}${esc(c.shieldText || "Shielded")}</span>`
-      : `<span class="badge-unshielded">Unshielded</span>`;
+      ? `<span class="badge-shielded" style="display:inline-flex;align-items:center;gap:4px;">${gameIconHtml("shield", 18, "")}<span data-fleet-shield-txt="1">${esc(c.shieldText || "Shielded")}</span></span>`
+      : `<span class="badge-unshielded" data-fleet-shield-txt="1">Unshielded</span>`;
 
     const attackBanner = c.underAttack
       ? `<div style="background:rgba(239,68,68,0.16); border:1px solid rgba(239,68,68,0.45); border-radius:6px; padding:6px 10px; color:#FCA5A5; font-size:11px; font-weight:600; display:flex; align-items:center; gap:6px;">
@@ -7481,7 +7678,7 @@ function renderOverviewFleet() {
     const sqVal = c.freeFormations != null ? `${c.freeFormations}/${c.unlockFormations ?? 3}` : "--";
 
     return `
-      <div class="fleet-card running" style="${c.underAttack ? 'border-color:rgba(239,68,68,0.75) !important;' : ''}">
+      <div class="fleet-card running" data-fleet-key="${safeLbl}" style="${c.underAttack ? 'border-color:rgba(239,68,68,0.75) !important;' : ''}">
         <div class="card-top" style="align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:9px;">
             <span class="${dotCls}"></span>
@@ -7495,10 +7692,10 @@ function renderOverviewFleet() {
         </div>
         ${attackBanner}
         <div class="fleet-stat-grid">
-          <div class="fleet-stat-cell"><span class="fleet-stat-val">${esc(pwrVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("hero_battle", 16, "")}Power</span></div>
-          <div class="fleet-stat-cell"><span class="fleet-stat-val">${esc(stamVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("fuel", 16, "")}Stamina</span></div>
-          <div class="fleet-stat-cell"><span class="fleet-stat-val">${esc(diaVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("diamonds", 16, "")}Diamonds</span></div>
-          <div class="fleet-stat-cell"><span class="fleet-stat-val">${esc(sqVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("troops", 16, "")}Squads</span></div>
+          <div class="fleet-stat-cell"><span class="fleet-stat-val" data-fleet-pwr="1">${esc(pwrVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("hero_battle", 16, "")}Power</span></div>
+          <div class="fleet-stat-cell"><span class="fleet-stat-val" data-fleet-stam="1">${esc(stamVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("fuel", 16, "")}Stamina</span></div>
+          <div class="fleet-stat-cell"><span class="fleet-stat-val" data-fleet-dia="1">${esc(diaVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("diamonds", 16, "")}Diamonds</span></div>
+          <div class="fleet-stat-cell"><span class="fleet-stat-val" data-fleet-sq="1">${esc(sqVal)}</span><span class="fleet-stat-lbl">${gameIconHtml("troops", 16, "")}Squads</span></div>
         </div>
         <div class="btn-row" style="gap:6px; justify-content:space-between;">
           <button class="btn btn-amber-soft btn-sm" onclick="doQuickShield(${c.pid})" title="Instantly activate peace shield from bag">${gameIconHtml("shield", 18, "")}Shield Now</button>
@@ -7531,6 +7728,9 @@ function getAlwaysOnSig(s) {
     hh.wounded_total || 0,
     hh.in_treatment_total || 0,
     hh.queued_troops || 0,
+    hh.pass_active_helpers || 0,
+    hh.effective_max_helps || 0,
+    hh.dynamic_batch_sec || 0,
     s.alliance_tech_watcher_enabled !== false ? "1" : "0",
     s.alliance_tech_watcher_state || "watching",
     at.interval_seconds || 45,
@@ -7539,13 +7739,12 @@ function getAlwaysOnSig(s) {
   ].join(":");
 }
 
-function renderAlwaysOnPanelHtml(s) {
+function _computeAlwaysOnViewModel(s) {
   s = s || {};
   const masterOn = s.always_on_daemon_enabled !== false;
   const masterState = String(s.always_on_daemon_state || (masterOn ? "watching" : "paused"));
 
   const ahOn = s.alliance_help_watcher_enabled !== false;
-  const ahState = String(s.alliance_help_watcher_state || (masterOn && ahOn ? "watching" : "paused"));
   const ahStats = s.alliance_help_stats || {};
   const ahInt = Number(ahStats.interval_seconds || 15);
   const helpedTot = Number(ahStats.total_allies_helped || 0);
@@ -7557,14 +7756,14 @@ function renderAlwaysOnPanelHtml(s) {
   const hhSum = s.hospital_watcher_summary || {};
   const woundedTot = Number(hhSum.wounded_total || 0);
   const inTreatTot = Number(hhSum.in_treatment_total || 0);
-  const queuedTot = Number(hhSum.queued_troops || 0);
+  const passActiveCnt = Number(hhSum.pass_active_helpers || 0);
+  const effHelpsCnt = Number(hhSum.effective_max_helps || 0);
+  const dynBatchMin = Math.round(Number(hhSum.dynamic_batch_sec || 0) / 60);
 
   const atOn = s.alliance_tech_watcher_enabled !== false;
-  const atState = String(s.alliance_tech_watcher_state || (masterOn && atOn ? "watching" : "paused"));
   const atStats = s.alliance_tech_stats || {};
   const atInt = Number(atStats.interval_seconds || 45);
   const techDonTot = Number(atStats.total_tech_donations || 0);
-  const lastTechId = Number(atStats.last_tech_id || 0);
 
   const enabledCount = (ahOn ? 1 : 0) + (hhOn ? 1 : 0) + (atOn ? 1 : 0);
 
@@ -7582,65 +7781,78 @@ function renderAlwaysOnPanelHtml(s) {
   }
 
   const ahMeta = `Every ${ahInt}s \u00b7 Helped: ${helpedTot.toLocaleString()}` + ((tab1Tot + tab2Tot) > 0 ? ` \u00b7 Gifts: ${(tab1Tot + tab2Tot).toLocaleString()}` : "");
-  const hhStateLabel = !hhOn ? "Off" : (!masterOn ? "Paused" : (hhState === "healing" ? "Healing" : "Dormant"));
-  const hhMeta = `${hhStateLabel} \u00b7 Wounded: ${woundedTot.toLocaleString()}` + (inTreatTot > 0 ? ` \u00b7 Treating: ${inTreatTot.toLocaleString()}` : "");
+  const hhStateLabel = !hhOn ? "Off" : (!masterOn ? "Paused" : (hhState === "healing" ? "Headless Healing" : "Headless"));
+  const hhPassBit = (hhOn && (passActiveCnt > 0 || effHelpsCnt > 0))
+    ? ` \u00b7 Pass+Active: ${passActiveCnt}${dynBatchMin > 0 ? ` (${dynBatchMin}m)` : ""}`
+    : "";
+  const hhMeta = `${hhStateLabel}${hhPassBit} \u00b7 Wounded: ${woundedTot.toLocaleString()}` + (inTreatTot > 0 ? ` \u00b7 Treating: ${inTreatTot.toLocaleString()}` : "");
   const atMeta = `Every ${atInt}s \u00b7 ${techDonTot > 0 ? `Donated: ${techDonTot.toLocaleString()}` : "RSS"}`;
 
   const ahCls = (masterOn && ahOn) ? "always-on-subcard is-on" : "always-on-subcard is-off";
   const hhCls = (masterOn && hhOn && hhState === "healing") ? "always-on-subcard is-healing" : ((masterOn && hhOn) ? "always-on-subcard is-dormant" : "always-on-subcard is-off");
   const atCls = (masterOn && atOn) ? "always-on-subcard is-on" : "always-on-subcard is-off";
 
+  return {
+    masterOn, ahOn, hhOn, atOn,
+    panelCls, masterPillText,
+    ahMeta, hhMeta, atMeta,
+    ahCls, hhCls, atCls,
+  };
+}
+
+function renderAlwaysOnPanelHtml(s) {
+  const vm = _computeAlwaysOnViewModel(s);
   return `
-    <div class="${panelCls}">
+    <div class="${vm.panelCls}" data-ao-panel="1">
       <div class="always-on-header">
         <div style="display:flex; align-items:center; gap:10px;">
           <div class="card-title" style="font-size:14.5px;">Always-On Automation</div>
-          <span class="tag-pill" style="background:#1A1F2B; color:${masterOn ? '#D1D5DB' : '#FBBF24'}; border:1px solid rgba(255,255,255,0.08);">${esc(masterPillText)}</span>
+          <span class="tag-pill" data-ao-pill="1" style="background:#1A1F2B; color:${vm.masterOn ? '#D1D5DB' : '#FBBF24'}; border:1px solid rgba(255,255,255,0.08);">${esc(vm.masterPillText)}</span>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
           <button class="btn btn-ghost btn-sm" onclick="triggerAlwaysOnSweepNow()" title="Run an immediate sequential sweep of all enabled Always-On watchers">Sweep Now</button>
           <label class="switch" title="Master switch for the unified Always-On Automation daemon">
-            <input type="checkbox" ${masterOn ? "checked" : ""} onchange="toggleAlwaysOnDaemon(this.checked)" />
+            <input type="checkbox" data-ao-master="1" ${vm.masterOn ? "checked" : ""} onchange="toggleAlwaysOnDaemon(this.checked)" />
             <span class="switch-track"></span>
           </label>
         </div>
       </div>
 
       <div class="always-on-subgrid">
-        <div class="${ahCls}">
+        <div class="${vm.ahCls}" data-ao-ah-card="1">
           <div class="always-on-subcard-head">
             <div>
               <div class="always-on-subcard-title">${gameIconHtml("alliance_gift", 24, "Auto-Help & Gifts", "game-icon-tile")}Auto-Help &amp; Gifts</div>
-              <div class="always-on-subcard-meta">${esc(ahMeta)}</div>
+              <div class="always-on-subcard-meta" data-ao-ah-meta="1">${esc(vm.ahMeta)}</div>
             </div>
             <label class="switch switch-sm" title="Toggle Auto-Help Alliance & Both Gift Tabs">
-              <input type="checkbox" ${ahOn ? "checked" : ""} onchange="toggleAllianceHelpWatcher(this.checked)" />
+              <input type="checkbox" data-ao-ah-chk="1" ${vm.ahOn ? "checked" : ""} onchange="toggleAllianceHelpWatcher(this.checked)" />
               <span class="switch-track"></span>
             </label>
           </div>
         </div>
 
-        <div class="${hhCls}">
+        <div class="${vm.hhCls}" data-ao-hh-card="1">
           <div class="always-on-subcard-head">
             <div>
               <div class="always-on-subcard-title">${gameIconHtml("hospital", 24, "Hospital Auto-Heal", "game-icon-tile")}Hospital Auto-Heal</div>
-              <div class="always-on-subcard-meta">${esc(hhMeta)}</div>
+              <div class="always-on-subcard-meta" data-ao-hh-meta="1">${esc(vm.hhMeta)}</div>
             </div>
             <label class="switch switch-sm" title="Toggle persistent Hospital Auto-Heal watcher">
-              <input type="checkbox" ${hhOn ? "checked" : ""} onchange="toggleHospitalWatcher(this.checked)" />
+              <input type="checkbox" data-ao-hh-chk="1" ${vm.hhOn ? "checked" : ""} onchange="toggleHospitalWatcher(this.checked)" />
               <span class="switch-track"></span>
             </label>
           </div>
         </div>
 
-        <div class="${atCls}">
+        <div class="${vm.atCls}" data-ao-at-card="1">
           <div class="always-on-subcard-head">
             <div>
               <div class="always-on-subcard-title">${gameIconHtml("tech", 24, "Alliance Tech Donate", "game-icon-tile")}Alliance Tech Donate</div>
-              <div class="always-on-subcard-meta">${esc(atMeta)}</div>
+              <div class="always-on-subcard-meta" data-ao-at-meta="1">${esc(vm.atMeta)}</div>
             </div>
             <label class="switch switch-sm" title="Toggle Alliance Tech Auto-Donate watcher">
-              <input type="checkbox" ${atOn ? "checked" : ""} onchange="toggleAllianceTechWatcher(this.checked)" />
+              <input type="checkbox" data-ao-at-chk="1" ${vm.atOn ? "checked" : ""} onchange="toggleAllianceTechWatcher(this.checked)" />
               <span class="switch-track"></span>
             </label>
           </div>
@@ -7649,16 +7861,65 @@ function renderAlwaysOnPanelHtml(s) {
     </div>`;
 }
 
+function _patchAlwaysOnPanelEl(panelEl, s, sig) {
+  if (!panelEl) return;
+  if (panelEl.dataset.aoInit === "1" && panelEl.dataset.aoSig === sig) return;
+  if (panelEl.dataset.aoInit !== "1") {
+    panelEl.innerHTML = renderAlwaysOnPanelHtml(s);
+    panelEl.dataset.aoInit = "1";
+    panelEl.dataset.aoSig = sig;
+    return;
+  }
+  const vm = _computeAlwaysOnViewModel(s);
+  const rootCard = panelEl.querySelector("[data-ao-panel]");
+  if (!rootCard) {
+    panelEl.innerHTML = renderAlwaysOnPanelHtml(s);
+    panelEl.dataset.aoSig = sig;
+    return;
+  }
+  if (rootCard.className !== vm.panelCls) rootCard.className = vm.panelCls;
+  const pill = rootCard.querySelector("[data-ao-pill]");
+  if (pill) {
+    if (pill.textContent !== vm.masterPillText) pill.textContent = vm.masterPillText;
+    const nextColor = vm.masterOn ? "#D1D5DB" : "#FBBF24";
+    if (pill.style.color !== nextColor) pill.style.color = nextColor;
+  }
+  const mChk = rootCard.querySelector("[data-ao-master]");
+  if (mChk && mChk.checked !== vm.masterOn) mChk.checked = vm.masterOn;
+
+  const ahCard = rootCard.querySelector("[data-ao-ah-card]");
+  if (ahCard && ahCard.className !== vm.ahCls) ahCard.className = vm.ahCls;
+  const ahMeta = rootCard.querySelector("[data-ao-ah-meta]");
+  if (ahMeta && ahMeta.textContent !== vm.ahMeta) ahMeta.textContent = vm.ahMeta;
+  const ahChk = rootCard.querySelector("[data-ao-ah-chk]");
+  if (ahChk && ahChk.checked !== vm.ahOn) ahChk.checked = vm.ahOn;
+
+  const hhCard = rootCard.querySelector("[data-ao-hh-card]");
+  if (hhCard && hhCard.className !== vm.hhCls) hhCard.className = vm.hhCls;
+  const hhMeta = rootCard.querySelector("[data-ao-hh-meta]");
+  if (hhMeta && hhMeta.textContent !== vm.hhMeta) hhMeta.textContent = vm.hhMeta;
+  const hhChk = rootCard.querySelector("[data-ao-hh-chk]");
+  if (hhChk && hhChk.checked !== vm.hhOn) hhChk.checked = vm.hhOn;
+
+  const atCard = rootCard.querySelector("[data-ao-at-card]");
+  if (atCard && atCard.className !== vm.atCls) atCard.className = vm.atCls;
+  const atMeta = rootCard.querySelector("[data-ao-at-meta]");
+  if (atMeta && atMeta.textContent !== vm.atMeta) atMeta.textContent = vm.atMeta;
+  const atChk = rootCard.querySelector("[data-ao-at-chk]");
+  if (atChk && atChk.checked !== vm.atOn) atChk.checked = vm.atOn;
+
+  panelEl.dataset.aoSig = sig;
+}
+
 function renderAlwaysOnPanels() {
   if (!appState) return;
   const sig = getAlwaysOnSig(appState);
-  if (sig === _lastAlwaysOnSig) return;
   _lastAlwaysOnSig = sig;
-  const html = renderAlwaysOnPanelHtml(appState);
-  const ovEl = _domRef("overview-always-on-panel");
-  if (ovEl) ovEl.innerHTML = html;
-  const botEl = _domRef("bots-always-on-panel");
-  if (botEl) botEl.innerHTML = html;
+  if (currentView === "overview") {
+    _patchAlwaysOnPanelEl(_domRef("overview-always-on-panel"), appState, sig);
+  } else if (currentView === "bots") {
+    _patchAlwaysOnPanelEl(_domRef("bots-always-on-panel"), appState, sig);
+  }
 }
 
 function updateAlwaysOnSidebar(s) {
@@ -7827,6 +8088,12 @@ function renderState(s) {
   }
   if (!s.farm_loops && prevState && prevState.farm_loops) {
     s.farm_loops = prevState.farm_loops;
+  }
+  if (typeof s.setup_ver === "number" && s.setup_ver > 0) {
+    _lastSetupVer = s.setup_ver;
+  }
+  if (!s.setup && prevState && prevState.setup) {
+    s.setup = prevState.setup;
   }
 
   let cfgChanged = false;
@@ -8023,6 +8290,18 @@ function renderState(s) {
     }
   }
 
+  if (typeof s.world_cache_sig === "string" && s.world_cache_sig !== _lastWorldCacheSig) {
+    const hadPrevMapSig = _lastWorldCacheSig !== "";
+    _lastWorldCacheSig = s.world_cache_sig;
+    if (hadPrevMapSig || currentView === "map") {
+      if (currentView === "map") {
+        refreshMapFinder(true);
+      } else {
+        _mapCacheDirty = true;
+      }
+    }
+  }
+
   // Tab-scoped sub-renders
   if (currentView === "overview") {
     _overviewDirty = false;
@@ -8064,11 +8343,12 @@ async function refreshState() {
     const known_cfg_ver = _lastConfigVer !== null ? _lastConfigVer : null;
     const include_catalog = !_hasTaskCatalog;
     const since_log_epoch = _lastLogEpoch !== null ? _lastLogEpoch : null;
+    const known_setup_ver = _lastSetupVer !== null ? _lastSetupVer : null;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => reject(new Error("get_state IPC timeout")), _STATE_IPC_TIMEOUT_MS);
     });
     const s = await Promise.race([
-      callApi("get_state", since_log_id, known_cfg_ver, include_catalog, since_log_epoch),
+      callApi("get_state", since_log_id, known_cfg_ver, include_catalog, since_log_epoch, known_setup_ver),
       timeoutPromise,
     ]);
     if (reqId !== _stateReqId) return;
@@ -8211,9 +8491,10 @@ function openRulesModal() {
 
   document.getElementById("rules-modal-body").innerHTML = `
     <div class="rule-group">
-      <h4>Hospital Auto-Heal &amp; Alliance Daily Rules</h4>
+      <h4>Hospital Auto-Heal (Headless) &amp; Alliance Daily Rules</h4>
       <div class="rule-row">
-        <label>Batch Length (min) <input id="r-hh-batch" type="number" class="clean-input num-input" value="${hh.batch_minutes ?? 30}" /></label>
+        <label title="Dynamically calculates MAX alliance help from Monthly Pass (Auto-Help) + Active members so every batch clears as fast as possible."><input id="r-hh-pass-active" type="checkbox" ${hh.auto_pass_active_sizing!==false?"checked":""}/> Max Help by Alliance Pass + Active</label>
+        <label>Fallback Batch (min) <input id="r-hh-batch" type="number" class="clean-input num-input" value="${hh.batch_minutes ?? 30}" /></label>
         <label><input id="r-hh-help" type="checkbox" ${hh.call_alliance_help!==false?"checked":""}/> Request Alliance Help automatically</label>
       </div>
       <div class="rule-row">
@@ -8295,6 +8576,8 @@ async function saveRulesModal() {
   }));
   const payload = {
     hospital_heal: {
+      headless: true,
+      auto_pass_active_sizing: document.getElementById("r-hh-pass-active").checked,
       batch_minutes: Math.max(5, parseInt(document.getElementById("r-hh-batch").value || "30", 10)),
       call_alliance_help: document.getElementById("r-hh-help").checked
     },
@@ -8368,6 +8651,8 @@ async function saveRulesModal() {
 
 let mapSearchTimer = null;
 let _mapQuerySeq = 0;
+let _lastWorldCacheSig = "";
+let _mapCacheDirty = false;
 let _mapOverviewData = null;
 let _mapQueryData = null;
 let _mapMode = "all";
@@ -9086,12 +9371,15 @@ function renderMapInspector() {
   `;
 }
 
+let _lastMapTableStructSig = "";
+
 function renderMapTargetsTable(rows, totalMatching, sourceNote) {
   const statusEl = document.getElementById("map-table-status");
   const bodyEl = document.getElementById("map-table-body");
   if (!bodyEl) return;
 
   if (!rows || !rows.length) {
+    _lastMapTableStructSig = "";
     bodyEl.innerHTML = `<tr><td colspan="8" style="padding:28px; text-align:center; color:var(--muted);">No targets match the active filters. Try lowering Min HQ or resetting filters.</td></tr>`;
     if (statusEl) {
       statusEl.innerHTML = `<span>0 targets matching</span><span>${esc(sourceNote || "")}</span>`;
@@ -9100,64 +9388,102 @@ function renderMapTargetsTable(rows, totalMatching, sourceNote) {
   }
 
   const selUid = _mapSelectedItem ? String(_mapSelectedItem.uid || "") : "";
-  bodyEl.innerHTML = rows.map(r => {
-    const uid = String(r.uid || "");
-    const x = Math.round(Number(r.x || 0));
-    const y = Math.round(Number(r.y || 0));
-    const srv = Number(r.server_id || 0);
-    const isSel = selUid && uid && selUid === uid;
+  const structSig = _uiLangCode + "|" + rows.map(r => `${r.kind || ""}:${r.uid || ""}:${r.tag || ""}:${r.name || ""}:${r.server_id || 0}:${r.level || 0}:${r.x || 0}:${r.y || 0}:${r.has_shield ? 1 : 0}:${r.shield_left_sec || 0}:${r.occupied ? 1 : 0}:${r.power ?? ""}:${r.reserve ?? ""}:${r.distance ?? ""}:${r.unshielded_count ?? ""}`).join("|");
+  const scrollWrap = bodyEl.closest(".map-table-scroll") || bodyEl.parentElement;
+  const prevScrollTop = scrollWrap ? scrollWrap.scrollTop : 0;
 
-    let typeBadge = `<span class="tag-pill" style="background:rgba(59,130,246,0.16); color:#60A5FA; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("hq", 16, "")}HQ</span>`;
-    let targetLabel = `${r.tag ? `[${esc(r.tag)}] ` : ""}${esc(r.name || "Unknown")}`;
-    let stateHtml = r.has_shield
-      ? `<span style="color:#34D399; font-weight:600; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("shield", 16, "")}${esc(_formatShieldDuration(r.shield_left_sec))}</span>`
-      : `<span style="color:#F87171; font-weight:600;">Unshielded</span>`;
-    let infoHtml = r.power !== null && r.power !== undefined
-      ? `<span style="color:#E5E7EB; font-weight:600;">${esc(formatCompactNum(r.power))}</span>`
-      : `<span style="color:var(--dim);">--</span>`;
-
-    if (r.kind === "rss") {
-      const rssKey = _mapRssIconKey(r);
-      typeBadge = `<span class="tag-pill" style="background:rgba(56,189,248,0.16); color:#38BDF8; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml(rssKey, 16, "")}${r.is_event_node ? "Event RSS" : "RSS"}</span>`;
-      targetLabel = esc(r.name || r.resource_name || "Resource");
-      stateHtml = r.occupied
-        ? `<span style="color:#F87171; font-weight:600;">Occupied</span>`
-        : `<span style="color:#34D399; font-weight:600;">Open</span>`;
-      infoHtml = r.reserve ? `<span style="color:#93C5FD;">${esc(formatCompactNum(r.reserve))}</span>` : `<span style="color:var(--dim);">--</span>`;
-    } else if (r.kind === "cluster") {
-      typeBadge = `<span class="tag-pill gold" style="display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("alliance_team", 16, "")}Hive</span>`;
-      targetLabel = `[${esc(r.tag || "?")}] (${Number(r.core_count || 0)}/${Number(r.member_count || 0)})`;
-      stateHtml = `<span style="color:#F87171; font-weight:600;">${Number(r.unshielded_count || 0)} Unsh</span>`;
-      infoHtml = `<span style="color:#FDE68A;">R:${Number(r.p80_r || 0).toFixed(0)} Avg:${Number(r.avg_hq || 0).toFixed(1)}</span>`;
-    } else if (r.kind === "seasonal") {
-      typeBadge = `<span class="tag-pill" style="background:rgba(168,85,247,0.18); color:#C084FC; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("hq", 16, "")}Hub</span>`;
-      stateHtml = `<span style="color:var(--muted);">Structure</span>`;
+  if (structSig === _lastMapTableStructSig && bodyEl.children.length === rows.length) {
+    const pinTxt = t("map.pin", "Pin");
+    const pinnedTxt = t("map.pinned", "Pinned");
+    const rowNodes = bodyEl.children;
+    for (let i = 0; i < rows.length; i++) {
+      const tr = rowNodes[i];
+      const r = rows[i];
+      const uid = String(r.uid || "");
+      const isSel = !!(selUid && uid && selUid === uid);
+      tr.classList.toggle("map-row-selected", isSel);
+      if (r.kind === "cluster" && r.tag) {
+        const alBtn = tr.querySelector("[data-map-pin-alliance]");
+        if (alBtn) {
+          const alPin = _mapPinnedAlliances.has(String(r.tag).toLowerCase());
+          alBtn.classList.toggle("btn-pin-active", alPin);
+          const lbl = alPin ? pinnedTxt : pinTxt;
+          if (alBtn.textContent !== lbl) alBtn.textContent = lbl;
+        }
+      } else if (r.kind !== "rss" && r.kind !== "seasonal" && uid) {
+        const pBtn = tr.querySelector("[data-map-pin-player]");
+        if (pBtn) {
+          const pPin = _mapPinnedUids.has(uid);
+          pBtn.classList.toggle("btn-pin-active", pPin);
+          const lbl = pPin ? pinnedTxt : pinTxt;
+          if (pBtn.textContent !== lbl) pBtn.textContent = lbl;
+        }
+      }
     }
+  } else {
+    _lastMapTableStructSig = structSig;
+    bodyEl.innerHTML = rows.map(r => {
+      const uid = String(r.uid || "");
+      const x = Math.round(Number(r.x || 0));
+      const y = Math.round(Number(r.y || 0));
+      const srv = Number(r.server_id || 0);
+      const isSel = selUid && uid && selUid === uid;
 
-    const distStr = r.distance !== null && r.distance !== undefined ? Number(r.distance).toFixed(1) : "--";
-    let pinBtnHtml = "";
-    if (r.kind === "cluster" && r.tag) {
-      const alPin = _mapPinnedAlliances.has(String(r.tag).toLowerCase());
-      pinBtnHtml = `<button type="button" class="btn btn-ghost btn-xs ${alPin ? "btn-pin-active" : ""}" data-map-pin-alliance="${esc(r.tag)}" title="Pin alliance shield watchlist">${alPin ? esc(t("map.pinned", "Pinned")) : esc(t("map.pin", "Pin"))}</button> `;
-    } else if (r.kind !== "rss" && r.kind !== "seasonal" && uid) {
-      const pPin = _mapPinnedUids.has(uid);
-      pinBtnHtml = `<button type="button" class="btn btn-ghost btn-xs ${pPin ? "btn-pin-active" : ""}" data-map-pin-player="${esc(uid)}" data-name="${esc(r.name || "")}" data-tag="${esc(r.tag || "")}" data-level="${Number(r.level || 0)}" data-x="${x}" data-y="${y}" data-srv="${srv}" data-pe="${Number(r.protect_end_time || 0)}" title="Pin player to Shield-Drop Watchlist">${pPin ? esc(t("map.pinned", "Pinned")) : esc(t("map.pin", "Pin"))}</button> `;
+      let typeBadge = `<span class="tag-pill" style="background:rgba(59,130,246,0.16); color:#60A5FA; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("hq", 16, "")}HQ</span>`;
+      let targetLabel = `${r.tag ? `[${esc(r.tag)}] ` : ""}${esc(r.name || "Unknown")}`;
+      let stateHtml = r.has_shield
+        ? `<span style="color:#34D399; font-weight:600; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("shield", 16, "")}${esc(_formatShieldDuration(r.shield_left_sec))}</span>`
+        : `<span style="color:#F87171; font-weight:600;">Unshielded</span>`;
+      let infoHtml = r.power !== null && r.power !== undefined
+        ? `<span style="color:#E5E7EB; font-weight:600;">${esc(formatCompactNum(r.power))}</span>`
+        : `<span style="color:var(--dim);">--</span>`;
+
+      if (r.kind === "rss") {
+        const rssKey = _mapRssIconKey(r);
+        typeBadge = `<span class="tag-pill" style="background:rgba(56,189,248,0.16); color:#38BDF8; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml(rssKey, 16, "")}${r.is_event_node ? "Event RSS" : "RSS"}</span>`;
+        targetLabel = esc(r.name || r.resource_name || "Resource");
+        stateHtml = r.occupied
+          ? `<span style="color:#F87171; font-weight:600;">Occupied</span>`
+          : `<span style="color:#34D399; font-weight:600;">Open</span>`;
+        infoHtml = r.reserve ? `<span style="color:#93C5FD;">${esc(formatCompactNum(r.reserve))}</span>` : `<span style="color:var(--dim);">--</span>`;
+      } else if (r.kind === "cluster") {
+        typeBadge = `<span class="tag-pill gold" style="display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("alliance_team", 16, "")}Hive</span>`;
+        targetLabel = `[${esc(r.tag || "?")}] (${Number(r.core_count || 0)}/${Number(r.member_count || 0)})`;
+        stateHtml = `<span style="color:#F87171; font-weight:600;">${Number(r.unshielded_count || 0)} Unsh</span>`;
+        infoHtml = `<span style="color:#FDE68A;">R:${Number(r.p80_r || 0).toFixed(0)} Avg:${Number(r.avg_hq || 0).toFixed(1)}</span>`;
+      } else if (r.kind === "seasonal") {
+        typeBadge = `<span class="tag-pill" style="background:rgba(168,85,247,0.18); color:#C084FC; display:inline-flex; align-items:center; gap:4px;">${gameIconHtml("hq", 16, "")}Hub</span>`;
+        stateHtml = `<span style="color:var(--muted);">Structure</span>`;
+      }
+
+      const distStr = r.distance !== null && r.distance !== undefined ? Number(r.distance).toFixed(1) : "--";
+      let pinBtnHtml = "";
+      if (r.kind === "cluster" && r.tag) {
+        const alPin = _mapPinnedAlliances.has(String(r.tag).toLowerCase());
+        pinBtnHtml = `<button type="button" class="btn btn-ghost btn-xs ${alPin ? "btn-pin-active" : ""}" data-map-pin-alliance="${esc(r.tag)}" title="Pin alliance shield watchlist">${alPin ? esc(t("map.pinned", "Pinned")) : esc(t("map.pin", "Pin"))}</button> `;
+      } else if (r.kind !== "rss" && r.kind !== "seasonal" && uid) {
+        const pPin = _mapPinnedUids.has(uid);
+        pinBtnHtml = `<button type="button" class="btn btn-ghost btn-xs ${pPin ? "btn-pin-active" : ""}" data-map-pin-player="${esc(uid)}" data-name="${esc(r.name || "")}" data-tag="${esc(r.tag || "")}" data-level="${Number(r.level || 0)}" data-x="${x}" data-y="${y}" data-srv="${srv}" data-pe="${Number(r.protect_end_time || 0)}" title="Pin player to Shield-Drop Watchlist">${pPin ? esc(t("map.pinned", "Pinned")) : esc(t("map.pin", "Pin"))}</button> `;
+      }
+      return `
+        <tr class="hover-row ${isSel ? "map-row-selected" : ""}" data-map-uid="${esc(uid)}">
+          <td style="white-space:nowrap;">${typeBadge}</td>
+          <td style="font-weight:600; color:#F3F4F6; max-width:148px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(r.tag ? `[${r.tag}] ${r.name || ''}` : (r.name || ''))}">${targetLabel}${srv > 0 ? ` <span style="font-size:10px; color:var(--dim);">S${srv}</span>` : ""}</td>
+          <td style="color:#FBBF24; font-weight:700; white-space:nowrap;">${r.level ? "Lv." + Number(r.level) : "--"}</td>
+          <td style="font-family:monospace; color:#A78BFA; white-space:nowrap;">(${x}, ${y})</td>
+          <td style="white-space:nowrap;">${stateHtml}</td>
+          <td style="white-space:nowrap;">${infoHtml}</td>
+          <td style="font-family:monospace; color:var(--muted); white-space:nowrap;">${esc(distStr)}</td>
+          <td style="text-align:right; white-space:nowrap;">
+            ${pinBtnHtml}<button type="button" class="btn btn-green btn-xs" data-map-snap="1" data-x="${x}" data-y="${y}" data-srv="${srv}">${gameIconHtml("teleport", 16, "")}${esc(t("map.snap", "Snap"))}</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+    if (scrollWrap && prevScrollTop > 0) {
+      scrollWrap.scrollTop = prevScrollTop;
     }
-    return `
-      <tr class="hover-row ${isSel ? "map-row-selected" : ""}" data-map-uid="${esc(uid)}">
-        <td style="white-space:nowrap;">${typeBadge}</td>
-        <td style="font-weight:600; color:#F3F4F6; max-width:148px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(r.tag ? `[${r.tag}] ${r.name || ''}` : (r.name || ''))}">${targetLabel}${srv > 0 ? ` <span style="font-size:10px; color:var(--dim);">S${srv}</span>` : ""}</td>
-        <td style="color:#FBBF24; font-weight:700; white-space:nowrap;">${r.level ? "Lv." + Number(r.level) : "--"}</td>
-        <td style="font-family:monospace; color:#A78BFA; white-space:nowrap;">(${x}, ${y})</td>
-        <td style="white-space:nowrap;">${stateHtml}</td>
-        <td style="white-space:nowrap;">${infoHtml}</td>
-        <td style="font-family:monospace; color:var(--muted); white-space:nowrap;">${esc(distStr)}</td>
-        <td style="text-align:right; white-space:nowrap;">
-          ${pinBtnHtml}<button type="button" class="btn btn-green btn-xs" data-map-snap="1" data-x="${x}" data-y="${y}" data-srv="${srv}">${gameIconHtml("teleport", 16, "")}${esc(t("map.snap", "Snap"))}</button>
-        </td>
-      </tr>
-    `;
-  }).join("");
+  }
 
   if (statusEl) {
     statusEl.innerHTML =
@@ -9488,6 +9814,189 @@ function drawMapRadar() {
   scheduleDrawMapRadar();
 }
 
+let _mapTileCacheCanvas = null;
+let _mapTileCacheSig = "";
+let _mapStaticCanvas = null;
+let _mapStaticCanvasSig = "";
+
+function _ensureMapTileCache(showBackdrop, backdropReady, alpha, showZones, supportsZones) {
+  const bSrc = backdropReady && _mapBackdropImg ? (_mapBackdropImg.src || "1") : "";
+  const zReady = !!(showZones && supportsZones && _mapZonesImg && _mapZonesImg.complete && _mapZonesImg.naturalWidth > 0);
+  const zSrc = zReady ? (_mapZonesImg.src || "1") : "";
+  const sig = `${showBackdrop ? 1 : 0}|${backdropReady ? 1 : 0}|${alpha.toFixed(2)}|${bSrc}|${zReady ? 1 : 0}|${zSrc}`;
+  if (_mapTileCacheCanvas && _mapTileCacheSig === sig) {
+    return sig;
+  }
+  const size = backdropReady && _mapBackdropImg.naturalWidth ? _mapBackdropImg.naturalWidth : 1024;
+  if (!_mapTileCacheCanvas) _mapTileCacheCanvas = document.createElement("canvas");
+  if (_mapTileCacheCanvas.width !== size || _mapTileCacheCanvas.height !== size) {
+    _mapTileCacheCanvas.width = size;
+    _mapTileCacheCanvas.height = size;
+  }
+  const tctx = _mapTileCacheCanvas.getContext("2d");
+  if (tctx) {
+    tctx.fillStyle = "#0B0E14";
+    tctx.fillRect(0, 0, size, size);
+    if (backdropReady) {
+      tctx.save();
+      tctx.imageSmoothingEnabled = true;
+      tctx.imageSmoothingQuality = "high";
+      tctx.globalAlpha = alpha;
+      tctx.drawImage(_mapBackdropImg, 0, 0, size, size);
+      tctx.restore();
+      tctx.fillStyle = "rgba(7, 10, 16, 0.22)";
+      tctx.fillRect(0, 0, size, size);
+    }
+    if (zReady) {
+      tctx.save();
+      tctx.imageSmoothingEnabled = true;
+      tctx.imageSmoothingQuality = "high";
+      tctx.globalAlpha = 0.85;
+      tctx.drawImage(_mapZonesImg, 0, 0, size, size);
+      tctx.restore();
+    }
+  }
+  _mapTileCacheSig = sig;
+  return sig;
+}
+
+function _drawMapStaticLayers(ctx, m, gridSize, tl, br, mapW, mapH, showBackdrop, backdropReady, showZones, supportsZones, showGrid, dpr) {
+  const opEl = _domRef("map-backdrop-opacity");
+  const opPct = opEl ? Number(opEl.value || 78) : 78;
+  const alpha = backdropReady ? Math.max(0.25, Math.min(1.0, (Number.isFinite(opPct) ? opPct : 78) / 100)) : 0;
+  const tileSig = _ensureMapTileCache(showBackdrop, backdropReady, alpha, showZones, supportsZones);
+  const quality = _mapDragState.active ? "medium" : "high";
+  const cities = (showZones && supportsZones && _mapRadarCam.zoom >= 1.0 && _mapBackdropMeta && Array.isArray(_mapBackdropMeta.major_cities))
+    ? _mapBackdropMeta.major_cities
+    : [];
+  const staticSig = `${tileSig}|${_mapRadarCam.cx.toFixed(3)}|${_mapRadarCam.cy.toFixed(3)}|${_mapRadarCam.zoom.toFixed(4)}|${showGrid ? 1 : 0}|${showZones ? 1 : 0}|${gridSize}|${m.cssW}|${m.cssH}|${dpr}|${quality}|${cities.length}`;
+
+  const tw = Math.round(m.cssW * dpr);
+  const th = Math.round(m.cssH * dpr);
+  if (!_mapStaticCanvas || _mapStaticCanvasSig !== staticSig || _mapStaticCanvas.width !== tw || _mapStaticCanvas.height !== th) {
+    if (!_mapStaticCanvas) _mapStaticCanvas = document.createElement("canvas");
+    if (_mapStaticCanvas.width !== tw || _mapStaticCanvas.height !== th) {
+      _mapStaticCanvas.width = tw;
+      _mapStaticCanvas.height = th;
+    }
+    const sctx = _mapStaticCanvas.getContext("2d");
+    if (sctx) {
+      sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sctx.fillStyle = "#080A0E";
+      sctx.fillRect(0, 0, m.cssW, m.cssH);
+
+      sctx.save();
+      sctx.beginPath();
+      sctx.rect(tl.x, tl.y, mapW, mapH);
+      sctx.clip();
+
+      if (_mapTileCacheCanvas) {
+        sctx.save();
+        sctx.imageSmoothingEnabled = true;
+        sctx.imageSmoothingQuality = quality;
+        sctx.drawImage(_mapTileCacheCanvas, tl.x, tl.y, mapW, mapH);
+        sctx.restore();
+      } else {
+        sctx.fillStyle = "#0B0E14";
+        sctx.fillRect(tl.x, tl.y, mapW, mapH);
+      }
+
+      if (showZones && supportsZones && _mapRadarCam.zoom >= 1.0) {
+        const useCities = cities.length ? cities : (gridSize === 1000 ? [{ id: 1, x: 500, y: 500, level: 7, name: "Capital" }] : []);
+        sctx.save();
+        sctx.textAlign = "center";
+        sctx.textBaseline = "bottom";
+        for (const city of useCities) {
+          const lv = Number(city.level || 0);
+          const isCapitol = lv >= 7 || Number(city.id) === 1 || String(city.name || "").toLowerCase() === "capital";
+          const isMega = lv === 6;
+          if (!isCapitol && !(isMega && _mapRadarCam.zoom >= 1.4)) continue;
+          const cp = _worldToPx(Number(city.x || 500), Number(city.y || 500), m);
+          if (cp.x < -40 || cp.y < -20 || cp.x > m.cssW + 40 || cp.y > m.cssH + 20) continue;
+          const lbl = isCapitol ? "CAPITOL" : "MEGA CITY";
+          const r = isCapitol ? 3.5 : 2.4;
+          sctx.fillStyle = isCapitol ? "#FBBF24" : "#E2E8F0";
+          sctx.strokeStyle = "rgba(6, 8, 12, 0.9)";
+          sctx.lineWidth = 2;
+          sctx.beginPath();
+          sctx.moveTo(cp.x, cp.y - r);
+          sctx.lineTo(cp.x + r, cp.y);
+          sctx.lineTo(cp.x, cp.y + r);
+          sctx.lineTo(cp.x - r, cp.y);
+          sctx.closePath();
+          sctx.stroke();
+          sctx.fill();
+
+          sctx.font = isCapitol ? "700 9.5px Segoe UI, sans-serif" : "600 8.5px Segoe UI, sans-serif";
+          sctx.lineWidth = 3;
+          sctx.strokeStyle = "rgba(6, 8, 12, 0.92)";
+          sctx.strokeText(lbl, cp.x, cp.y - r - 2);
+          sctx.fillStyle = isCapitol ? "#FDE68A" : "rgba(226, 232, 240, 0.92)";
+          sctx.fillText(lbl, cp.x, cp.y - r - 2);
+        }
+        sctx.restore();
+      }
+
+      if (showGrid) {
+        sctx.strokeStyle = backdropReady ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.045)";
+        sctx.lineWidth = 1;
+        const step = _mapRadarCam.zoom >= 3 ? 50 : 100;
+        sctx.beginPath();
+        for (let g = step; g < gridSize; g += step) {
+          const gx = _worldToPx(g, 0, m).x;
+          sctx.moveTo(gx, tl.y); sctx.lineTo(gx, br.y);
+          const gy = _worldToPx(0, g, m).y;
+          sctx.moveTo(tl.x, gy); sctx.lineTo(br.x, gy);
+        }
+        sctx.stroke();
+
+        const tickStep = (gridSize > 1200 && _mapRadarCam.zoom < 1.35) ? 200 : 100;
+        const topTickY = Math.max(11, tl.y + 11);
+        const leftTickX = Math.max(4, tl.x + 4);
+        sctx.save();
+        sctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+        sctx.lineWidth = 2.5;
+        sctx.strokeStyle = "rgba(6, 8, 12, 0.85)";
+        sctx.fillStyle = backdropReady ? "rgba(226, 232, 240, 0.72)" : "rgba(148, 163, 184, 0.62)";
+        if (topTickY <= Math.min(m.cssH - 6, br.y - 4)) {
+          sctx.textAlign = "center";
+          sctx.textBaseline = "alphabetic";
+          for (let g = tickStep; g < gridSize; g += tickStep) {
+            const gx = _worldToPx(g, 0, m).x;
+            if (gx < Math.max(18, tl.x + 16) || gx > Math.min(m.cssW - 18, br.x - 16)) continue;
+            const tStr = String(g);
+            sctx.strokeText(tStr, gx, topTickY);
+            sctx.fillText(tStr, gx, topTickY);
+          }
+        }
+        if (leftTickX <= Math.min(m.cssW - 24, br.x - 18)) {
+          sctx.textAlign = "left";
+          sctx.textBaseline = "middle";
+          for (let g = tickStep; g < gridSize; g += tickStep) {
+            const gy = _worldToPx(0, g, m).y;
+            if (gy < Math.max(20, tl.y + 18) || gy > Math.min(m.cssH - 12, br.y - 10)) continue;
+            const tStr = String(g);
+            sctx.strokeText(tStr, leftTickX, gy);
+            sctx.fillText(tStr, leftTickX, gy);
+          }
+        }
+        sctx.restore();
+      }
+
+      sctx.restore();
+      sctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+      sctx.lineWidth = 1;
+      sctx.strokeRect(tl.x, tl.y, mapW, mapH);
+    }
+    _mapStaticCanvasSig = staticSig;
+  }
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(_mapStaticCanvas, 0, 0);
+  ctx.restore();
+}
+
 function _drawMapRadarNow() {
   const canvas = _domRef("map-radar-canvas");
   const wrap = _domRef("map-radar-wrap");
@@ -9508,8 +10017,6 @@ function _drawMapRadarNow() {
   const m = _radarMetrics(canvas);
   const gridSize = m.gridSize || 1000;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#080A0E";
-  ctx.fillRect(0, 0, m.cssW, m.cssH);
 
   // Exact world map rectangle [0, gridSize] x [0, gridSize]
   const tl = _worldToPx(0, 0, m);
@@ -9523,132 +10030,7 @@ function _drawMapRadarNow() {
   const supportsZones = !_mapBackdropMeta || _mapBackdropMeta.supports_zones !== false;
   const showGrid = _domRef("map-layer-grid")?.checked !== false;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(tl.x, tl.y, mapW, mapH);
-  ctx.clip();
-
-  // 1) Dark base
-  ctx.fillStyle = "#0B0E14";
-  ctx.fillRect(tl.x, tl.y, mapW, mapH);
-
-  // 2) World Map Terrain WebP backdrop + subtle dark tactical scrim
-  if (backdropReady) {
-    const opEl = _domRef("map-backdrop-opacity");
-    const opPct = opEl ? Number(opEl.value || 78) : 78;
-    const alpha = Math.max(0.25, Math.min(1.0, (Number.isFinite(opPct) ? opPct : 78) / 100));
-    ctx.save();
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(_mapBackdropImg, tl.x, tl.y, mapW, mapH);
-    ctx.restore();
-    ctx.fillStyle = "rgba(7, 10, 16, 0.22)";
-    ctx.fillRect(tl.x, tl.y, mapW, mapH);
-  }
-
-  // 3) Province Borders WebP overlay + vector Capitol / Lv.6 Mega City labels
-  if (showZones && supportsZones) {
-    if (_mapZonesImg && _mapZonesImg.complete && _mapZonesImg.naturalWidth > 0) {
-      ctx.save();
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.globalAlpha = 0.85;
-      ctx.drawImage(_mapZonesImg, tl.x, tl.y, mapW, mapH);
-      ctx.restore();
-    }
-    if (_mapRadarCam.zoom >= 1.0) {
-      const rawCities = (_mapBackdropMeta && Array.isArray(_mapBackdropMeta.major_cities))
-        ? _mapBackdropMeta.major_cities
-        : [];
-      const cities = rawCities.length ? rawCities : (gridSize === 1000 ? [{ id: 1, x: 500, y: 500, level: 7, name: "Capital" }] : []);
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.textBaseline = "bottom";
-      for (const city of cities) {
-        const lv = Number(city.level || 0);
-        const isCapitol = lv >= 7 || Number(city.id) === 1 || String(city.name || "").toLowerCase() === "capital";
-        const isMega = lv === 6;
-        if (!isCapitol && !(isMega && _mapRadarCam.zoom >= 1.4)) continue;
-        const cp = _worldToPx(Number(city.x || 500), Number(city.y || 500), m);
-        if (cp.x < -40 || cp.y < -20 || cp.x > m.cssW + 40 || cp.y > m.cssH + 20) continue;
-        const lbl = isCapitol ? "CAPITOL" : "MEGA CITY";
-        const r = isCapitol ? 3.5 : 2.4;
-        ctx.fillStyle = isCapitol ? "#FBBF24" : "#E2E8F0";
-        ctx.strokeStyle = "rgba(6, 8, 12, 0.9)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(cp.x, cp.y - r);
-        ctx.lineTo(cp.x + r, cp.y);
-        ctx.lineTo(cp.x, cp.y + r);
-        ctx.lineTo(cp.x - r, cp.y);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fill();
-
-        ctx.font = isCapitol ? "700 9.5px Segoe UI, sans-serif" : "600 8.5px Segoe UI, sans-serif";
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "rgba(6, 8, 12, 0.92)";
-        ctx.strokeText(lbl, cp.x, cp.y - r - 2);
-        ctx.fillStyle = isCapitol ? "#FDE68A" : "rgba(226, 232, 240, 0.92)";
-        ctx.fillText(lbl, cp.x, cp.y - r - 2);
-      }
-      ctx.restore();
-    }
-  }
-
-  // 4) Coordinate grid lines & subtle axis ticks
-  if (showGrid) {
-    ctx.strokeStyle = backdropReady ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.045)";
-    ctx.lineWidth = 1;
-    const step = _mapRadarCam.zoom >= 3 ? 50 : 100;
-    ctx.beginPath();
-    for (let g = step; g < gridSize; g += step) {
-      const gx = _worldToPx(g, 0, m).x;
-      ctx.moveTo(gx, tl.y); ctx.lineTo(gx, br.y);
-      const gy = _worldToPx(0, g, m).y;
-      ctx.moveTo(tl.x, gy); ctx.lineTo(br.x, gy);
-    }
-    ctx.stroke();
-
-    const tickStep = (gridSize > 1200 && _mapRadarCam.zoom < 1.35) ? 200 : 100;
-    const topTickY = Math.max(11, tl.y + 11);
-    const leftTickX = Math.max(4, tl.x + 4);
-    ctx.save();
-    ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = "rgba(6, 8, 12, 0.85)";
-    ctx.fillStyle = backdropReady ? "rgba(226, 232, 240, 0.72)" : "rgba(148, 163, 184, 0.62)";
-    if (topTickY <= Math.min(m.cssH - 6, br.y - 4)) {
-      ctx.textAlign = "center";
-      ctx.textBaseline = "alphabetic";
-      for (let g = tickStep; g < gridSize; g += tickStep) {
-        const gx = _worldToPx(g, 0, m).x;
-        if (gx < Math.max(18, tl.x + 16) || gx > Math.min(m.cssW - 18, br.x - 16)) continue;
-        const t = String(g);
-        ctx.strokeText(t, gx, topTickY);
-        ctx.fillText(t, gx, topTickY);
-      }
-    }
-    if (leftTickX <= Math.min(m.cssW - 24, br.x - 18)) {
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      for (let g = tickStep; g < gridSize; g += tickStep) {
-        const gy = _worldToPx(0, g, m).y;
-        if (gy < Math.max(20, tl.y + 18) || gy > Math.min(m.cssH - 12, br.y - 10)) continue;
-        const t = String(g);
-        ctx.strokeText(t, leftTickX, gy);
-        ctx.fillText(t, leftTickX, gy);
-      }
-    }
-    ctx.restore();
-  }
-
-  ctx.restore();
-
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(tl.x, tl.y, mapW, mapH);
+  _drawMapStaticLayers(ctx, m, gridSize, tl, br, mapW, mapH, showBackdrop, backdropReady, showZones, supportsZones, showGrid, dpr);
 
   const qd = _mapQueryData || {};
   const origin = qd.origin || (_mapOverviewData && _mapOverviewData.player_origin);
@@ -10301,7 +10683,9 @@ function initMapRadarCanvas() {
     const wasDrag = _mapDragState.moved;
     _mapDragState.active = false;
     wrap.classList.remove("dragging");
-    if (!wasDrag && currentView === "map") {
+    if (wasDrag && currentView === "map") {
+      drawMapRadar();
+    } else if (!wasDrag && currentView === "map") {
       const rect = canvas.getBoundingClientRect();
       const mx = ev.clientX - rect.left;
       const my = ev.clientY - rect.top;
@@ -12189,6 +12573,8 @@ function renderHeroesRunResult(wrapper, isDry) {
   linesEl.textContent = outLines.join("\n");
 }
 
+let _lastHeroesGridSig = "";
+
 function renderHeroesRoster() {
   const grid = document.getElementById("heroes-roster-grid");
   if (!grid) return;
@@ -12223,10 +12609,11 @@ function renderHeroesRoster() {
   }
   for (const [k, v] of Object.entries(counts)) {
     const ce = document.getElementById("heroes-cnt-" + k);
-    if (ce) ce.textContent = String(v);
+    if (ce && ce.textContent !== String(v)) ce.textContent = String(v);
   }
 
   if (!allHeroes.length) {
+    _lastHeroesGridSig = "";
     grid.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 52px 24px; text-align: center; background: rgba(23, 27, 36, 0.4); border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 12px;">
         <div style="font-size: 16px; font-weight: 700; color: #F8FAFC; margin-bottom: 6px;">No Hero Data Synced Yet</div>
@@ -12281,9 +12668,37 @@ function renderHeroesRoster() {
   });
 
   if (!filtered.length) {
+    _lastHeroesGridSig = "";
     grid.innerHTML = `<div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--muted);">No heroes match the active filters.</div>`;
     return;
   }
+
+  const gridSig = JSON.stringify([
+    heroesFilterMode,
+    rarityFilter,
+    sortBy,
+    q,
+    !!window.__GAME_ICONS_HYDRATED__,
+    filtered.map(h => [
+      h.heroId, h.uuid, h.formationIndex, h.level, h.curMaxLevel, h.star, h.maxStar,
+      h.ownedShards, h.needShards, h.power, h.anyUpgradable, h.canLevelUp, h.canBreakthrough,
+      h.canStarUpOwn, h.canStarUpWithUniversal, h.upgradableSkillsCount, h.hasBetterGear,
+      h.upgradableGearCount, h.promotableGearCount, h.spEquip
+    ])
+  ]);
+  if (gridSig === _lastHeroesGridSig && heroesFilterMode !== "pinned" && grid.querySelector(".hero-card")) {
+    grid.querySelectorAll("[data-hero-pin]").forEach(btn => {
+      const hid = Number(btn.dataset.heroId || 0);
+      const isPinned = _heroesPinnedSet.has(hid);
+      btn.classList.toggle("pinned", isPinned);
+      const nextTxt = isPinned ? "★ Pinned" : "☆ Pin";
+      if (btn.textContent !== nextTxt) btn.textContent = nextTxt;
+    });
+    return;
+  }
+  _lastHeroesGridSig = gridSig;
+  const pane = grid.closest(".view-pane");
+  const prevPaneScroll = pane ? pane.scrollTop : 0;
 
   const slotLetters = ["W", "A", "B", "X"];
   grid.innerHTML = filtered.map(h => {
@@ -12378,6 +12793,7 @@ function renderHeroesRoster() {
       </div>
     `;
   }).join("");
+  if (pane && prevPaneScroll > 0) pane.scrollTop = prevPaneScroll;
 }
 
 /* === RSS GATHERING & MAP KILLS CONTINUOUS LOOP ENGINE === */
@@ -12891,11 +13307,21 @@ function renderKillDetectionStrip(det, kills) {
     if (!el) return;
     const iconKey = _DET_PILL_ICONS[id];
     if (iconKey) {
-      el.innerHTML = `${gameIconHtml(iconKey, 20, "", "game-icon-portrait")}<span>${esc(text)}</span>`;
-    } else {
+      if (el.dataset.detInit !== "1") {
+        el.innerHTML = `${gameIconHtml(iconKey, 20, "", "game-icon-portrait")}<span></span>`;
+        el.dataset.detInit = "1";
+      }
+      const sp = el.querySelector("span");
+      if (sp) {
+        if (sp.textContent !== text) sp.textContent = text;
+      } else {
+        el.textContent = text;
+      }
+    } else if (el.textContent !== text) {
       el.textContent = text;
     }
-    el.className = "det-pill " + (tone === "active" ? "is-active" : (tone === "warn" ? "is-warn" : "is-inactive"));
+    const nextCls = "det-pill " + (tone === "active" ? "is-active" : (tone === "warn" ? "is-warn" : "is-inactive"));
+    if (el.className !== nextCls) el.className = nextCls;
   };
   const setCardBadge = (mode, text, tone) => {
     const el = _domRef("kills-det-" + mode);
@@ -13232,16 +13658,13 @@ async function refreshShieldWatchlist(showFeedback = false) {
   }
 }
 
-function renderShieldWatchlist() {
-  const badge = document.getElementById("map-wl-summary-badge");
-  const chipsEl = document.getElementById("map-wl-alliances");
-  const bodyEl = document.getElementById("map-watchlist-body");
-  if (!bodyEl) return;
+let _wlTimerNodes = new Map();
+let _wlRowNodes = new Map();
+let _lastWatchlistStructSig = "";
 
-  const items = _mapWatchlistItems || [];
-  const pinnedAl = (_mapWatchlistData && Array.isArray(_mapWatchlistData.pinned_alliances)) ? _mapWatchlistData.pinned_alliances : [];
-  const nowSec = Math.floor(Date.now() / 1000);
-
+function _updateWatchlistSummaryBadge(items, nowSec) {
+  const badge = _domRef("map-wl-summary-badge");
+  if (!badge) return;
   let critCnt = 0;
   let soonCnt = 0;
   for (const it of items) {
@@ -13250,22 +13673,46 @@ function renderShieldWatchlist() {
     if (left > 0 && left <= 600) critCnt++;
     else if (left > 600 && left <= 1800) soonCnt++;
   }
-
-  if (badge) {
-    if (critCnt > 0) {
-      badge.textContent = `${items.length} pinned • ${critCnt} <10m`;
-      badge.style.color = "#FECACA";
-      badge.style.borderColor = "rgba(248, 113, 113, 0.55)";
-    } else if (soonCnt > 0) {
-      badge.textContent = `${items.length} pinned • ${soonCnt} <30m`;
-      badge.style.color = "#FDE68A";
-      badge.style.borderColor = "rgba(245, 158, 11, 0.55)";
-    } else {
-      badge.textContent = `${items.length} pinned`;
-      badge.style.color = "";
-      badge.style.borderColor = "";
-    }
+  if (critCnt > 0) {
+    badge.textContent = `${items.length} pinned • ${critCnt} <10m`;
+    badge.style.color = "#FECACA";
+    badge.style.borderColor = "rgba(248, 113, 113, 0.55)";
+  } else if (soonCnt > 0) {
+    badge.textContent = `${items.length} pinned • ${soonCnt} <30m`;
+    badge.style.color = "#FDE68A";
+    badge.style.borderColor = "rgba(245, 158, 11, 0.55)";
+  } else {
+    badge.textContent = `${items.length} pinned`;
+    badge.style.color = "";
+    badge.style.borderColor = "";
   }
+}
+
+function renderShieldWatchlist() {
+  const chipsEl = document.getElementById("map-wl-alliances");
+  const bodyEl = document.getElementById("map-watchlist-body");
+  if (!bodyEl) return;
+
+  const items = _mapWatchlistItems || [];
+  const pinnedAl = (_mapWatchlistData && Array.isArray(_mapWatchlistData.pinned_alliances)) ? _mapWatchlistData.pinned_alliances : [];
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  for (const it of items) {
+    const pe = Number(it.protect_end_time || 0);
+    const left = pe > nowSec ? (pe - nowSec) : 0;
+    it.status = left <= 0 ? "dropped" : (left <= 600 ? "critical" : (left <= 1800 ? "soon" : "shielded"));
+  }
+  _updateWatchlistSummaryBadge(items, nowSec);
+
+  const structSig = _uiLangCode + "|" + pinnedAl.join(",") + "|" + items.slice(0, 60).map(it => {
+    const uid = String(it.uid || "");
+    return `${uid}:${it.protect_end_time || 0}:${it.x || 0}:${it.y || 0}:${it.level || 0}:${it.name || ""}:${it.tag || ""}:${_mapPinnedUids.has(uid) ? 1 : 0}`;
+  }).join("|");
+
+  if (structSig === _lastWatchlistStructSig && (_wlTimerNodes.size > 0 || bodyEl.children.length > 0)) {
+    return;
+  }
+  _lastWatchlistStructSig = structSig;
 
   if (chipsEl) {
     if (pinnedAl.length > 0) {
@@ -13279,6 +13726,8 @@ function renderShieldWatchlist() {
     }
   }
 
+  _wlTimerNodes.clear();
+  _wlRowNodes.clear();
   if (!items.length) {
     bodyEl.innerHTML = `<div style="color:var(--muted); font-size:11px; padding:4px 2px;">${esc(t("map.watchlist_empty", "Pin any player or alliance to track live shield expiry countdowns directly on the seasonal world map."))}</div>`;
     return;
@@ -13288,7 +13737,7 @@ function renderShieldWatchlist() {
     const uid = String(it.uid || "");
     const pe = Number(it.protect_end_time || 0);
     const left = pe > nowSec ? (pe - nowSec) : 0;
-    const st = left <= 0 ? "dropped" : (left <= 600 ? "critical" : (left <= 1800 ? "soon" : "shielded"));
+    const st = it.status || (left <= 0 ? "dropped" : (left <= 600 ? "critical" : (left <= 1800 ? "soon" : "shielded")));
     const tagTxt = it.tag ? `[${esc(it.tag)}] ` : "";
     const x = Math.round(Number(it.x || 0));
     const y = Math.round(Number(it.y || 0));
@@ -13309,6 +13758,15 @@ function renderShieldWatchlist() {
       </div>
     `;
   }).join("");
+
+  bodyEl.querySelectorAll("[data-wl-row-uid]").forEach(el => {
+    const u = el.getAttribute("data-wl-row-uid") || "";
+    if (u) _wlRowNodes.set(u, el);
+  });
+  bodyEl.querySelectorAll("[data-wl-timer-uid]").forEach(el => {
+    const u = el.getAttribute("data-wl-timer-uid") || "";
+    if (u) _wlTimerNodes.set(u, el);
+  });
 }
 
 function _tickWatchlistCountdowns() {
@@ -13318,17 +13776,24 @@ function _tickWatchlistCountdowns() {
   }
   const nowSec = Math.floor(Date.now() / 1000);
   let bucketChanged = false;
+  let anyActiveCountdown = false;
   for (const it of _mapWatchlistItems) {
     const uid = String(it.uid || "");
     const pe = Number(it.protect_end_time || 0);
     const left = pe > nowSec ? (pe - nowSec) : 0;
+    if (left > 0) anyActiveCountdown = true;
     const prevStatus = String(it.status || "");
     const nextStatus = left <= 0 ? "dropped" : (left <= 600 ? "critical" : (left <= 1800 ? "soon" : "shielded"));
     it.shield_left_sec = left;
     it.has_shield = left > 0;
-    if (prevStatus && prevStatus !== nextStatus) {
+    const timerEl = _wlTimerNodes.get(uid);
+    const rowEl = _wlRowNodes.get(uid);
+    if (prevStatus !== nextStatus) {
       it.status = nextStatus;
       bucketChanged = true;
+      anyActiveCountdown = true;
+      if (rowEl) rowEl.className = "map-wl-row st-" + nextStatus;
+      if (timerEl) timerEl.className = "map-wl-timer st-" + nextStatus;
     }
     const label = `${it.tag ? `[${it.tag}] ` : ""}${it.name || "Player"} (${Math.round(Number(it.x || 0))}, ${Math.round(Number(it.y || 0))})`;
     if (pe > 0 && left > 0 && left <= 300 && !_mapWatchlistAlerted.has(`${uid}:5m`)) {
@@ -13338,15 +13803,15 @@ function _tickWatchlistCountdowns() {
       _mapWatchlistAlerted.add(`${uid}:drop`);
       showToast(`${t("map.shield_dropped", "SHIELD DROPPED")}: ${label}`, "err", 7500);
     }
-    const el = document.querySelector(`[data-wl-timer-uid="${CSS.escape ? CSS.escape(uid) : uid}"]`);
-    if (el) {
-      el.textContent = _formatWatchlistCountdown(left);
+    if (timerEl) {
+      const nextText = _formatWatchlistCountdown(left);
+      if (timerEl.textContent !== nextText) timerEl.textContent = nextText;
     }
   }
   if (bucketChanged) {
-    renderShieldWatchlist();
+    _updateWatchlistSummaryBadge(_mapWatchlistItems, nowSec);
   }
-  if (_domRef("map-layer-watchlist")?.checked !== false) {
+  if (anyActiveCountdown && _domRef("map-layer-watchlist")?.checked !== false) {
     drawMapRadar();
   }
 }
@@ -13552,10 +14017,21 @@ function _renderTranslatorStatus(st) {
   const stCache = document.getElementById("tr-stat-cache");
   const stMs = document.getElementById("tr-stat-ms");
   const stProv = document.getElementById("tr-stat-provider");
+  const pidBadge = document.getElementById("tr-pid-badge");
+  const pidTxt = document.getElementById("tr-pid-text");
+  const swBadge = document.getElementById("tr-switch-badge");
+  const prevEl = document.getElementById("tr-last-preview");
 
   if (!st || !st.ok) {
     if (pill) pill.className = "map-season-pill";
     if (pillTxt) pillTxt.textContent = (st && st.error) ? "Unavailable" : "Offline";
+    if (pidBadge) pidBadge.className = "map-season-pill";
+    if (pidTxt) pidTxt.textContent = "PIDs: Detached (No Client)";
+    if (swBadge) {
+      swBadge.textContent = "screen_translation: --";
+      swBadge.style.color = "var(--muted)";
+    }
+    if (prevEl) prevEl.textContent = "Last Translated Chat: None yet";
     return;
   }
 
@@ -13587,17 +14063,94 @@ function _renderTranslatorStatus(st) {
       : "Optional Gemini API Key (leave blank for free cascade)";
   }
 
+  const attached = Array.isArray(st.attached_pids) ? st.attached_pids : [];
+  const hooked = Array.isArray(st.hooked_pids) ? st.hooked_pids : [];
+  if (pidBadge && pidTxt) {
+    if (attached.length === 0) {
+      pidBadge.className = "map-season-pill";
+      pidTxt.textContent = "PIDs: Detached (No Client)";
+    } else if (hooked.length >= attached.length) {
+      pidBadge.className = "map-season-pill is-live";
+      pidTxt.textContent = `PIDs: ${hooked.join(", ")} (Hooked ${hooked.length}/${attached.length})`;
+    } else {
+      pidBadge.className = "map-season-pill is-manual";
+      pidTxt.textContent = `PIDs: ${hooked.length ? hooked.join(", ") : "None"} (Partial ${hooked.length}/${attached.length})`;
+    }
+  }
+
+  if (swBadge) {
+    const autoTraTxt = (st.auto_tra_active === true) ? " | AutoTra: ON" : ((st.auto_tra_active === false) ? " | AutoTra: OFF" : "");
+    if (st.screen_translation === true) {
+      swBadge.textContent = "screen_translation: ON" + autoTraTxt;
+      swBadge.style.color = "#6EE7B7";
+    } else if (st.screen_translation === false) {
+      swBadge.textContent = "screen_translation: OFF (Disabled)" + autoTraTxt;
+      swBadge.style.color = "#FCA5A5";
+    } else {
+      swBadge.textContent = "screen_translation: --";
+      swBadge.style.color = "var(--muted)";
+    }
+  }
+
   const stats = (st.stats && typeof st.stats === "object") ? st.stats : {};
   const reqs = Number(stats.total_requests !== undefined ? stats.total_requests : (stats.requests || 0));
   const cacheHits = Number(stats.cache_hits || 0);
   const avgMs = Number(stats.avg_ms || 0);
   const recentArr = Array.isArray(stats.recent) ? stats.recent : [];
-  const lastRec = recentArr.length ? recentArr[recentArr.length - 1] : null;
+  const lastRec = (st.last_preview && typeof st.last_preview === "object")
+    ? st.last_preview
+    : (recentArr.length ? recentArr[0] : null);
   const lastProv = String((lastRec && lastRec.provider) || stats.last_provider || "Free 4-Tier Cascade");
   if (stReqs) stReqs.textContent = `Requests: ${reqs.toLocaleString()}`;
   if (stCache) stCache.textContent = `${t("perf.translator_cache_hits", "Cache Hits")}: ${cacheHits.toLocaleString()}`;
   if (stMs) stMs.textContent = `${t("perf.translator_avg_ms", "Avg")}: ${avgMs.toFixed(0)} ms`;
   if (stProv) stProv.textContent = `${t("perf.translator_provider", "Provider")}: ${lastProv}`;
+
+  if (prevEl) {
+    if (lastRec && (lastRec.dst || lastRec.src)) {
+      const srcTxt = esc(String(lastRec.src || ""));
+      const dstTxt = esc(String(lastRec.dst || ""));
+      const provTxt = esc(String(lastRec.provider || "cascade"));
+      prevEl.innerHTML =
+        `Last Translated Chat [${provTxt}]: <b style="color:#F8FAFC;">${dstTxt}</b>` +
+        (srcTxt ? ` <span style="color:var(--muted);">(${srcTxt})</span>` : "");
+    } else {
+      prevEl.textContent = "Last Translated Chat: None yet";
+    }
+  }
+}
+
+async function rehookTranslator() {
+  const bridge = api();
+  if (!bridge || typeof bridge.rehook_translator !== "function") return;
+  const btn = document.getElementById("tr-rehook-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Re-Hooking...";
+  }
+  try {
+    const res = await callApi("rehook_translator");
+    _renderTranslatorStatus(res);
+    if (res && res.ok) {
+      const hooked = Array.isArray(res.hooked_pids) ? res.hooked_pids.length : 0;
+      showToast(
+        hooked > 0
+          ? `Re-Hooked Translator on ${hooked} live client(s).`
+          : "No live Last Z client attached to re-hook.",
+        hooked > 0 ? "ok" : "warn",
+        3000
+      );
+    } else if (res && res.error) {
+      showToast(res.error, "err");
+    }
+  } catch (err) {
+    console.warn("rehookTranslator note:", err);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Re-Hook Translator";
+    }
+  }
 }
 
 async function loadTranslatorStatus() {
@@ -13708,6 +14261,9 @@ let _lgSelectedAccountId = "";
 let _lgEnginePollTimer = null;
 let _lgEditingAccountId = "";
 let _lgAuthSignedIn = false;
+let _lgAuthTab = "pair";
+let _lgDeviceCode = "";
+let _lgDevicePollTimer = null;
 
 function _setLoginBanner(msg, tone = "err") {
   const el = document.getElementById("lg-login-banner");
@@ -13722,13 +14278,144 @@ function _setLoginBanner(msg, tone = "err") {
   el.style.display = "block";
 }
 
-function toggleHeinzPasswordVis() {
-  const pw = document.getElementById("lg-login-password");
-  const btn = document.getElementById("lg-btn-pw-toggle");
-  if (!pw || !btn) return;
-  const showing = pw.type === "text";
-  pw.type = showing ? "password" : "text";
-  btn.textContent = showing ? "Show" : "Hide";
+function _stopCommunityzDevicePoll() {
+  if (_lgDevicePollTimer) {
+    clearInterval(_lgDevicePollTimer);
+    _lgDevicePollTimer = null;
+  }
+}
+
+function switchCommunityzAuthTab(tab) {
+  _lgAuthTab = tab === "otp" ? "otp" : "pair";
+  const tabPair = document.getElementById("lg-auth-tab-pair");
+  const tabOtp = document.getElementById("lg-auth-tab-otp");
+  const panePair = document.getElementById("lg-auth-pane-pair");
+  const paneOtp = document.getElementById("lg-auth-pane-otp");
+  if (tabPair) tabPair.classList.toggle("active", _lgAuthTab === "pair");
+  if (tabOtp) tabOtp.classList.toggle("active", _lgAuthTab === "otp");
+  if (panePair) panePair.style.display = _lgAuthTab === "pair" ? "flex" : "none";
+  if (paneOtp) paneOtp.style.display = _lgAuthTab === "otp" ? "flex" : "none";
+  _setLoginBanner("");
+  if (_lgAuthTab !== "pair") {
+    _stopCommunityzDevicePoll();
+    const idInp = document.getElementById("lg-login-identifier");
+    if (idInp) idInp.focus();
+  }
+}
+
+async function openCommunityzPortal() {
+  const bridge = api();
+  if (bridge && typeof bridge.open_communityz_portal === "function") {
+    await callApi("open_communityz_portal");
+  }
+}
+
+function _completeLauncherLogin(authRes) {
+  _stopCommunityzDevicePoll();
+  _lgDeviceCode = "";
+  const otpInp = document.getElementById("lg-login-otp-code");
+  if (otpInp) otpInp.value = "";
+  const devNote = document.getElementById("lg-otp-dev-note");
+  if (devNote) {
+    devNote.style.display = "none";
+    devNote.textContent = "";
+  }
+  _lgAuthSignedIn = true;
+  const chipName = document.getElementById("lg-user-chip-name");
+  if (chipName) chipName.textContent = String((authRes && authRes.identifier) || "Guest");
+  _showLauncherPage("launcher", true);
+  renderLauncherAccounts((_lgBootState && _lgBootState.accounts) || []);
+}
+
+async function startCommunityzDevicePair() {
+  const bridge = api();
+  if (!bridge || typeof bridge.start_communityz_device_login !== "function") return;
+  _stopCommunityzDevicePoll();
+  _setLoginBanner("");
+  const btn = document.getElementById("lg-btn-device-pair");
+  const box = document.getElementById("lg-device-code-box");
+  const codeEl = document.getElementById("lg-device-user-code");
+  const stEl = document.getElementById("lg-device-poll-status");
+  if (btn) btn.disabled = true;
+  try {
+    const res = await callApi("start_communityz_device_login", "HeinZ V2 Desktop");
+    if (!res || !res.ok) {
+      _setLoginBanner((res && res.error) || "Could not generate pairing code.", "err");
+      return;
+    }
+    _lgDeviceCode = String(res.device_code || "");
+    if (codeEl) codeEl.textContent = String(res.user_code || "HZ-000-000");
+    if (stEl) stEl.textContent = "Approve this code in CommunityZ (checking every 5s)...";
+    if (box) box.style.display = "flex";
+    const intervalMs = Math.max(2000, Number(res.poll_interval_seconds || 5) * 1000);
+    _lgDevicePollTimer = setInterval(() => {
+      pollCommunityzDevicePair(false);
+    }, intervalMs);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function pollCommunityzDevicePair(manual = false) {
+  const bridge = api();
+  if (!_lgDeviceCode || !bridge || typeof bridge.poll_communityz_device_login !== "function") return;
+  const remChk = document.getElementById("lg-login-remember");
+  const remember = remChk ? !!remChk.checked : true;
+  const stEl = document.getElementById("lg-device-poll-status");
+  const res = await callApi("poll_communityz_device_login", _lgDeviceCode, remember);
+  if (!res) return;
+  if (res.ok && res.status === "pending") {
+    if (manual && stEl) stEl.textContent = "Still waiting for approval in CommunityZ...";
+    return;
+  }
+  if (res.ok && res.signed_in) {
+    _completeLauncherLogin(res);
+    return;
+  }
+  _stopCommunityzDevicePoll();
+  if (res.code === "SUBSCRIPTION_REQUIRED") {
+    _setLoginBanner(res.error || "Active CommunityZ Pro or Alliance subscription required.", "warn");
+  } else {
+    _setLoginBanner(res.error || "Device pairing failed or expired.", "err");
+  }
+  if (stEl) stEl.textContent = res.error || "Pairing stopped.";
+}
+
+async function requestCommunityzOtp() {
+  const bridge = api();
+  const idInp = document.getElementById("lg-login-identifier");
+  const email = (idInp && idInp.value || "").trim();
+  if (!email) {
+    _setLoginBanner("Enter your CommunityZ email address first.", "warn");
+    if (idInp) idInp.focus();
+    return;
+  }
+  if (!bridge || typeof bridge.request_communityz_otp !== "function") return;
+  const btn = document.getElementById("lg-btn-send-otp");
+  const devNote = document.getElementById("lg-otp-dev-note");
+  _setLoginBanner("");
+  if (btn) btn.disabled = true;
+  try {
+    const res = await callApi("request_communityz_otp", email);
+    if (!res || !res.ok) {
+      _setLoginBanner((res && res.error) || "Failed to send OTP code.", "err");
+      return;
+    }
+    _setLoginBanner(`6-digit code sent to ${res.email || email}.`, "ok");
+    if (devNote) {
+      if (res.dev_preview_code) {
+        devNote.textContent = `Local dev OTP preview: ${res.dev_preview_code}`;
+        devNote.style.display = "block";
+      } else {
+        devNote.style.display = "none";
+        devNote.textContent = "";
+      }
+    }
+    const otpInp = document.getElementById("lg-login-otp-code");
+    if (otpInp) otpInp.focus();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function _showLauncherPage(page, resizeWindow = true) {
@@ -13747,40 +14434,63 @@ function _showLauncherPage(page, resizeWindow = true) {
 async function submitHeinzLogin(skip = false) {
   const bridge = api();
   const idInp = document.getElementById("lg-login-identifier");
-  const pwInp = document.getElementById("lg-login-password");
+  const otpInp = document.getElementById("lg-login-otp-code");
   const remChk = document.getElementById("lg-login-remember");
   const identifier = (idInp && idInp.value || "").trim();
-  const password = (pwInp && pwInp.value) || "";
+  const otpCode = (otpInp && otpInp.value || "").trim();
   const remember = remChk ? !!remChk.checked : true;
-  if (!skip && !identifier) {
-    _setLoginBanner("Enter your email or username, or click Continue as Guest.", "warn");
+  if (skip) {
+    _setLoginBanner("");
+    let authRes = { ok: true, signed_in: true, mode: "guest", identifier: "Guest" };
+    if (bridge && typeof bridge.authenticate_heinz_account === "function") {
+      authRes = await callApi("authenticate_heinz_account", "", "", false, true);
+    }
+    if (!authRes || !authRes.ok) {
+      _setLoginBanner((authRes && authRes.error) || "Guest login failed.", "err");
+      return;
+    }
+    _completeLauncherLogin(authRes);
+    return;
+  }
+  if (_lgAuthTab === "pair" && _lgDeviceCode) {
+    await pollCommunityzDevicePair(true);
+    return;
+  }
+  if (!identifier) {
+    _setLoginBanner("Enter your CommunityZ email, or click Continue as Guest.", "warn");
     if (idInp) idInp.focus();
     return;
   }
-  _setLoginBanner("");
-  let authRes = { ok: true, signed_in: true, identifier: skip ? "Guest" : identifier };
-  if (bridge && typeof bridge.authenticate_heinz_account === "function") {
-    authRes = await callApi("authenticate_heinz_account", identifier, password, remember, !!skip);
-  }
-  if (!authRes || !authRes.ok) {
-    _setLoginBanner((authRes && authRes.error) || "Sign in failed.", "err");
+  if (!otpCode) {
+    _setLoginBanner("Enter the 6-digit OTP code sent to your email.", "warn");
+    if (otpInp) otpInp.focus();
     return;
   }
-  if (pwInp) pwInp.value = "";
-  _lgAuthSignedIn = true;
-  const chipName = document.getElementById("lg-user-chip-name");
-  if (chipName) chipName.textContent = String(authRes.identifier || "Guest");
-  _showLauncherPage("launcher", true);
-  renderLauncherAccounts((_lgBootState && _lgBootState.accounts) || []);
+  _setLoginBanner("");
+  let authRes = null;
+  if (bridge && typeof bridge.verify_communityz_otp === "function") {
+    authRes = await callApi("verify_communityz_otp", identifier, otpCode, "", remember);
+  } else if (bridge && typeof bridge.authenticate_heinz_account === "function") {
+    authRes = await callApi("authenticate_heinz_account", identifier, "", remember, false, otpCode);
+  }
+  if (!authRes || !authRes.ok) {
+    const tone = authRes && authRes.code === "SUBSCRIPTION_REQUIRED" ? "warn" : "err";
+    _setLoginBanner((authRes && authRes.error) || "Sign in failed.", tone);
+    return;
+  }
+  _completeLauncherLogin(authRes);
 }
 
 async function signOutHeinzLogin() {
+  _stopCommunityzDevicePoll();
+  _lgDeviceCode = "";
   const bridge = api();
   if (bridge && typeof bridge.sign_out_heinz_account === "function") {
     await callApi("sign_out_heinz_account");
   }
   _lgAuthSignedIn = false;
   _setGateBanner("");
+  _setLoginBanner("");
   cancelEditAccountEmail();
   _showLauncherPage("login", true);
 }
@@ -14005,6 +14715,7 @@ function _updateSelectedAccountMeta() {
     if (email) parts.push(email);
     if (srv > 0) parts.push(`S${srv}`);
     if (prof) parts.push(prof);
+    if (acc.has_security_pin) parts.push(acc.auto_enter_pin ? "Auto-PIN" : "PIN Saved");
     if (acc.is_running) parts.push(`Live PID ${Number(acc.pid || 0)}`);
     sub.textContent = parts.length ? parts.join(" | ") : "No email saved yet";
     sub.title = email || prof;
@@ -14070,6 +14781,50 @@ function removeSelectedGateAccount() {
   removeBoundAccount(String(acc.id || ""));
 }
 
+function toggleGatePinVis(inputId, btnId) {
+  const inp = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  if (!inp || !btn) return;
+  const showing = inp.type === "text";
+  inp.type = showing ? "password" : "text";
+  btn.textContent = showing ? "Show" : "Hide";
+}
+
+function clearBindPinInput() {
+  const pinInp = document.getElementById("lg-bind-pin");
+  const btn = document.getElementById("lg-btn-bind-pin-toggle");
+  const autoChk = document.getElementById("lg-bind-auto-pin");
+  if (pinInp) {
+    pinInp.value = "";
+    pinInp.type = "password";
+  }
+  if (btn) btn.textContent = "Show";
+  if (autoChk) autoChk.checked = false;
+}
+
+async function clearEditAccountPin() {
+  const pinInp = document.getElementById("lg-edit-pin");
+  const btn = document.getElementById("lg-btn-edit-pin-toggle");
+  const autoChk = document.getElementById("lg-edit-auto-pin");
+  if (pinInp) {
+    pinInp.value = "";
+    pinInp.type = "password";
+    pinInp.placeholder = "Optional Game Security PIN";
+  }
+  if (btn) btn.textContent = "Show";
+  if (autoChk) autoChk.checked = false;
+  if (!_lgEditingAccountId) return;
+  const bridge = api();
+  if (bridge && typeof bridge.clear_bound_account_pin === "function") {
+    const res = await callApi("clear_bound_account_pin", _lgEditingAccountId);
+    if (res && res.ok) {
+      if (_lgBootState && Array.isArray(res.accounts)) _lgBootState.accounts = res.accounts;
+      renderLauncherAccounts(res.accounts || []);
+      _setGateBanner("Local Game Security PIN cleared.", "ok");
+    }
+  }
+}
+
 function openEditAccountEmail(accountId, curEmail, curLabel) {
   _lgEditingAccountId = String(accountId || "");
   const panel = document.getElementById("lg-edit-email-panel");
@@ -14077,10 +14832,24 @@ function openEditAccountEmail(accountId, curEmail, curLabel) {
   const lblSpan = document.getElementById("lg-edit-acc-label");
   const emInp = document.getElementById("lg-edit-email-input");
   const lbInp = document.getElementById("lg-edit-label-input");
+  const pinInp = document.getElementById("lg-edit-pin");
+  const pinBtn = document.getElementById("lg-btn-edit-pin-toggle");
+  const autoChk = document.getElementById("lg-edit-auto-pin");
+  const list = (_lgBootState && Array.isArray(_lgBootState.accounts)) ? _lgBootState.accounts : [];
+  const acc = list.find(a => String(a.id || "") === _lgEditingAccountId) || null;
   if (bindPanel) bindPanel.style.display = "none";
   if (lblSpan) lblSpan.textContent = curLabel || accountId;
   if (emInp) emInp.value = curEmail || "";
   if (lbInp) lbInp.value = curLabel || "";
+  if (pinInp) {
+    pinInp.value = "";
+    pinInp.type = "password";
+    pinInp.placeholder = (acc && acc.has_security_pin)
+      ? "PIN saved locally (enter new PIN to replace)"
+      : "Optional Game Security PIN";
+  }
+  if (pinBtn) pinBtn.textContent = "Show";
+  if (autoChk) autoChk.checked = !!(acc && acc.auto_enter_pin);
   if (panel) panel.style.display = "flex";
   if (emInp) emInp.focus();
 }
@@ -14088,6 +14857,13 @@ function openEditAccountEmail(accountId, curEmail, curLabel) {
 function cancelEditAccountEmail() {
   _lgEditingAccountId = "";
   const panel = document.getElementById("lg-edit-email-panel");
+  const pinInp = document.getElementById("lg-edit-pin");
+  const pinBtn = document.getElementById("lg-btn-edit-pin-toggle");
+  if (pinInp) {
+    pinInp.value = "";
+    pinInp.type = "password";
+  }
+  if (pinBtn) pinBtn.textContent = "Show";
   if (panel) panel.style.display = "none";
 }
 
@@ -14097,11 +14873,25 @@ async function saveEditAccountEmail() {
   if (!bridge || typeof bridge.update_bound_account !== "function") return;
   const em = (document.getElementById("lg-edit-email-input")?.value || "").trim();
   const lb = (document.getElementById("lg-edit-label-input")?.value || "").trim();
-  const res = await callApi("update_bound_account", _lgEditingAccountId, em || null, lb || null, null);
+  const pinInp = document.getElementById("lg-edit-pin");
+  const rawPin = (pinInp && pinInp.value || "").trim();
+  const autoChk = document.getElementById("lg-edit-auto-pin");
+  const autoEnterPin = autoChk ? !!autoChk.checked : false;
+  const res = await callApi(
+    "update_bound_account",
+    _lgEditingAccountId,
+    em || null,
+    lb || null,
+    null,
+    rawPin || null,
+    false,
+    autoEnterPin
+  );
   if (!res || !res.ok) {
     _setGateBanner((res && res.error) || "Could not update account.", "err");
     return;
   }
+  if (pinInp) pinInp.value = "";
   cancelEditAccountEmail();
   if (_lgBootState && Array.isArray(res.accounts)) _lgBootState.accounts = res.accounts;
   renderLauncherAccounts(res.accounts || []);
@@ -14113,10 +14903,14 @@ async function bindNewEmailAccount() {
   if (!bridge || typeof bridge.bind_email_account !== "function") return;
   const emInp = document.getElementById("lg-bind-email");
   const lbInp = document.getElementById("lg-bind-label");
+  const pinInp = document.getElementById("lg-bind-pin");
+  const autoChk = document.getElementById("lg-bind-auto-pin");
   const wsSel = document.getElementById("lg-window-style");
   const btn = document.getElementById("lg-btn-bind-account");
   const email = (emInp && emInp.value || "").trim();
   const label = (lbInp && lbInp.value || "").trim();
+  const securityPin = (pinInp && pinInp.value || "").trim();
+  const autoEnterPin = autoChk ? !!autoChk.checked : false;
   const winStyle = (wsSel && wsSel.value) || "borderless";
   if (!email) {
     _setGateBanner("Enter an email address to bind a new account.", "warn");
@@ -14125,13 +14919,14 @@ async function bindNewEmailAccount() {
   }
   if (btn) btn.disabled = true;
   try {
-    const res = await callApi("bind_email_account", email, label, winStyle);
+    const res = await callApi("bind_email_account", email, label, winStyle, securityPin, autoEnterPin);
     if (!res || !res.ok) {
       _setGateBanner((res && res.error) || "Could not bind account.", "err");
       return;
     }
     if (emInp) emInp.value = "";
     if (lbInp) lbInp.value = "";
+    clearBindPinInput();
     if (res.account && res.account.id) _lgSelectedAccountId = String(res.account.id);
     if (_lgBootState && Array.isArray(res.accounts)) _lgBootState.accounts = res.accounts;
     toggleBindAccountPanel(false);
@@ -14166,6 +14961,34 @@ async function resetBoundAccountCode(accountId) {
     renderLauncherAccounts(res.accounts || []);
     _setGateBanner("Session cleared - next launch will ask for a fresh email code.", "warn");
   }
+}
+
+function _applyDeferredUiAssets(assets) {
+  if (!assets || typeof assets !== "object") return;
+  if (assets.core_icons && typeof assets.core_icons === "object") {
+    window.__GAME_ICONS__ = assets.core_icons;
+  }
+  if (assets.hero_icons && typeof assets.hero_icons === "object") {
+    window.__GAME_HERO_ICONS__ = assets.hero_icons;
+  }
+  if (assets.item_icons && typeof assets.item_icons === "object") {
+    window.__GAME_ITEM_ICONS__ = assets.item_icons;
+  }
+  if (assets.hero_banner_data_uri && typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.style.setProperty("--hero-banner-bg", `url("${assets.hero_banner_data_uri}")`);
+  }
+  window.__GAME_ICONS_HYDRATED__ = true;
+  if (typeof hydrateStaticGameIcons === "function") {
+    hydrateStaticGameIcons();
+  }
+  _lastFleetSig = "";
+  _lastFleetStructSig = "";
+  _lastAlwaysOnSig = "";
+  _lastHighlightsSig = "";
+  _lastHeroesGridSig = "";
+  _lastMapTableStructSig = "";
+  _botsCardsDirty = true;
+  _overviewDirty = true;
 }
 
 function _enterEnhancedUiShell() {
@@ -14216,6 +15039,9 @@ async function launchAccountFromGate(accountId, modeOverride) {
     _setGateBanner(`Pure Vanilla launched (PID ${res.pid || "?"}).${codeHint} Closing HeinZ...`, "ok");
     return;
   }
+  if (res && res.ui_assets) {
+    _applyDeferredUiAssets(res.ui_assets);
+  }
   _enterEnhancedUiShell();
   showToast(`Enhanced Mode active (${res.label || accountId}, PID ${res.pid || "?"}).${codeHint}`, "ok", 5500);
 }
@@ -14223,7 +15049,10 @@ async function launchAccountFromGate(accountId, modeOverride) {
 async function enterEnhancedHubOnly() {
   const bridge = api();
   if (bridge && typeof bridge.enter_enhanced_hub_only === "function") {
-    await callApi("enter_enhanced_hub_only");
+    const res = await callApi("enter_enhanced_hub_only");
+    if (res && res.ui_assets) {
+      _applyDeferredUiAssets(res.ui_assets);
+    }
   }
   _enterEnhancedUiShell();
   showToast("HeinZ Enhanced Command Hub active.", "ok", 3000);
@@ -14263,6 +15092,10 @@ async function initLauncherGate() {
   _syncGateLangSelect();
   const st = await refreshLauncherBootState(false);
   if (st && st.enhanced_active) {
+    if (!window.__GAME_ICONS_HYDRATED__) {
+      const enh = await callApi("activate_enhanced_mode");
+      if (enh && enh.ui_assets) _applyDeferredUiAssets(enh.ui_assets);
+    }
     _enterEnhancedUiShell();
     return;
   }
@@ -14284,6 +15117,10 @@ async function initLauncherGate() {
     _showLauncherPage("launcher", true);
   } else {
     _showLauncherPage("login", false);
+    if (auth.error) {
+      const tone = auth.code === "SUBSCRIPTION_REQUIRED" || auth.network_offline ? "warn" : "err";
+      _setLoginBanner(auth.error, tone);
+    }
   }
   setTimeout(_syncGateLangSelect, 400);
 }

@@ -8,6 +8,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import threading
 import time
 import winreg
 from pathlib import Path
@@ -24,10 +25,20 @@ TOOLS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TOOLS_DIR.parent
 
 
+_CD_SINGLETON_NAME = "heinz_client_discovery_singleton"
+_READYGO_EXACT_PREFIX = b"ReadyGo\x00\x05\x00\x00\x00"
+
+
 def _load_module(name: str, file_path: Path):
+    if file_path.name == "client discovery.py":
+        existing = sys.modules.get(_CD_SINGLETON_NAME)
+        if existing is not None:
+            return existing
     spec = importlib.util.spec_from_file_location(name, str(file_path))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    if file_path.name == "client discovery.py":
+        sys.modules.setdefault(_CD_SINGLETON_NAME, mod)
     return mod
 
 
@@ -86,6 +97,31 @@ def client_needs_sync(main_client: dict, target_client: dict) -> tuple[bool, str
     return False, "Up to date"
 
 
+def _files_differ(src_path: Path, dst_path: Path) -> bool:
+    try:
+        sa = src_path.stat()
+        sb = dst_path.stat()
+    except OSError:
+        return True
+    if sa.st_size != sb.st_size:
+        return True
+    return file_sha256(src_path) != file_sha256(dst_path)
+
+
+def _atomic_write_text_file(path: Path, text: str, encoding: str = "utf-8") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    try:
+        tmp.write_text(text, encoding=encoding)
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 def patch_unity_identity(game_dir: Path, unity_profile: str):
     """Apply Unity ReadyGo profile isolation to app.info and globalgamemanagers safely."""
     if not unity_profile or len(unity_profile.encode("ascii", errors="ignore")) != 5:
@@ -96,27 +132,35 @@ def patch_unity_identity(game_dir: Path, unity_profile: str):
     ggm = survival_data / "globalgamemanagers"
 
     markers = list(KNOWN_MARKERS)
+    desired_app_text = f"ReadyGo\n{unity_profile}"
     if app_info.exists():
-        lines = [ln.strip() for ln in app_info.read_text(encoding="utf-8", errors="ignore").splitlines() if ln.strip()]
+        raw_app = app_info.read_text(encoding="utf-8", errors="ignore")
+        lines = [ln.strip() for ln in raw_app.splitlines() if ln.strip()]
         if len(lines) >= 2 and len(lines[1].encode("ascii", errors="ignore")) == 5:
             prev_b = lines[1].encode("ascii", errors="ignore")
             if prev_b not in markers:
                 markers.insert(0, prev_b)
-        app_info.write_text(f"ReadyGo\n{unity_profile}", encoding="utf-8")
+        try:
+            app_nlink = app_info.stat().st_nlink
+        except OSError:
+            app_nlink = 1
+        if raw_app != desired_app_text or app_nlink > 1:
+            _atomic_write_text_file(app_info, desired_app_text, encoding="utf-8")
 
     if ggm.exists():
         data = bytearray(ggm.read_bytes())
         target_bytes = unity_profile.encode("ascii")
-        if target_bytes not in data:
+        already_exact = (_READYGO_EXACT_PREFIX + target_bytes) in data
+        if not already_exact:
             replaced = False
             # Prefer exact ReadyGo productName record (`ReadyGo\x00\x05\x00\x00\x00<marker>`)
             # before scanning backwards/globally, so an unrelated string match never corrupts headers.
             readygo_pos = data.find(b"ReadyGo\x00")
             for marker in markers:
-                exact_pat = b"ReadyGo\x00\x05\x00\x00\x00" + marker
+                exact_pat = _READYGO_EXACT_PREFIX + marker
                 e_idx = data.find(exact_pat)
                 if e_idx >= 0:
-                    start = e_idx + len(b"ReadyGo\x00\x05\x00\x00\x00")
+                    start = e_idx + len(_READYGO_EXACT_PREFIX)
                     data[start:start + 5] = target_bytes
                     replaced = True
                     break
@@ -127,20 +171,33 @@ def patch_unity_identity(game_dir: Path, unity_profile: str):
                         data[start:start + 5] = target_bytes
                         replaced = True
                         break
+            if not replaced and readygo_pos >= 0 and data.find(b"\x05\x00\x00\x00" + target_bytes, readygo_pos, readygo_pos + 256) >= 0:
+                replaced = True
             if not replaced:
-                for marker in markers:
-                    idx = data.find(marker, readygo_pos if readygo_pos >= 0 else 0)
-                    if idx < 0:
-                        idx = data.find(marker)
-                    if idx >= 0:
-                        data[idx:idx + 5] = target_bytes
-                        replaced = True
-                        break
+                if target_bytes in data:
+                    replaced = True
+                else:
+                    for marker in markers:
+                        idx = data.find(marker, readygo_pos if readygo_pos >= 0 else 0)
+                        if idx < 0:
+                            idx = data.find(marker)
+                        if idx >= 0:
+                            data[idx:idx + 5] = target_bytes
+                            replaced = True
+                            break
             if not replaced:
                 raise RuntimeError(f"Could not find ReadyGo profile marker in {ggm}")
-            tmp = ggm.with_name(f"{ggm.name}.{os.getpid()}.tmp")
+            tmp = ggm.with_name(f"{ggm.name}.{os.getpid()}.{threading.get_ident()}.tmp")
             tmp.write_bytes(data)
             os.replace(tmp, ggm)
+        else:
+            try:
+                if ggm.stat().st_nlink > 1:
+                    tmp = ggm.with_name(f"{ggm.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+                    tmp.write_bytes(data)
+                    os.replace(tmp, ggm)
+            except OSError:
+                pass
     return True
 
 
@@ -174,8 +231,19 @@ def ensure_data_junction(game_dir: Path, exe_stem: str):
                 return
         except OSError:
             pass
-        if custom_data.is_dir() and not os.path.islink(custom_data):
-            # Preserve only if already valid junction; inspect attributes
+        is_reparse = False
+        try:
+            if hasattr(os.path, "isjunction") and os.path.isjunction(custom_data):
+                is_reparse = True
+            else:
+                st_l = os.lstat(custom_data)
+                if getattr(st_l, "st_file_attributes", 0) & 0x0400:
+                    is_reparse = True
+        except OSError:
+            pass
+        if is_reparse or os.path.islink(custom_data):
+            return
+        if custom_data.is_dir():
             res = subprocess.run(
                 ["cmd", "/c", "fsutil", "reparsepoint", "query", str(custom_data)],
                 capture_output=True,
@@ -184,6 +252,9 @@ def ensure_data_junction(game_dir: Path, exe_stem: str):
             )
             if res.returncode == 0:
                 return
+            raise RuntimeError(
+                f"Expected NTFS junction at {custom_data}, found non-junction directory."
+            )
     else:
         res = subprocess.run(
             ["cmd", "/c", "mklink", "/j", str(custom_data), str(survival_data)],
@@ -718,7 +789,7 @@ def inspect_farm_launcher_health(
         src_p = launcher_dir / fn
         bak_p = backup_dir / fn
         if src_p.is_file():
-            if not bak_p.is_file() or file_sha256(src_p) != file_sha256(bak_p):
+            if not bak_p.is_file() or _files_differ(src_p, bak_p):
                 backup_missing.append(fn)
         elif not bak_p.is_file():
             backup_missing.append(fn)
@@ -887,7 +958,7 @@ def heal_farm_launcher(
             continue
         if fn == FARM_HOOK_EXE_NAME and not _hook_binary_matches_identity(src_p, exe_name, prof):
             continue
-        if not bak_p.is_file() or file_sha256(src_p) != file_sha256(bak_p):
+        if not bak_p.is_file() or _files_differ(src_p, bak_p):
             if not dry_run:
                 _atomic_copy_file(src_p, bak_p)
             backed_up_files.append(fn)
@@ -1065,7 +1136,7 @@ def _resolve_desktop_dir() -> Path | None:
 def _is_writable_dir(path: Path) -> bool:
     try:
         path.mkdir(parents=True, exist_ok=True)
-        probe = path / f".heinz_probe_{os.getpid()}"
+        probe = path / f".heinz_probe_{os.getpid()}_{threading.get_ident()}"
         probe.write_text("ok", encoding="utf-8")
         probe.unlink(missing_ok=True)
         return True

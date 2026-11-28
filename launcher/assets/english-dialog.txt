@@ -3231,7 +3231,7 @@
 141205=Quick Fight in progress...
 141206=Quick Fight
 141207=Unlock Quick Fight on Hero Battlefield
-141208=1. Full Preparedness unfolds daily in cycles, with each round featuring a different theme and lasting for 4 hours. \n2. At <color=#fa8843>Apocalypse Time 00:00:00</color>, 8–12 survivors with similar Headquarters levels will be randomly matched. \n3. Survivors within the same group will compete for ranking rewards based on their total points earned for the day. \n4. Ranking rewards are tallied every day, and will be sent via mail (requires points >0). \n5. Points can only be obtained by purchasing <color=#fa8843>packs containing Diamonds</color>. \n6. Unclaimed chests and progress rewards will be sent via mail after tally.
+141208=1. Full Preparedness unfolds daily in cycles, with each round featuring a different theme and lasting for 4 hours. \n2. At <color=#fa8843>Apocalypse Time 00:00:00</color>, 8-12 survivors with similar Headquarters levels will be randomly matched. \n3. Survivors within the same group will compete for ranking rewards based on their total points earned for the day. \n4. Ranking rewards are tallied every day, and will be sent via mail (requires points >0). \n5. Points can only be obtained by purchasing <color=#fa8843>packs containing Diamonds</color>. \n6. Unclaimed chests and progress rewards will be sent via mail after tally.
 141209=Activate VIP8 privileges or clear Blood Rose Battlefield Lv.20 to unlock Quick Fight.
 141210=Consume 1 Orange Hero Equipment to promote
 141211=Each Lv.{0} Mod Vehicle Exterior Module Chest opened
@@ -4668,8 +4668,8 @@
 170553=Unlock Lv. {0} units
 170554=Total Units reach {1}
 170555=Train {1} Lv. {0} or higher units
-170556=Unlock Alliance Duel Tier 4–6 Rewards
-170557=Unlock Alliance Duel Tier 7–9 Rewards
+170556=Unlock Alliance Duel Tier 4-6 Rewards
+170557=Unlock Alliance Duel Tier 7-9 Rewards
 170558=View Tech: One More
 170559=Claim Alliance Duel Rewards {0} times
 170560=Achieve Alliance Duel victory for {0} days
@@ -5505,9 +5505,9 @@
 220241=Crop Growth Speed
 220242=Animal Growth Speed
 220243=Processing Speed
-220244=Tier 4–6 Rewards
+220244=Tier 4-6 Rewards
 220245=All Points
-220246=Tier 7–9 Rewards
+220246=Tier 7-9 Rewards
 220247=Zent Earning Points
 220248=Resource Gathering Points
 220249=Tech Power Points
@@ -8691,9 +8691,9 @@
 323013=Xmas Tree 2025
 323014=Everyone finds their own gift under the Xmas tree.
 323015=Bear Wick (Permanent)
-323016=Unlocks Shelter Skin – Bear Wick upon use.
+323016=Unlocks Shelter Skin - Bear Wick upon use.
 323017=Apex Bear Wick
-323018=Unlocks Shelter Skin – Apex Bear Wick upon use.
+323018=Unlocks Shelter Skin - Apex Bear Wick upon use.
 323019=Xmas Card
 323020=Used to unlock chat bubble [Xmas Card].
 323021=Xmas Kiss (7-Day)
@@ -9896,8 +9896,8 @@
 372460=Use {1} Archaeological Pickaxes
 372461=1. During the event, survivors can use Archaeological Pickaxes to dig for treasure. After obtaining the grand prize of the current level, you can advance to further levels to search for better treasures. \n2. Before starting to dig for treasure on each level, survivors must select a grand prize for that level. Each type of grand prize has a limited number of selections. Additionally, survivors can change the grand prize at any time during the digging process. \n3.On every multiple of 5 levels, survivors will discover a gorgeous secret level where the available grand prizes will be even more rewarding! \n4. During the event, survivors can obtain Archaeological Pickaxes through Archeo Action, Diamond purchases, and pack purchases. \n5. The grand prize probabilities for this event are as follows: Regular level: 8.8%, Secret level: 6.7%. Good luck! \n6. The first 15 digs on regular levels are guaranteed to award the current level's grand prize. \n7. After the event concludes, ranking rewards will be sent via mail.
 372462=1. During the event, survivors can <color=#fa8843>boost power</color> and <color=#fa8843>claim rewards</color> once the conditions are met. \n2. Methods to boost power: <color=#fa8843>Hero Progression</color> (Recruit, Level Up, Star Up), <color=#fa8843>Unit Training</color>, <color=#fa8843>Building Upgrades</color>, <color=#fa8843>Tech Upgrades</color>, <color=#fa8843>Mod Vehicle Enhancement</color>. \n3. Unclaimed rewards will be sent via mail after the event ends.
-372463=Research to unlock Tier 4–6 rewards
-372464=Research to unlock Tier 7–9 rewards
+372463=Research to unlock Tier 4-6 rewards
+372464=Research to unlock Tier 7-9 rewards
 372465=Research to earn points faster
 372466=Research to get double rewards
 372467=Season 1 Hero Achievements
@@ -10683,7 +10683,7 @@
 378719=Dimetrodon Skull
 378720=Dimetrodon Spine Bone
 378721=The skull of an adult T-Rex reached up to 1.5 meters, with bone plates as thick as 4 inches. Mutated ones grow monstrously larger, nearly 5 meters in length, with denser bone and plates up to 8 inches thick.
-378722=T-Rex teeth were built to withstand a bite force of 3–6 tons. Mutated versions stretch nearly a full meter, with denser, harder bone making them even more deadly.
+378722=T-Rex teeth were built to withstand a bite force of 3-6 tons. Mutated versions stretch nearly a full meter, with denser, harder bone making them even more deadly.
 378723=A Triceratops skull could reach 2.6 meters, about 1/3 of its body length. For mutated ones, it swelled to 4 times larger, sprouting flesh-ripping fangs.
 378724=Triceratops horns were around 1 meter, solid to the core. Mutant ones reached 3 meters in length, harder and denser, yet still not unbreakable.
 378725=Depending on species, Pterosaur skulls varied greatly. The largest toothless species had skulls around 1.5 meters, while mutants reached 5 meters, sprouting fangs that made their origins hard to trace.
@@ -10720,8 +10720,8 @@
 378756=Chances to spawn via refresh at the Bio Institute Shop
 378757=Survivors, unite and defeat the dinosaurs to claim your rewards!
 378758=1. The Ancient Dinos event unfolds every <color=#de0101>Sunday</color> at <color=#de0101>12:00</color> Apocalypse Time. \n2. Survivors must work together to <color=#de0101>defeat the ancient dinos to earn rewards</color>. \n3. During the event, survivors can attack without limit. The rankings record total damage dealt. \n4. Ancient dinos include T-Rex, Triceratops, Pterosaur, Ankylosaurus, and Dimetrodon, rotating weekly in this order. \n5. Different ancient dinos offer different rewards, including unique Fossils and titles. \n6. Title rewards are <color=#de0101>only granted to the Top 3 damage dealers when a dinosaur is defeated for the first time.</color>
-378760=T-Rex lived in Late Cretaceous North America (around 68–66 million years ago) and was one of the final rulers of the dinosaur era, witnessing the end of the non-avian dinosaurs.
-378761=Triceratops was one of the most iconic herbivorous giants of the end of the Cretaceous (around 66–68 million years ago), coexisting with T-Rex in the same time and region.
+378760=T-Rex lived in Late Cretaceous North America (around 68-66 million years ago) and was one of the final rulers of the dinosaur era, witnessing the end of the non-avian dinosaurs.
+378761=Triceratops was one of the most iconic herbivorous giants of the end of the Cretaceous (around 66-68 million years ago), coexisting with T-Rex in the same time and region.
 378762=Pterosaurs are neither dinosaurs nor birds; they were unique flying reptiles that lived through much of the Mesozoic, from the Late Triassic to the end of the Cretaceous, coexisting with dinosaurs until their extinction.
 378763=Ankylosaurs embody the pinnacle of land-animal defense. Every evolutionary adaptation went into its armor and striking weaponry, making it a walking fortress of the Cretaceous period.
 378764=Dimetrodon predates dinosaurs by a long margin, living in the Early Permian - at least 40 million years before the earliest dinosaurs. Its massive sail and distinctive teeth mark it as a top predator of its era.
@@ -14201,7 +14201,7 @@ GE=Georgia
 799334=Quit the battle? Doing so will count as a failed attempt.
 799335=Reset Alias
 799336=Xin chào Chỉ Huy
-799337=CHÍNH THỨC RA MẮT – LAST Z: SURVIVAL SHOOTER BẢN VIỆT NAM!\nThế giới hậu tận thế nay đã mở cửa cho toàn bộ người chơi Việt!\nSẵn sàng bước vào cuộc chiến sinh tồn nghẹt thở, nơi mỗi viên đạn – mỗi quyết định – đều định đoạt mạng sống!\nĐặc biệt, nhân dịp ra mắt bản Việt Nam – hàng loạt sự kiện, quà giới hạn và ưu đãi nạp đang chờ bạn tại fanpage chính thức!\nTheo dõi ngay fanpage [Last Z: Survival Shooter VN] ngay:  <color=#5FA3ED>{0}</color>
+799337=CHÍNH THỨC RA MẮT - LAST Z: SURVIVAL SHOOTER BẢN VIỆT NAM!\nThế giới hậu tận thế nay đã mở cửa cho toàn bộ người chơi Việt!\nSẵn sàng bước vào cuộc chiến sinh tồn nghẹt thở, nơi mỗi viên đạn - mỗi quyết định - đều định đoạt mạng sống!\nĐặc biệt, nhân dịp ra mắt bản Việt Nam - hàng loạt sự kiện, quà giới hạn và ưu đãi nạp đang chờ bạn tại fanpage chính thức!\nTheo dõi ngay fanpage [Last Z: Survival Shooter VN] ngay:  <color=#5FA3ED>{0}</color>
 799338=Volume Settings
 799339=Obtain 1 Gold Bar upon use.
 799340=Armor Storm
@@ -18989,7 +18989,7 @@ GE=Georgia
 893136=Resources are running low. We gonna need more to fortify headquarters.
 893137=There might be some supplies left in the warehouse at the city gate. Let's check it out.
 893138=Phew, that was close, but we managed to secure the resources. Now we can beef up the police station.
-893139=Thanks for saving me. If you help me fix the infirmary, I can heal you up in the future ❤️
+893139=Thanks for saving me. If you help me fix the infirmary, I can heal you up in the future
 893140=To keep stocking up on ammo, we need to gather more resources to fortify the police station.
 893141=To take out Boomers, you gotta work with your allies to attack together.
 893143=Darn, that thing is huge!
@@ -20825,7 +20825,7 @@ GE=Georgia
 896874=Default Talent Description {0}
 896875=Modification Garage
 896876=Used for modifying and enhancing expedition vehicles.
-896877=1.Open:\nThe Peak Arena opens every Monday.\nMonday to Sunday are all battle days!\n\n2.Participants:\nEach arena event may feature 1–4 States with survivors participating together.\nSurvivors meeting the criteria can participate during the arena's open period.\nArena battles do not consume units; the highest-level units of the participating survivors will be used by default. \n\n3. Battle Phase:\nInitial arena rankings are based on the power of participating survivors.\nDuring each round, each survivor has a limited number of challenge attempts.\nWinning a battle will earn points, while losing will deduct points.\n\n4. Tally Phase\nDaily Ranking Reward: The rewards for the previous day are tallied at 00:00 from Tuesday to Sunday (Apocalypse Time). \nWeekly Ranking Reward: The rewards for this week are tallied at 23:45 every Sunday (Apocalypse Time). \nTally Freeze Period: Challenges are unavailable from 23:45 on Sunday to 00:00 on the following Monday (Apocalypse Time).\n\n5.Reward Distribution:\nRewards will be calculated based on points at the end of the event.\nRanking rewards will be sent via mail.
+896877=1.Open:\nThe Peak Arena opens every Monday.\nMonday to Sunday are all battle days!\n\n2.Participants:\nEach arena event may feature 1-4 States with survivors participating together.\nSurvivors meeting the criteria can participate during the arena's open period.\nArena battles do not consume units; the highest-level units of the participating survivors will be used by default. \n\n3. Battle Phase:\nInitial arena rankings are based on the power of participating survivors.\nDuring each round, each survivor has a limited number of challenge attempts.\nWinning a battle will earn points, while losing will deduct points.\n\n4. Tally Phase\nDaily Ranking Reward: The rewards for the previous day are tallied at 00:00 from Tuesday to Sunday (Apocalypse Time). \nWeekly Ranking Reward: The rewards for this week are tallied at 23:45 every Sunday (Apocalypse Time). \nTally Freeze Period: Challenges are unavailable from 23:45 on Sunday to 00:00 on the following Monday (Apocalypse Time).\n\n5.Reward Distribution:\nRewards will be calculated based on points at the end of the event.\nRanking rewards will be sent via mail.
 896878=Lauren
 896879=Zeal
 896880=Neil
@@ -21320,9 +21320,9 @@ GE=Georgia
 510179=W{0}
 510180=Battle Records
 510181=State Rewards
-510182=Event Overview \nThe Cross-State Capital Clash is a 1v1 competition between States, where the winner is determined by capturing the rival's Capital. \n4–8 States are matched into a group for a 2–3 week battle until a champion State is crowned! \nBecoming the champion is no easy feat-it takes the President's leadership to unite all the state forces! \n\nEvent Rules \nStates within a group are matched randomly, and the winning State advances to the next round, facing other winners until a champion is crowned. \nMatching Rules: Winners are matched with winners, and losers are matched with losers. Victory is achieved by capturing the enemy State's Capital. \n\nEvent Phases \nSunday to Friday: States compete for points by winning in various events to increase their state score. \nInvaders and Defenders: At the end of Friday Apocalypse Time, the side with the higher state score becomes the invader, and the lower-scoring side becomes the defender. \n\nCapital Clash\nStarting Saturday, the invader can teleport to the defender's state to attack their capital and contest ownership. The rules for cross-state capital contests follow the same format: during the contest period, the state that reaches 100% progress successfully captures the capital. If no state succeeds in capturing the capital by the end of the contest period, the capital belongs to the state with the highest capture progress. \n\nIf the invader wins, 2 new official positions will be granted. \nOnce the capital is captured, many diamond mines will spawn within its range, and only the winning side can gather them. \nFor survivors within the same state, unity and cooperation are essential!
+510182=Event Overview \nThe Cross-State Capital Clash is a 1v1 competition between States, where the winner is determined by capturing the rival's Capital. \n4-8 States are matched into a group for a 2-3 week battle until a champion State is crowned! \nBecoming the champion is no easy feat-it takes the President's leadership to unite all the state forces! \n\nEvent Rules \nStates within a group are matched randomly, and the winning State advances to the next round, facing other winners until a champion is crowned. \nMatching Rules: Winners are matched with winners, and losers are matched with losers. Victory is achieved by capturing the enemy State's Capital. \n\nEvent Phases \nSunday to Friday: States compete for points by winning in various events to increase their state score. \nInvaders and Defenders: At the end of Friday Apocalypse Time, the side with the higher state score becomes the invader, and the lower-scoring side becomes the defender. \n\nCapital Clash\nStarting Saturday, the invader can teleport to the defender's state to attack their capital and contest ownership. The rules for cross-state capital contests follow the same format: during the contest period, the state that reaches 100% progress successfully captures the capital. If no state succeeds in capturing the capital by the end of the contest period, the capital belongs to the state with the highest capture progress. \n\nIf the invader wins, 2 new official positions will be granted. \nOnce the capital is captured, many diamond mines will spawn within its range, and only the winning side can gather them. \nFor survivors within the same state, unity and cooperation are essential!
 510183=Sunday to Friday is the state score competition, where the State with the higher score gains invasion rights.\nOn Saturday, the Invader may enter the enemy State and attempt to seize its Capital. \nThe lower-scoring State is the Defender who needs to defend its Capital on Saturday. \nState points can be earned by completing the following acts:
-510184=Saturday's event will proceed according to server time in the following phases: [00:00:00]–[00:30:00].\nTally points to determine the Invaders and Defenders.\n[00:30:00]\nInvading survivors can teleport to the Defender's State.\n[12:00:00]-[14:00:00]\nThe Capital and Turrets exit protection mode, and the clash phase officially starts. Once the capital is fully captured by one side, the Capital Clash concludes, and the capturing state advances to the next round.\n[23:59:59] \nCross-State Enemy Buster event ends, and ranking rewards are settled.\n\nCapital Clash Rules\n- During the Capital Clash, field troops from survivors of the same state cannot engage each other.\n- The Capital and Turrets can each hold up to 10 garrisoned troops at the same time.\n- Within the capital area, damage to other survivors' Headquarters durability is doubled!\n- When capturing a Turret, it will automatically attack the enemy-captured Capital at intervals, eliminating 1% of the current garrisoned troops.\nThe Capital Clash phase lasts for up to 2 hours. If neither side reaches 100% capture progress by then, the side with higher progress wins.\n\nAdvancement Rules\n- The state that wins the Capital Clash advances to the next round of State Duel, where it matches the winner of another battle until a champion is determined.\n- Advancing states can claim victory rewards.
+510184=Saturday's event will proceed according to server time in the following phases: [00:00:00]-[00:30:00].\nTally points to determine the Invaders and Defenders.\n[00:30:00]\nInvading survivors can teleport to the Defender's State.\n[12:00:00]-[14:00:00]\nThe Capital and Turrets exit protection mode, and the clash phase officially starts. Once the capital is fully captured by one side, the Capital Clash concludes, and the capturing state advances to the next round.\n[23:59:59] \nCross-State Enemy Buster event ends, and ranking rewards are settled.\n\nCapital Clash Rules\n- During the Capital Clash, field troops from survivors of the same state cannot engage each other.\n- The Capital and Turrets can each hold up to 10 garrisoned troops at the same time.\n- Within the capital area, damage to other survivors' Headquarters durability is doubled!\n- When capturing a Turret, it will automatically attack the enemy-captured Capital at intervals, eliminating 1% of the current garrisoned troops.\nThe Capital Clash phase lasts for up to 2 hours. If neither side reaches 100% capture progress by then, the side with higher progress wins.\n\nAdvancement Rules\n- The state that wins the Capital Clash advances to the next round of State Duel, where it matches the winner of another battle until a champion is determined.\n- Advancing states can claim victory rewards.
 510185=You already have a troop stationed inside the building!
 510186=Points Ranking
 510187=After capturing the turret, it will continuously damage enemies within the capital.
@@ -22660,7 +22660,7 @@ GE=Georgia
 898491=Help Duration +{0}s
 898492=Resource Protection +{0}
 898493=Radar Intensity Rules: \n1. Clearing a certain number of radar events will increase the radar intensity, which also affects the event refresh quantity and event stacking limit. \n2. Every radar upgrade grants a specific number of radar events. \n3. Upon reaching VIP {0}, you may instantly complete [Help Allies], [Ruins Exploration], and [Rescue Survivors] radar events via a single tap.
-898494=\n\nFollowing radar events have daily spawn limits: \n1. Defeat Boomers ({2} times/day with HQ Lv.{0}–{1}, {4} times/day with HQ Lv.{3} and above, Senior {5}%, Special {6}%, Epic {7}%) \n2. Plunder Resources ({8} times/day, Intermediate {9}%, Senior {10}%, Special {11}%) \n3. Resource Contest ({12} times/day, Basic {13}%, Intermediate {14}%, Senior {15}%, Special {16}%, Epic {17}%)
+898494=\n\nFollowing radar events have daily spawn limits: \n1. Defeat Boomers ({2} times/day with HQ Lv.{0}-{1}, {4} times/day with HQ Lv.{3} and above, Senior {5}%, Special {6}%, Epic {7}%) \n2. Plunder Resources ({8} times/day, Intermediate {9}%, Senior {10}%, Special {11}%) \n3. Resource Contest ({12} times/day, Basic {13}%, Intermediate {14}%, Senior {15}%, Special {16}%, Epic {17}%)
 898495=\n\nRadar Event Spawn Odds: \n1. Area cleansing {0}% (Basic {1}%, Intermediate {2}%, Senior {3}%, Special {4}%, Epic {5}%) \n2. Area Clearout {6}% (Basic {7}%, Intermediate {8}%, Senior {9}%, Special {10}%, Epic {11}%) \n3. Ruins Exploration {12}% (Basic {13}%, Intermediate {14}%, Senior {15}%, Special {16}%, Epic {17}%)
 898496=\n\nRadar intensity upgrades grant additional radar events, with details as follows: \nLevel 2: Area Cleansing ×{0}, Rescue Survivors ×{1}, Bloods' Prison Cart ×{2} \nLevel 3: Area Cleansing ×{3}, Area Clearout ×{4}, Rescue Survivors ×{5} \nLevel 4: Area Cleansing ×{6}, Area Clearout ×{7}, Rescue Survivors ×{8} \nLevel 5: Area Cleansing ×{9}, Area Clearout ×{10}, Rescue Survivors ×{11} \nLevel 6 and above: Spawns {12} Epic radar events
 898497=\n\nNote: \n1. Assist-ally tasks are unavailable until joining an alliance. \n2. Newbie Exclusive events are limited to {0} times.
@@ -23346,7 +23346,7 @@ GE=Georgia
 899155=Total Acquire {1} {0}
 899156=Raise hero level by {1}
 899157=Tactical Plugin Stats
-899158=The brand-new [Landscape/Portrait Switch] feature is live–just for you! \nYou can jump into landscape view anytime and explore fresh content!
+899158=The brand-new [Landscape/Portrait Switch] feature is live-just for you! \nYou can jump into landscape view anytime and explore fresh content!
 899159=Go to Settings > General Settings to toggle the visibility of this button.
 899161=Tactical Plugin Stats
 899163=Opening Tactical Plugin
@@ -23447,7 +23447,7 @@ GE=Georgia
 900005=Difficulty {0}
 900006=Difficulty locked. Clear all levels of Difficulty <color=#BA0826>{0}</color> to unlock it in the next event round.
 900007=Reach <color=#ff6c00>{0}</color> Power to get Headquarters Skin <color=#ff6c00>{1}</color>!
-900008=1. Full Preparedness unfolds daily in cycles, with each round featuring a different theme and lasting for 4 hours. \n2. At <color=#BA0826>Apocalypse Time 00:00:00</color>, 8–12 survivors with similar Headquarters levels will be randomly matched. \n3. Survivors within the same group will compete for ranking rewards based on their total points earned for the day. \n4. Ranking rewards are tallied every day, and will be sent via mail (requires points >0). \n5. Points can only be obtained by purchasing <color=#BA0826>packs containing Diamonds</color>. \n6. Unclaimed chests and progress rewards will be sent via mail after tally.
+900008=1. Full Preparedness unfolds daily in cycles, with each round featuring a different theme and lasting for 4 hours. \n2. At <color=#BA0826>Apocalypse Time 00:00:00</color>, 8-12 survivors with similar Headquarters levels will be randomly matched. \n3. Survivors within the same group will compete for ranking rewards based on their total points earned for the day. \n4. Ranking rewards are tallied every day, and will be sent via mail (requires points >0). \n5. Points can only be obtained by purchasing <color=#BA0826>packs containing Diamonds</color>. \n6. Unclaimed chests and progress rewards will be sent via mail after tally.
 900009=Left: <color=#84E380>{0}</color>
 900010=1. The season has entered its final stretch. Compete for the season honor! Let's start looting! \n2. During the event, Loot Points in the Clash for Glory will be increased to previous <color=#b13737>{0}%</color>.
 900011=Day {0}
@@ -23537,7 +23537,7 @@ GE=Georgia
 900130=Enduring Bond Gift
 900131=Dear Survivor <color=#b65e00>{0}</color>, \nThanks for sticking with us! Here's a special gift to honor your strength and achievements. \nWe look forward to the journey ahead together!
 900132=Join the Next Chapter
-900133=Dear Survivor <color=#b65e00>{0}</color>, \n\nThis is a personal invitation. As one of our most valued players, we'd love for you to join us in the portrait version of the game and be part of this major evolution. \n\nIn the new layout, you'll enjoy <color=#b65e00>a clear, smoother and more comfortable</color> experience - while still being able to switch back to landscape mode freely. \n\nWe've also prepared exclusive honors just for a few elite survivors like you: \nOnly <color=#b65e00>0.00001%</color> will earn the <color=#b65e00>Exclusive Avatar Frame – Proof of Glory</color> and the <color=#b65e00>Permanent Commemorative Medal – Landscape Legacy</color>. These are one-of-a-kind keepsakes marking your place in Last Z history!
+900133=Dear Survivor <color=#b65e00>{0}</color>, \n\nThis is a personal invitation. As one of our most valued players, we'd love for you to join us in the portrait version of the game and be part of this major evolution. \n\nIn the new layout, you'll enjoy <color=#b65e00>a clear, smoother and more comfortable</color> experience - while still being able to switch back to landscape mode freely. \n\nWe've also prepared exclusive honors just for a few elite survivors like you: \nOnly <color=#b65e00>0.00001%</color> will earn the <color=#b65e00>Exclusive Avatar Frame - Proof of Glory</color> and the <color=#b65e00>Permanent Commemorative Medal - Landscape Legacy</color>. These are one-of-a-kind keepsakes marking your place in Last Z history!
 900134=Proof of Glory
 900135=Landscape Legacy Medal
 900136=Marks your transformation from landscape mode to portrait in Last Z, and your shared journey and growth with us.
@@ -23736,7 +23736,7 @@ GE=Georgia
 332010=Alliance Points:
 332011=Personal Points:
 332012=Not with any alliances upon event closure
-332013=Yum Carnival Incoming – Feast Preparation Underway! \n\n<color=#f07100>Submit Dishes for Points</color> \n1. Submit dishes according to the daily menu to earn personal points. \n2. If you are in an alliance, your alliance will also receive corresponding alliance points. \n<color=#f07100>Daily Urgent Menu</color> \n1. Urgent menu releases at 0:00 daily. \n2. Submitting dishes from the urgent menu grants extra points. \n3. On the last day of the event, the urgent menu will no longer update. Stay ready! \n<color=#f07100>Grand Feast for Top Alliances</color> \n1. The Top 10 alliances will hold the grand feast at the [Yum Festival Feast] event and claim massive rewards! \n2. Important: During the event settlement, only members of the Top 10 alliances can participate in the alliance feast. Changing alliances after the settlement will prevent participation in other alliances' feasts.
+332013=Yum Carnival Incoming - Feast Preparation Underway! \n\n<color=#f07100>Submit Dishes for Points</color> \n1. Submit dishes according to the daily menu to earn personal points. \n2. If you are in an alliance, your alliance will also receive corresponding alliance points. \n<color=#f07100>Daily Urgent Menu</color> \n1. Urgent menu releases at 0:00 daily. \n2. Submitting dishes from the urgent menu grants extra points. \n3. On the last day of the event, the urgent menu will no longer update. Stay ready! \n<color=#f07100>Grand Feast for Top Alliances</color> \n1. The Top 10 alliances will hold the grand feast at the [Yum Festival Feast] event and claim massive rewards! \n2. Important: During the event settlement, only members of the Top 10 alliances can participate in the alliance feast. Changing alliances after the settlement will prevent participation in other alliances' feasts.
 332014=1. Join the <color=#f07100>[Yum Festival Feast Prep]</color> event by submitting dishes to earn points that can level you up and unlock awesome rewards! \n2. Purchasing <color=#f07100>[Yum Novice]</color> and <color=#f07100>[Yum Expert]</color> grants extra rewards. These packs will be <color=#f07100>unavailable</color> after the event ends. \n3. Any unclaimed rewards will be sent via mail after the event concludes.
 332015=1. During the event, complete specified tasks to earn corresponding rewards. \n2. Clear all tasks in a row or column to receive phase treasure chests. \n3. Completing all tasks will grant you the [Feast Treasure]. \n4. Unclaimed rewards will be sent via mail after the event ends.
 332016=The alliance ranked <color=#f07100>1st</color> on the leaderboard can host the Yum Festival Feast at the <color=#f07100>Feast Grounds</color>.
@@ -23751,7 +23751,7 @@ GE=Georgia
 332025=Submit to Get:
 332026=Yummy Carnival
 332027=Until Feast Ends:
-332028=Mystery Yum Festival Ingredient Pack – Contains a random festival ingredient waiting to be discovered!
+332028=Mystery Yum Festival Ingredient Pack - Contains a random festival ingredient waiting to be discovered!
 332029=Yummy Party
 332030=No Alliances yet.
 332031=Finish all tasks to claim the [Feast Treasure].
@@ -24107,7 +24107,7 @@ GE=Georgia
 900516=Gifting Level Reward
 900517=Claim
 900518=Leave a note
-900519=Hit the magic number for a surprise. \n<color=#bf00ad>*Random number 1–10, resets weekly.</color>
+900519=Hit the magic number for a surprise. \n<color=#bf00ad>*Random number 1-10, resets weekly.</color>
 900520=Gift a specific number to get special bonuses! The number is randomly chosen from 1 to 10 per week, with bonuses varying weekly.
 900521=Sweet Gift
 900522=Received {2} *{0} from <color=#007108>{1}</color>
@@ -25293,7 +25293,7 @@ GE=Georgia
 912704=Urgent Alliance Notice
 912705=You'll be notified when alliance admins issue an urgent notice.
 912706=Received an Urgent Notice from your alliance!
-912707=Alliance Duel – Peace Shield Reminder
+912707=Alliance Duel - Peace Shield Reminder
 912708=You'll be notified to activate a Peace Shield before the Enemy Buster Day.
 912709=Enemy Buster Day is approaching - activate a Peace Shield to protect your HQ!
 912710=Enabling notifications is strongly suggested to avoid missing critical alliance info!
@@ -26229,7 +26229,7 @@ GE=Georgia
 913214=Lv.{0}
 913215=Vacant
 913216=No ranking data currently
-913217=1. Survivors who collect enough turkeys can earn the title Thanksgiving Star:\n-<color=#f07100>{0}</color> turkeys – Thanksgiving Star Lv.1\n-<color=#f07100>{1}</color> turkeys – Thanksgiving Star Lv.2\n-<color=#f07100>{2}</color>turkeys – Thanksgiving Star Lv.3. \n2. Thanksgiving Stars will receive exclusive surprise rewards. \n3. Other survivors can visit a Thanksgiving Star's Headquarters daily for a random reward. Max <color=#f07100>1</color> visit per Headquarters per day, up to <color=#f07100>10</color> visits daily in total. \n4. After the event ends, you can still send [Gift - Turkey] to each other, but no points will be awarded.
+913217=1. Survivors who collect enough turkeys can earn the title Thanksgiving Star:\n-<color=#f07100>{0}</color> turkeys - Thanksgiving Star Lv.1\n-<color=#f07100>{1}</color> turkeys - Thanksgiving Star Lv.2\n-<color=#f07100>{2}</color>turkeys - Thanksgiving Star Lv.3. \n2. Thanksgiving Stars will receive exclusive surprise rewards. \n3. Other survivors can visit a Thanksgiving Star's Headquarters daily for a random reward. Max <color=#f07100>1</color> visit per Headquarters per day, up to <color=#f07100>10</color> visits daily in total. \n4. After the event ends, you can still send [Gift - Turkey] to each other, but no points will be awarded.
 913251=Turkey Token
 913252=Festival tokens carrying warm wishes, used to redeem gifts in the [Thanksgiving Market].
 913253=Gift - turkey
@@ -26242,7 +26242,7 @@ GE=Georgia
 913265=Current headquarters has reached the daily visit limit. Come back tomorrow.
 913266=Tally Countdown
 913267=Ranking Rewards
-913268=1. Within <color=#f07100>24</color> hours of re-joining or creating an alliance, survivors cannot participate in this event or use the [A Date with a Turkey] item purchased from the [Magic Turkey Pack]. \n\n2. Only R5/R4 alliance members can tap the [Start] button to summon a turkey, which will appear randomly in the alliance territory. \n\n3. Once the turkey appears, survivors must dispatch troops to clear the bushes. More participants clearing bushes speed up the process, and all contributors will receive a reward. \n\n4. After clearing the bushes, the turkey whacking mini-game becomes available before the timer ends. Tap the [Frying Pan] button rapidly – the top 10 survivors with the most taps will earn rewards. Members who didn't join the bush-clearing or failed to reach the top 10 will still receive a consolation reward.\n\n5. If the alliance's total taps in the mini-game reach a high enough count, a mysterious reward will be unlocked for all members. Come and enjoy the event, survivors!\n\n6.After the event ends, the [A Date with a Turkey] item will become unusable. Survivors, please pay attention to the event countdown to avoid any losses.
+913268=1. Within <color=#f07100>24</color> hours of re-joining or creating an alliance, survivors cannot participate in this event or use the [A Date with a Turkey] item purchased from the [Magic Turkey Pack]. \n\n2. Only R5/R4 alliance members can tap the [Start] button to summon a turkey, which will appear randomly in the alliance territory. \n\n3. Once the turkey appears, survivors must dispatch troops to clear the bushes. More participants clearing bushes speed up the process, and all contributors will receive a reward. \n\n4. After clearing the bushes, the turkey whacking mini-game becomes available before the timer ends. Tap the [Frying Pan] button rapidly - the top 10 survivors with the most taps will earn rewards. Members who didn't join the bush-clearing or failed to reach the top 10 will still receive a consolation reward.\n\n5. If the alliance's total taps in the mini-game reach a high enough count, a mysterious reward will be unlocked for all members. Come and enjoy the event, survivors!\n\n6.After the event ends, the [A Date with a Turkey] item will become unusable. Survivors, please pay attention to the event countdown to avoid any losses.
 913269=Sent Successfully
 913270=Cook & Gift
 913271=Send turkey
@@ -27167,7 +27167,7 @@ GE=Georgia
 915186=Obtain Points
 915187=Other Rules
 915188=Volcanic activity has intensified recently. Scientists predict a massive multi-state eruption on a specific date. Analysis reveals vast energy crucial for equipment upgrades. A fierce war for control is inevitable...
-915189=<color=#354252>Phase Overview\n1. Publicity</color> \nDay 1 marks the publicity phase, during which the groupings for the current event will be revealed. \n<color=#354252>2. Comms</color> \nOn Day 2, the comms phase begins. Presidents of already grouped states may negotiate potential partnerships with ungrouped states. \n<color=#354252>3. Invitation</color> \nDays 3–4 mark the Invitation Phase. Presidents of grouped states can officially invite ungrouped states to join their camp and fight together. \n<color=#354252>4. System Allocation</color> \nAfter the invitation phase ends, the system will automatically and randomly allocate any states that were not successfully grouped. \n<color=#354252>5. Battle Prep</color> \nDay 5 is the battle prep phase, during which survivors can share tactics and strategize. \n<color=#354252>6. Battle</color> \nDay 6 is the battle phase. Battle begins at 12:00 Apocalypse Time and lasts for 1 hour. \n<color=#354252>7. Reward Distribution by Presidents</color> \nDays 7–8 are reserved for Presidents to distribute battle spoils to their alliances. \n<color=#354252>8. Reward Distribution by Alliances</color>\nOn Days 9–10, R4/R5 distribute spoils to outstanding alliance members.
+915189=<color=#354252>Phase Overview\n1. Publicity</color> \nDay 1 marks the publicity phase, during which the groupings for the current event will be revealed. \n<color=#354252>2. Comms</color> \nOn Day 2, the comms phase begins. Presidents of already grouped states may negotiate potential partnerships with ungrouped states. \n<color=#354252>3. Invitation</color> \nDays 3-4 mark the Invitation Phase. Presidents of grouped states can officially invite ungrouped states to join their camp and fight together. \n<color=#354252>4. System Allocation</color> \nAfter the invitation phase ends, the system will automatically and randomly allocate any states that were not successfully grouped. \n<color=#354252>5. Battle Prep</color> \nDay 5 is the battle prep phase, during which survivors can share tactics and strategize. \n<color=#354252>6. Battle</color> \nDay 6 is the battle phase. Battle begins at 12:00 Apocalypse Time and lasts for 1 hour. \n<color=#354252>7. Reward Distribution by Presidents</color> \nDays 7-8 are reserved for Presidents to distribute battle spoils to their alliances. \n<color=#354252>8. Reward Distribution by Alliances</color>\nOn Days 9-10, R4/R5 distribute spoils to outstanding alliance members.
 915190=1. Matched states are grouped by the system based on overall strength, with Attackers and Defenders assigned accordingly. \n2. Each camp starts with a base pool of spoils, which can be expanded through specific in-game actions. \n3. During the Invitation phase, you may negotiate with unaligned states by offering post-combat spoil shares, persuading them to join your camp. \n4. Spoil distribution is safeguarded by the system. Once partnership and distribution ratios are confirmed, they will be enforced automatically. \n5. During the Combat Phase, states within the same camp must teleport to the designated Defender State to compete for control of building and ore resources. \n6. When the combat begins, all headquarters inside the combat area will be relocated outside the battlefield. Survivors must teleport again to re-enter the combat area. \n7. Throughout the combat, survivors can earn Camp Points via specific actions. When the combat time's up, the camp with the higher total points wins. \n8. Spoils are distributed during the Reward Distribution phase, and each survivor may claim only one share.
 915191=Gathering from this resource spot grants {0} points per second.
 915192=Teleport to the Volcanic Area
@@ -27364,12 +27364,12 @@ GE=Georgia
 915389=Superstar
 915390=Dream Lover
 915391=Charmer
-915392=Survivors ranked No.4–10 in the Apocalypse Star. Charm maxed out!
-915393=Survivors ranked No.2–3 in the Apocalypse Star. The ultimate crush of every heart!
+915392=Survivors ranked No.4-10 in the Apocalypse Star. Charm maxed out!
+915393=Survivors ranked No.2-3 in the Apocalypse Star. The ultimate crush of every heart!
 915394=The survivor with the most Likes received in the Apocalypse Star-a true superstar!
 915395=You will teleport to the Volcano Core territory. Your <color=#ff6c00>Peace Shield will be deactivated</color>, and you <color=#ff6c00>cannot activate another Peace Shield</color> within the territory. Teleport anyway?
 915396=Enter on-screen live comments
-915397=Survivor, sure to hide live comments? \nIt can be re-displayed on the <color=#13751c>[Alliance Duel – Total Score]</color>.
+915397=Survivor, sure to hide live comments? \nIt can be re-displayed on the <color=#13751c>[Alliance Duel - Total Score]</color>.
 915398=Survivors with Headquarters below Lv.{0} cannot teleport to the Volcano area.
 915399=Initiate {0} rallies in Armed Trial
 915400=Join {0} rallies in Armed Trial
@@ -27412,8 +27412,8 @@ GE=Georgia
 915437=Last Z is so fun!
 915438=The red packet sent by {0} was claimed within {1}. {2} was the luckiest!
 915439=In the limited event [Apocalypse Star], the survivor ranked No.1 earns this title.
-915440=In the limited event [Apocalypse Star], survivors ranked No.2–3 earn this title.
-915441=In the limited event [Apocalypse Star], survivors ranked No.4–10 earn this title.
+915440=In the limited event [Apocalypse Star], survivors ranked No.2-3 earn this title.
+915441=In the limited event [Apocalypse Star], survivors ranked No.4-10 earn this title.
 915442=Headquarters Lv.10 required to like.
 915443=Like Attempts Left Today: {0}
 915444=Please bind your email.
@@ -28318,12 +28318,12 @@ GE=Georgia
 915875=Delete Character
 915876=Tapping Delete will remove your game character on the current server.
 915877=Tapping Delete will delete the game account bound to your email (including all characters).
-915879=1. Please ensure you're on a secure network and using a trusted device before proceeding. \n\n2. Once the account deletion process is completed, you will no longer be able to log in, access, or recover your game <color=#de0101>account</color>. Any personal information associated with this account will be deleted and cannot be retrieved. \n\n<color=#de0101>3. Once your account is deleted, all virtual currencies, in-game items, and other paid services tied to this game account will also be permanently erased. Please proceed with caution!</color> \n\n4. Your account deletion request will be in the <color=#ff4848>[In progress] </color>status within <color=#de0101>[6–8 Days]</color> after submission. You may <color=#de0101>withdraw the request</color> or contact Support to cancel the account deletion during this period. Please be mindful of the timeframe and proceed with caution. \n\n5. During this period, you will be unable to log in to this game account. Any losses caused by being unable to log in during this period, including items, virtual currency, etc., shall be borne by you. We assume no responsibility. The account will be automatically deleted after this period expires. \n\n If you have any questions, please contact Support or email us at privacy@last-z.com.
+915879=1. Please ensure you're on a secure network and using a trusted device before proceeding. \n\n2. Once the account deletion process is completed, you will no longer be able to log in, access, or recover your game <color=#de0101>account</color>. Any personal information associated with this account will be deleted and cannot be retrieved. \n\n<color=#de0101>3. Once your account is deleted, all virtual currencies, in-game items, and other paid services tied to this game account will also be permanently erased. Please proceed with caution!</color> \n\n4. Your account deletion request will be in the <color=#ff4848>[In progress] </color>status within <color=#de0101>[6-8 Days]</color> after submission. You may <color=#de0101>withdraw the request</color> or contact Support to cancel the account deletion during this period. Please be mindful of the timeframe and proceed with caution. \n\n5. During this period, you will be unable to log in to this game account. Any losses caused by being unable to log in during this period, including items, virtual currency, etc., shall be borne by you. We assume no responsibility. The account will be automatically deleted after this period expires. \n\n If you have any questions, please contact Support or email us at privacy@last-z.com.
 915880=Confirm Account Deletion
 915881=The game account bound to this email address (including all characters) will be deleted, and the game data cannot be restored. Please confirm again if you wish to proceed with [Account Deletion].
 915882=Cancel Deletion
 915883=Confirm Deletion
-915884=<color=#de0101>1. Once the character is deleted, you will no longer be able to use it, and all associated virtual currency, items, and paid services will also be permanently erased. Please proceed with caution!</color> \n\n2. Your character deletion request will undergo a <color=#de0101>[2–4 days]</color> review period and will be in the <color=#de0101>[In Progress]</color> status. You may <color=#de0101>withdraw this request</color> or contact Support to cancel the deletion during this period. Please be mindful of the timeframe. \n\n3. Your character must be in the Home State and not on a battlefield or in a season; otherwise, the character cannot be deleted. \n\n4. During this period, you will be unable to log in to this character. Any losses caused by being unable to log in during this period, including items, virtual currency, etc., shall be borne by you. We assume no responsibility. The character will be automatically deleted after this period expires.
+915884=<color=#de0101>1. Once the character is deleted, you will no longer be able to use it, and all associated virtual currency, items, and paid services will also be permanently erased. Please proceed with caution!</color> \n\n2. Your character deletion request will undergo a <color=#de0101>[2-4 days]</color> review period and will be in the <color=#de0101>[In Progress]</color> status. You may <color=#de0101>withdraw this request</color> or contact Support to cancel the deletion during this period. Please be mindful of the timeframe. \n\n3. Your character must be in the Home State and not on a battlefield or in a season; otherwise, the character cannot be deleted. \n\n4. During this period, you will be unable to log in to this character. Any losses caused by being unable to log in during this period, including items, virtual currency, etc., shall be borne by you. We assume no responsibility. The character will be automatically deleted after this period expires.
 915885=Delete this character?
 915886=<color=#de0101>Please confirm again if you wish to delete the character. Once the character is deleted, you will no longer be able to use it, and all associated virtual currency, items, and paid services will also be erased. Please proceed with caution.</color>
 915887=Not in the Home State. Tap the button below to return to your Home State before deleting the character.
@@ -28331,9 +28331,9 @@ GE=Georgia
 915889=Tap the "Switch Character" button below to switch to your other characters.
 915890=The [Cancel Deletion] will be allowed in {0} minutes.
 915891=1. When calculating total Camp Points, only the sum of the top 200 survivors' points from each state within the camp is counted.\n2. If the defender chose the Hard Mode, the total points shown here are the result after being multiplied by 2.7.\n3. The alliance scores below show the sum of points earned by all members of each alliance.
-915892=Your character deletion request is in progress. {0} has elapsed-please wait. Completion is expected within 2–4 days.
+915892=Your character deletion request is in progress. {0} has elapsed-please wait. Completion is expected within 2-4 days.
 915893=To delete a character, confirmation of ownership is required.
-915894=Your account deletion is in progress. {0} has elapsed-please wait. Estimated completion time: 6–8 days
+915894=Your account deletion is in progress. {0} has elapsed-please wait. Estimated completion time: 6-8 days
 915895=The [Cancel Deletion] will be allowed in {0} minutes.
 915896=Successfully unliked!
 915897=Free auto-refresh is available when all cards are flipped.
@@ -29966,7 +29966,7 @@ GE=Georgia
 5590026=All survivors thank you for your generous support.
 120534=This skill has not been learned yet and cannot be used.
 5660007=It's recommended to start a team-up and then invite allies to join.
-5660008=Zombie Power: {0}–{1}
+5660008=Zombie Power: {0}-{1}
 5660009=Cleared
 5660010=This clear was helped by <color=#319FFC>{0}</color>.
 5660011=This clear was helped by <color=#319FFC>{0}</color> and others.

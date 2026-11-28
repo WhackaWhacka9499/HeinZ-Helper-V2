@@ -6,13 +6,16 @@ providers and isolated temporary SQLite caches on ephemeral ports (port=0).
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import inspect
 import json
 import os
 from pathlib import Path
 import re
 import sqlite3
 import tempfile
+import threading
 import unittest
 from unittest import mock
 import urllib.parse
@@ -345,6 +348,236 @@ class TestProviderCascadeAndCache(unittest.TestCase):
         finally:
             small_cache.close()
 
+    def test_load_translator_config_caches_by_path_mtime_and_size(self) -> None:
+        cfg_path = Path(self._td.name) / "translator_cache_test.json"
+        with TR_MOD._CONFIG_CACHE_LOCK:
+            TR_MOD._CONFIG_CACHE_STATE.update({"path": None, "mtime_ns": -1, "size": -1, "cfg": None})
+        try:
+            missing = TR_MOD.load_translator_config(cfg_path)
+            self.assertEqual(missing["target_lang"], "auto")
+
+            cfg_path.write_text(json.dumps({"enabled": True, "target_lang": "es"}), encoding="utf-8")
+            st0 = cfg_path.stat()
+            c1 = TR_MOD.load_translator_config(cfg_path)
+            self.assertEqual(c1["target_lang"], "es")
+
+            with mock.patch.object(TR_MOD.json, "load", side_effect=AssertionError("cache miss on identical stat")):
+                c2 = TR_MOD.load_translator_config(cfg_path)
+                self.assertEqual(c2["target_lang"], "es")
+
+            # Change file content/size while preserving exact st_atime_ns and st_mtime_ns
+            cfg_path.write_text(json.dumps({"enabled": True, "target_lang": "zh-TW"}), encoding="utf-8")
+            os.utime(cfg_path, ns=(st0.st_atime_ns, st0.st_mtime_ns))
+            st1 = cfg_path.stat()
+            self.assertEqual(int(st1.st_mtime_ns), int(st0.st_mtime_ns))
+            self.assertNotEqual(int(st1.st_size), int(st0.st_size))
+
+            c3 = TR_MOD.load_translator_config(cfg_path)
+            self.assertEqual(c3["target_lang"], "zh-TW")
+
+            # save_translator_config updates cache with resolved path, mtime_ns, and size
+            TR_MOD.save_translator_config({"enabled": False, "target_lang": "fr"}, config_path=cfg_path)
+            with mock.patch.object(TR_MOD.json, "load", side_effect=AssertionError("save must populate cache")):
+                c4 = TR_MOD.load_translator_config(cfg_path)
+                self.assertFalse(c4["enabled"])
+                self.assertEqual(c4["target_lang"], "fr")
+
+            # Deleting cached file invalidates cache and returns defaults
+            cfg_path.unlink()
+            c5 = TR_MOD.load_translator_config(cfg_path)
+            self.assertEqual(c5["target_lang"], "auto")
+            self.assertTrue(c5["enabled"])
+        finally:
+            with TR_MOD._CONFIG_CACHE_LOCK:
+                TR_MOD._CONFIG_CACHE_STATE.update(
+                    {
+                        "path": None,
+                        "mtime_ns": -1,
+                        "size": -1,
+                        "dpapi_path": None,
+                        "dpapi_mtime_ns": -1,
+                        "dpapi_size": -1,
+                        "cfg": None,
+                    }
+                )
+
+    def test_dpapi_key_storage_legacy_migration_and_sanitize(self) -> None:
+        cfg_path = Path(self._td.name) / "translator config.json"
+        dpapi_path = TR_MOD.get_dpapi_keys_path(cfg_path)
+        self.assertEqual(dpapi_path.name, "translator config.dpapi.json")
+
+        # Default path resolves into json cache/translator dpapi keys.json
+        self.assertEqual(TR_MOD.get_dpapi_keys_path().name, "translator dpapi keys.json")
+
+        with TR_MOD._CONFIG_CACHE_LOCK:
+            TR_MOD._CONFIG_CACHE_STATE.update(
+                {
+                    "path": None,
+                    "mtime_ns": -1,
+                    "size": -1,
+                    "dpapi_path": None,
+                    "dpapi_mtime_ns": -1,
+                    "dpapi_size": -1,
+                    "cfg": None,
+                }
+            )
+        try:
+            deepl_secret = "11112222-3333-4444-5555-666677778888:fx"
+            gemini_secret = "AIzaSyTestExampleKey9876543210abcdefg"
+
+            saved = TR_MOD.save_translator_config(
+                {
+                    "enabled": True,
+                    "auto_translate_chat": True,
+                    "target_lang": "es",
+                    "deepl_api_key": deepl_secret,
+                    "gemini_api_key": gemini_secret,
+                },
+                config_path=cfg_path,
+            )
+            self.assertEqual(saved["deepl_api_key"], deepl_secret)
+            self.assertEqual(saved["gemini_api_key"], gemini_secret)
+
+            # Plaintext keys must NEVER appear in translator config.json or on disk in DPAPI file
+            cfg_text = cfg_path.read_text(encoding="utf-8")
+            self.assertNotIn(deepl_secret, cfg_text)
+            self.assertNotIn(gemini_secret, cfg_text)
+            self.assertNotIn("deepl_api_key", cfg_text)
+            self.assertNotIn("gemini_api_key", cfg_text)
+
+            self.assertTrue(dpapi_path.is_file())
+            dpapi_text = dpapi_path.read_text(encoding="utf-8")
+            self.assertNotIn(deepl_secret, dpapi_text)
+            self.assertNotIn(gemini_secret, dpapi_text)
+
+            # Cold load decrypts keys cleanly
+            with TR_MOD._CONFIG_CACHE_LOCK:
+                TR_MOD._CONFIG_CACHE_STATE.update(
+                    {
+                        "path": None,
+                        "mtime_ns": -1,
+                        "size": -1,
+                        "dpapi_path": None,
+                        "dpapi_mtime_ns": -1,
+                        "dpapi_size": -1,
+                        "cfg": None,
+                    }
+                )
+            loaded = TR_MOD.load_translator_config(cfg_path)
+            self.assertEqual(loaded["deepl_api_key"], deepl_secret)
+            self.assertEqual(loaded["gemini_api_key"], gemini_secret)
+
+            sanitized = TR_MOD.sanitize_translator_config(loaded)
+            self.assertEqual(
+                sanitized,
+                {
+                    "enabled": True,
+                    "auto_translate_chat": True,
+                    "target_lang": "es",
+                    "has_deepl_key": True,
+                    "has_gemini_key": True,
+                },
+            )
+            self.assertNotIn("deepl_api_key", sanitized)
+            self.assertNotIn("gemini_api_key", sanitized)
+
+            # Legacy plaintext migration scrubs translator config.json and encrypts into DPAPI file
+            legacy_cfg = Path(self._td.name) / "legacy translator config.json"
+            legacy_dpapi = TR_MOD.get_dpapi_keys_path(legacy_cfg)
+            legacy_cfg.write_text(
+                json.dumps(
+                    {
+                        "enabled": True,
+                        "auto_translate_chat": False,
+                        "target_lang": "fr",
+                        "deepl_api_key": deepl_secret,
+                        "gemini_api_key": gemini_secret,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            migrated = TR_MOD.load_translator_config(legacy_cfg)
+            self.assertEqual(migrated["deepl_api_key"], deepl_secret)
+            self.assertEqual(migrated["gemini_api_key"], gemini_secret)
+            self.assertEqual(migrated["target_lang"], "fr")
+            self.assertFalse(migrated["auto_translate_chat"])
+
+            scrubbed_text = legacy_cfg.read_text(encoding="utf-8")
+            self.assertNotIn(deepl_secret, scrubbed_text)
+            self.assertNotIn(gemini_secret, scrubbed_text)
+            self.assertNotIn("deepl_api_key", scrubbed_text)
+            self.assertTrue(legacy_dpapi.is_file())
+            self.assertNotIn(deepl_secret, legacy_dpapi.read_text(encoding="utf-8"))
+
+            # If DPAPI write fails during legacy migration, translator config.json must NOT be scrubbed
+            fail_cfg = Path(self._td.name) / "fail legacy config.json"
+            fail_cfg.write_text(
+                json.dumps({"enabled": True, "target_lang": "es", "deepl_api_key": deepl_secret}),
+                encoding="utf-8",
+            )
+            with mock.patch.object(TR_MOD, "_save_dpapi_keys", side_effect=RuntimeError("dpapi unavailable")):
+                preserved = TR_MOD.load_translator_config(fail_cfg)
+            self.assertEqual(preserved["deepl_api_key"], deepl_secret)
+            self.assertIn(deepl_secret, fail_cfg.read_text(encoding="utf-8"))
+        finally:
+            with TR_MOD._CONFIG_CACHE_LOCK:
+                TR_MOD._CONFIG_CACHE_STATE.update(
+                    {
+                        "path": None,
+                        "mtime_ns": -1,
+                        "size": -1,
+                        "dpapi_path": None,
+                        "dpapi_mtime_ns": -1,
+                        "dpapi_size": -1,
+                        "cfg": None,
+                    }
+                )
+
+    def test_concurrent_config_save_and_load_zero_errors(self) -> None:
+        cfg_path = Path(self._td.name) / "concurrent translator config.json"
+        with TR_MOD._CONFIG_CACHE_LOCK:
+            TR_MOD._CONFIG_CACHE_STATE.update(
+                {
+                    "path": None,
+                    "mtime_ns": -1,
+                    "size": -1,
+                    "dpapi_path": None,
+                    "dpapi_mtime_ns": -1,
+                    "dpapi_size": -1,
+                    "cfg": None,
+                }
+            )
+        errors: list[BaseException] = []
+        barrier = threading.Barrier(12)
+
+        def worker(tid: int) -> None:
+            try:
+                barrier.wait(timeout=5.0)
+                for idx in range(15):
+                    TR_MOD.save_translator_config(
+                        {
+                            "enabled": True,
+                            "auto_translate_chat": (idx % 2 == 0),
+                            "target_lang": "es" if (tid + idx) % 2 == 0 else "fr",
+                            "deepl_api_key": f"11112222-3333-4444-5555-66667777{tid:02d}{idx:02d}:fx",
+                            "gemini_api_key": f"AIzaSyConcurrentTestKey{tid:02d}{idx:02d}abcdef",
+                        },
+                        config_path=cfg_path,
+                    )
+                    loaded = TR_MOD.load_translator_config(cfg_path)
+                    if loaded["target_lang"] not in ("es", "fr"):
+                        raise AssertionError(f"Unexpected target_lang: {loaded['target_lang']}")
+            except BaseException as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(12)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30.0)
+        self.assertEqual(errors, [])
+        self.assertFalse(any(t.is_alive() for t in threads))
+
 
 class TestLocalHttpServerRoundtrip(unittest.TestCase):
     """Real localhost HTTP server tests on an ephemeral port (port=0) with mocked upstream provider."""
@@ -554,9 +787,268 @@ class TestLuaHookGeneratorAndBehavior(unittest.TestCase):
         self.assertFalse(lua.eval("_G.__HEINZ_TRANSLATOR_CFG__.enabled"))
         self.assertEqual(lua.eval("_G.ChatManager2.Instance.Translate:GetLangString()"), "en")
 
+    def test_direct_singleton_getinstance_room_addchat_and_gate_bypass_restore(self) -> None:
+        # 1. Direct _G.ChatManager2 singleton (NO .Instance) + ChatInterface.getTranslateMgr fallback + Room.AddChat + roomDic
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.execute(
+            r"""
+            _G.TranslateUrlList = { "https://translate-lm.omnilojoapps.com/client.php" }
+            _G._translatedMsgs = {}
+            _G._dcSelfCalls = {}
+            _G._cuKeyCalls = {}
+
+            local tm = {}
+            function tm:GetLangString()
+                return "en"
+            end
+            function tm:DoTranslate(msg)
+                _G._translatedMsgs[#_G._translatedMsgs + 1] = msg.seqId or msg.msg
+            end
+
+            _G.ChatInterface = {
+                getTranslateMgr = function()
+                    return tm
+                end,
+                GetAotuTra = function()
+                    return false
+                end,
+            }
+
+            local roomObj = { msgs = {} }
+            local rm = {
+                roomDic = { alliance = roomObj },
+            }
+            function rm:AddChat(roomId, msgObj)
+                roomObj.msgs[#roomObj.msgs + 1] = msgObj
+                return "ADDED:" .. tostring(roomId)
+            end
+
+            -- Direct singleton: no .Instance field
+            _G.ChatManager2 = {
+                Room = rm,
+            }
+
+            _G.LuaEntry = {
+                DataConfig = {
+                    CheckSwitch = function(self, key)
+                        _G._dcSelfCalls[#_G._dcSelfCalls + 1] = { isSelf = (self == _G.LuaEntry.DataConfig), key = key }
+                        if key == "war_detail" then return true end
+                        return false
+                    end,
+                },
+            }
+            _G.ChatUtils = {
+                CheckSwitch = function(key)
+                    _G._cuKeyCalls[#_G._cuKeyCalls + 1] = tostring(key)
+                    return false
+                end,
+            }
+            _G.DataCenter = {
+                MonthCardNewManager = {
+                    CheckAutoTraActive = function(self)
+                        return false
+                    end,
+                    CheckAutoTraAvailable = function(self)
+                        return false
+                    end,
+                },
+            }
+            """
+        )
+
+        hook_on = TR_MOD.build_translator_lua_hook(18765, enabled=True, target_lang="fr", auto_translate_chat=True)
+        res = lua.execute(hook_on)
+        self.assertEqual(res, "TRANSLATOR_HOOK_ENABLED:18765:fr")
+        self.assertEqual(lua.eval("_G.ChatInterface.getTranslateMgr():GetLangString()"), "fr")
+
+        # Switch & month card gates bypassed when enabled + auto_translate_chat
+        self.assertTrue(lua.eval('_G.LuaEntry.DataConfig:CheckSwitch("screen_translation")'))
+        self.assertTrue(lua.eval('_G.LuaEntry.DataConfig:CheckSwitch("war_detail")'))
+        self.assertFalse(lua.eval('_G.LuaEntry.DataConfig:CheckSwitch("other_flag")'))
+        self.assertEqual(lua.eval("#_G._dcSelfCalls"), 2)
+        self.assertTrue(lua.eval("_G._dcSelfCalls[1].isSelf"))
+        self.assertEqual(lua.eval("_G._dcSelfCalls[1].key"), "war_detail")
+
+        self.assertTrue(lua.eval('_G.ChatUtils.CheckSwitch("screen_translation")'))
+        self.assertFalse(lua.eval('_G.ChatUtils.CheckSwitch("other_chat_flag")'))
+        self.assertEqual(lua.eval("#_G._cuKeyCalls"), 1)
+        self.assertEqual(lua.eval("_G._cuKeyCalls[1]"), "other_chat_flag")
+
+        self.assertTrue(lua.eval("_G.DataCenter.MonthCardNewManager:CheckAutoTraActive()"))
+        self.assertTrue(lua.eval("_G.DataCenter.MonthCardNewManager:CheckAutoTraAvailable()"))
+        self.assertTrue(lua.eval("_G.ChatInterface.GetAotuTra()"))
+
+        # Room:AddChat translates message using getChatMessageType() even without msg.type
+        ret_add = lua.eval(
+            '_G.ChatManager2.Room:AddChat("alliance", { msg = "bonjour", seqId = 777, getChatMessageType = function(self) return 0 end })'
+        )
+        self.assertEqual(ret_add, "ADDED:alliance")
+        self.assertEqual(lua.eval("#_G._translatedMsgs"), 1)
+        self.assertEqual(lua.eval("_G._translatedMsgs[1]"), 777)
+
+        # Non-mutating diagnostics JSON reflects real wrapped state
+        diag_lua = TR_MOD.build_translator_diag_lua()
+        diag = json.loads(lua.execute(diag_lua))
+        self.assertTrue(diag["hooked"])
+        self.assertTrue(diag["hasCm"])
+        self.assertTrue(diag["hasTm"])
+        self.assertTrue(diag["screenTranslation"])
+        self.assertTrue(diag["autoTraActive"])
+        self.assertEqual(diag["translateUrl"], "http://127.0.0.1:18765/client.php")
+
+        # Turning off auto_translate_chat restores gates while keeping TranslateUrlList and GetLangString active
+        res_manual = lua.execute(
+            TR_MOD.build_translator_lua_hook(18765, enabled=True, target_lang="fr", auto_translate_chat=False)
+        )
+        self.assertEqual(res_manual, "TRANSLATOR_HOOK_ENABLED:18765:fr")
+        self.assertFalse(lua.eval('_G.LuaEntry.DataConfig:CheckSwitch("screen_translation")'))
+        self.assertFalse(lua.eval('_G.ChatUtils.CheckSwitch("screen_translation")'))
+        self.assertFalse(lua.eval("_G.DataCenter.MonthCardNewManager:CheckAutoTraActive()"))
+        self.assertFalse(lua.eval("_G.ChatInterface.GetAotuTra()"))
+        self.assertEqual(lua.eval("_G.ChatInterface.getTranslateMgr():GetLangString()"), "fr")
+
+        # Disabling completely restores GetLangString and TranslateUrlList, and diag reports hooked=False
+        res_off = lua.execute(TR_MOD.build_translator_lua_hook(18765, enabled=False, target_lang="fr", auto_translate_chat=False))
+        self.assertEqual(res_off, "TRANSLATOR_HOOK_DISABLED")
+        self.assertEqual(lua.eval("_G.ChatInterface.getTranslateMgr():GetLangString()"), "en")
+        diag_off = json.loads(lua.execute(diag_lua))
+        self.assertFalse(diag_off["hooked"])
+        self.assertFalse(diag_off["screenTranslation"])
+        self.assertFalse(diag_off["autoTraActive"])
+
+    def test_getinstance_and_pending_status_when_no_targets(self) -> None:
+        # 1. No ChatManager2 / TranslateManager -> TRANSLATOR_HOOK_PENDING (never falsely ENABLED)
+        lua_empty = LuaRuntime(unpack_returned_tuples=True)
+        res_pending = lua_empty.execute(
+            TR_MOD.build_translator_lua_hook(18765, enabled=True, target_lang="auto", auto_translate_chat=True)
+        )
+        self.assertEqual(res_pending, "TRANSLATOR_HOOK_PENDING:18765:auto")
+        diag_empty = json.loads(lua_empty.execute(TR_MOD.build_translator_diag_lua()))
+        self.assertFalse(diag_empty["hooked"])
+        self.assertFalse(diag_empty["hasCm"])
+        self.assertFalse(diag_empty["hasTm"])
+
+        # 2. :GetInstance() + ChatUtils.GetTranslateManager() fallback
+        lua_gi = LuaRuntime(unpack_returned_tuples=True)
+        lua_gi.execute(
+            r"""
+            _G._giCalls = 0
+            local tm = {
+                GetLangString = function(self) return "en" end,
+                DoTranslate = function(self, msg) end,
+            }
+            _G.ChatUtils = {
+                GetTranslateManager = function() return tm end,
+            }
+            local inst = {
+                OnHandleMessage = function(self, a1) return "OK" end,
+            }
+            _G.ChatManager2 = {
+                GetInstance = function(self)
+                    _G._giCalls = _G._giCalls + 1
+                    return inst
+                end,
+            }
+            """
+        )
+        res_gi = lua_gi.execute(
+            TR_MOD.build_translator_lua_hook(18765, enabled=True, target_lang="de", auto_translate_chat=True)
+        )
+        self.assertEqual(res_gi, "TRANSLATOR_HOOK_ENABLED:18765:de")
+        self.assertGreaterEqual(lua_gi.eval("_G._giCalls"), 1)
+        self.assertEqual(lua_gi.eval("_G.ChatUtils.GetTranslateManager():GetLangString()"), "de")
+
+    def test_rehook_after_game_replaces_functions_and_diag_partial_unhook(self) -> None:
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.execute(
+            r"""
+            _G.TranslateUrlList = { "https://translate-lm.omnilojoapps.com/client.php" }
+            _G.doCalls = 0
+            _G.newCmCalls = 0
+            _G.newRmCalls = 0
+            _G.newCheckCalls = 0
+
+            local tm = {
+                GetLangString = function(self) return "en" end,
+                DoTranslate = function(self, msg) _G.doCalls = _G.doCalls + 1 end,
+            }
+            local rm = {
+                AddChat = function(self, roomId, msgObj) return "OLD_RM" end,
+            }
+            local cm = {
+                Translate = tm,
+                Room = rm,
+                OnHandleMessage = function(self, cmd, msgObj) return "OLD_CM" end,
+            }
+            _G.ChatManager2 = cm
+            _G.LuaEntry = {
+                DataConfig = {
+                    CheckSwitch = function(self, key) return false end,
+                },
+            }
+            """
+        )
+
+        hook_cmd = TR_MOD.build_translator_lua_hook(18765, enabled=True, target_lang="en", auto_translate_chat=True)
+        diag_cmd = TR_MOD.build_translator_diag_lua()
+        self.assertEqual(lua.execute(hook_cmd), "TRANSLATOR_HOOK_ENABLED:18765:en")
+        self.assertTrue(json.loads(lua.execute(diag_cmd))["hooked"])
+
+        # Game replaces cm.OnHandleMessage while tm.GetLangString and rm.AddChat stay wrapped
+        lua.execute(
+            r"""
+            _G.ChatManager2.OnHandleMessage = function(self, cmd, msgObj)
+                _G.newCmCalls = _G.newCmCalls + 1
+                return "NEW_CM"
+            end
+            """
+        )
+        diag_partial_cm = json.loads(lua.execute(diag_cmd))
+        self.assertFalse(diag_partial_cm["hooked"])
+
+        # Re-hook must wrap the game's NEW OnHandleMessage (calling both new handler and DoTranslate)
+        self.assertEqual(lua.execute(hook_cmd), "TRANSLATOR_HOOK_ENABLED:18765:en")
+        self.assertTrue(json.loads(lua.execute(diag_cmd))["hooked"])
+        ret_cm = lua.eval(
+            '_G.ChatManager2:OnHandleMessage("push", { type = 0, msg = "hola nuevo", translateMsg = "", isTranslating = 0, seqId = 9001 })'
+        )
+        self.assertEqual(ret_cm, "NEW_CM")
+        self.assertEqual(lua.eval("_G.newCmCalls"), 1)
+        self.assertEqual(lua.eval("_G.doCalls"), 1)
+
+        # Game replaces rm.AddChat and LuaEntry.DataConfig.CheckSwitch -> diag detects partial unhook, re-hook wraps new functions
+        lua.execute(
+            r"""
+            _G.ChatManager2.Room.AddChat = function(self, roomId, msgObj)
+                _G.newRmCalls = _G.newRmCalls + 1
+                return "NEW_RM"
+            end
+            _G.LuaEntry.DataConfig.CheckSwitch = function(self, key)
+                _G.newCheckCalls = _G.newCheckCalls + 1
+                return key == "custom_switch"
+            end
+            """
+        )
+        diag_partial_rm = json.loads(lua.execute(diag_cmd))
+        self.assertFalse(diag_partial_rm["hooked"])
+        self.assertEqual(lua.eval("_G.newCheckCalls"), 1)
+
+        self.assertEqual(lua.execute(hook_cmd), "TRANSLATOR_HOOK_ENABLED:18765:en")
+        self.assertTrue(json.loads(lua.execute(diag_cmd))["hooked"])
+        ret_rm = lua.eval(
+            '_G.ChatManager2.Room:AddChat("world", { type = 0, msg = "salut nuevo", translateMsg = "", isTranslating = 0, seqId = 9002 })'
+        )
+        self.assertEqual(ret_rm, "NEW_RM")
+        self.assertEqual(lua.eval("_G.newRmCalls"), 1)
+        self.assertEqual(lua.eval("_G.doCalls"), 2)
+        self.assertTrue(lua.eval('_G.LuaEntry.DataConfig:CheckSwitch("screen_translation")'))
+        self.assertEqual(lua.eval("_G.newCheckCalls"), 1)
+        self.assertTrue(lua.eval('_G.LuaEntry.DataConfig:CheckSwitch("custom_switch")'))
+        self.assertEqual(lua.eval("_G.newCheckCalls"), 2)
+
 
 class TestDaemonWiringAndGuardrails(unittest.TestCase):
-    """Verify daemon translator integration uses frida_eval_lua and obeys repo guardrails."""
+    """Verify daemon translator integration, Hub RPCs, DOM contracts, and repo guardrails."""
 
     def test_daemon_sync_translator_hook_routes_via_frida_eval_lua(self) -> None:
         fake_cd = mock.MagicMock()
@@ -574,10 +1066,205 @@ class TestDaemonWiringAndGuardrails(unittest.TestCase):
         fake_cd.frida_eval_lua.assert_called_once()
         self.assertIn("http://127.0.0.1:18765/client.php", fake_cd.frida_eval_lua.call_args[0][1])
 
+    def test_daemon_hook_version_invalidation_and_pending_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            cfg_path = Path(td) / "translator config.json"
+            cfg_path.write_text(json.dumps({"enabled": True, "target_lang": "en", "auto_translate_chat": True}), encoding="utf-8")
+
+            fake_tr = mock.MagicMock()
+            fake_tr.TRANSLATOR_HOOK_VERSION = 1
+            fake_tr.get_config_path.return_value = cfg_path
+            fake_tr.ensure_server_running.return_value = {"running": True, "port": 18765, "external": False}
+
+            patched_pids = {101: {"pid": 101, "exe_name": "Survival.exe", "label": "Main"}}
+            hook_sig: dict = {}
+            retry_after: dict = {}
+            tr_state = {"port": 0, "started_here": False, "last_probe_at": 0.0, "prev_enabled": True}
+            cfg_cache: dict = {}
+
+            # 1. PENDING result must NOT cache translator_hook_sig and must set retry cooldown (+5.0s)
+            with mock.patch.object(DAEMON_MOD, "sync_translator_hook", return_value=(True, "TRANSLATOR_HOOK_PENDING:18765:en")) as mock_sync:
+                DAEMON_MOD._sync_translator_tick(
+                    None, fake_tr, {101}, patched_pids, hook_sig, retry_after, tr_state, cfg_cache, now_mono=100.0
+                )
+                self.assertEqual(mock_sync.call_count, 1)
+                self.assertNotIn(101, hook_sig)
+                self.assertAlmostEqual(retry_after[101], 105.0)
+
+                # Within cooldown (t=102.0) does not retry yet
+                DAEMON_MOD._sync_translator_tick(
+                    None, fake_tr, {101}, patched_pids, hook_sig, retry_after, tr_state, cfg_cache, now_mono=102.0
+                )
+                self.assertEqual(mock_sync.call_count, 1)
+
+            # 2. NO_TARGET also does not cache
+            with mock.patch.object(DAEMON_MOD, "sync_translator_hook", return_value=(True, "TRANSLATOR_HOOK_NO_TARGET:18765")) as mock_sync:
+                DAEMON_MOD._sync_translator_tick(
+                    None, fake_tr, {101}, patched_pids, hook_sig, retry_after, tr_state, cfg_cache, now_mono=106.0
+                )
+                self.assertEqual(mock_sync.call_count, 1)
+                self.assertNotIn(101, hook_sig)
+
+            # 3. ENABLED caches sig; bumping TRANSLATOR_HOOK_VERSION invalidates sig and re-hooks
+            with mock.patch.object(DAEMON_MOD, "sync_translator_hook", return_value=(True, "TRANSLATOR_HOOK_ENABLED:18765:en")) as mock_sync:
+                DAEMON_MOD._sync_translator_tick(
+                    None, fake_tr, {101}, patched_pids, hook_sig, retry_after, tr_state, cfg_cache, now_mono=112.0
+                )
+                self.assertEqual(mock_sync.call_count, 1)
+                self.assertIn(101, hook_sig)
+                self.assertEqual(hook_sig[101][0], 1)
+
+                # Same version -> cached, no call
+                DAEMON_MOD._sync_translator_tick(
+                    None, fake_tr, {101}, patched_pids, hook_sig, retry_after, tr_state, cfg_cache, now_mono=113.0
+                )
+                self.assertEqual(mock_sync.call_count, 1)
+
+                # Bump TRANSLATOR_HOOK_VERSION -> re-syncs immediately
+                fake_tr.TRANSLATOR_HOOK_VERSION = 2
+                DAEMON_MOD._sync_translator_tick(
+                    None, fake_tr, {101}, patched_pids, hook_sig, retry_after, tr_state, cfg_cache, now_mono=114.0
+                )
+                self.assertEqual(mock_sync.call_count, 2)
+                self.assertEqual(hook_sig[101][0], 2)
+
+    def test_hub_translator_status_rehook_and_redaction(self) -> None:
+        hub_mod = _load_mod("test_hub_live_translator_mod", "launcher/heinzhubweb.py")
+
+        deepl_secret = "abcdef12-3456-7890-abcd-ef1234567890:fx"
+        gemini_secret = "AIzaSyTEST_SENTINEL_1234567890abcdefghi"
+        redacted = hub_mod._redact_text(
+            f"err deepl_api_key={deepl_secret} DeepL-Auth-Key {deepl_secret} x-goog-api-key: {gemini_secret} {gemini_secret}"
+        )
+        self.assertNotIn(deepl_secret, redacted)
+        self.assertNotIn(gemini_secret, redacted)
+
+        bearer_redacted = hub_mod._redact_text("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9+abc/def==")
+        self.assertEqual(bearer_redacted, "Authorization: <REDACTED>")
+        self.assertNotIn("+abc/def==", bearer_redacted)
+
+        init_params = inspect.signature(hub_mod.HubBackend.__init__).parameters
+        kwargs = {"defer_enhanced": True} if "defer_enhanced" in init_params else {}
+        with contextlib.ExitStack() as stack:
+            for attr_name in (
+                "_load_cached_state",
+                "_load_always_on_daemon_config",
+                "_start_always_on_daemon",
+                "_ensure_translator_bg",
+                "log",
+            ):
+                if hasattr(hub_mod.HubBackend, attr_name):
+                    stack.enter_context(mock.patch.object(hub_mod.HubBackend, attr_name))
+            backend = hub_mod.HubBackend(**kwargs)
+
+        fake_tr = mock.MagicMock()
+        fake_tr.load_translator_config.return_value = {
+            "enabled": True,
+            "auto_translate_chat": True,
+            "target_lang": "en",
+            "deepl_api_key": deepl_secret,
+            "gemini_api_key": gemini_secret,
+        }
+        fake_tr.ensure_server_running.return_value = {
+            "running": True,
+            "port": 18765,
+            "url": "http://127.0.0.1:18765/client.php",
+        }
+        fake_tr.get_stats.return_value = {
+            "ok": True,
+            "total_requests": 2,
+            "cache_hits": 1,
+            "avg_ms": 12.5,
+            "recent": [
+                {"src": "newest src", "dst": "newest dst", "provider": "google_gtx"},
+                {"src": "older src", "dst": "older dst", "provider": "cache"},
+            ],
+        }
+        fake_tr.build_translator_diag_lua.return_value = "return '{}'"
+        fake_tr.build_translator_lua_hook.return_value = "return 'TRANSLATOR_HOOK_ENABLED:18765:en'"
+
+        backend._translator_mod_cache = fake_tr
+
+        # 1. Offline / 0 clients fallback
+        with mock.patch.object(hub_mod, "client_discovery", None), \
+             mock.patch.object(backend, "_discover_running_clients", return_value=[]):
+            st_empty = backend.get_translator_status()
+            self.assertTrue(st_empty["ok"])
+            self.assertEqual(st_empty["attached_pids"], [])
+            self.assertEqual(st_empty["hooked_pids"], [])
+            self.assertIsNone(st_empty["screen_translation"])
+            self.assertEqual(st_empty["last_preview"]["dst"], "newest dst")
+            self.assertTrue(st_empty["has_deepl_key"])
+            self.assertTrue(st_empty["has_gemini_key"])
+            self.assertNotIn(deepl_secret, json.dumps(st_empty))
+            self.assertNotIn(gemini_secret, json.dumps(st_empty))
+
+        # 2. Live clients with mock frida_eval_lua WITHOUT retries kwarg (tests TypeError fallback)
+        fake_cd = mock.MagicMock()
+        fake_cd._xlua_loaded.side_effect = lambda pid: pid in (101, 102)
+
+        def simple_frida_eval(pid, code, timeout=4.0):
+            if "TRANSLATOR_HOOK_ENABLED" in code:
+                return (True, "TRANSLATOR_HOOK_ENABLED:18765:en")
+            if pid == 101:
+                return (True, json.dumps({"hooked": True, "hasCm": True, "hasTm": True, "screenTranslation": True, "autoTraActive": True}))
+            return (True, json.dumps({"hooked": False, "hasCm": True, "hasTm": False, "screenTranslation": False, "autoTraActive": False}))
+
+        fake_cd.frida_eval_lua = simple_frida_eval
+        with mock.patch.object(hub_mod, "client_discovery", fake_cd), \
+             mock.patch.object(backend, "_discover_running_clients", return_value=[{"pid": 101}, {"pid": 102}, {"pid": 103}]):
+            st_live = backend.get_translator_status()
+            self.assertEqual(st_live["attached_pids"], [101, 102])
+            self.assertEqual(st_live["hooked_pids"], [101])
+            self.assertTrue(st_live["screen_translation"])
+            self.assertTrue(st_live["auto_tra_active"])
+
+            logged_msgs: list[str] = []
+            with mock.patch.object(backend, "log", side_effect=lambda msg, lvl="info": logged_msgs.append(str(msg))):
+                rehook_res = backend.rehook_translator()
+            self.assertTrue(rehook_res["ok"])
+            self.assertTrue(rehook_res["rehooked"])
+            self.assertEqual(rehook_res["hooked_pids"], [101, 102])
+            self.assertEqual(rehook_res["rehook_errors"], [])
+            combined_out = json.dumps(rehook_res) + "\n".join(logged_msgs)
+            self.assertNotIn(deepl_secret, combined_out)
+            self.assertNotIn(gemini_secret, combined_out)
+
+    def test_index_html_live_translator_dom_and_xss_contracts(self) -> None:
+        html = (PROJECT_ROOT / "launcher" / "web" / "index.html").read_text(encoding="utf-8")
+
+        # Duplicate ID check
+        all_ids = re.findall(r'\bid\s*=\s*"([^"]+)"', html)
+        self.assertEqual(len(all_ids), len(set(all_ids)), "Duplicate HTML IDs found in index.html")
+
+        # Zero translator quick-toggle pill in <header class="hero-header">
+        m_hdr = re.search(r'<header[^>]*class="hero-header"[^>]*>.*?</header>', html, flags=re.S)
+        self.assertIsNotNone(m_hdr)
+        hdr_html = m_hdr.group(0).lower()
+        for forbidden in ("translator", "auto-tr", "rehook", "tr-status", "tr-pid"):
+            self.assertNotIn(forbidden, hdr_html)
+
+        # Required elements strictly inside #card-live-translator
+        m_card = re.search(r'<div[^>]*id="card-live-translator".*?<div class="card-grid-2">', html, flags=re.S)
+        self.assertIsNotNone(m_card)
+        card_html = m_card.group(0)
+        for req_id in ("tr-status-pill", "tr-pid-badge", "tr-pid-text", "tr-switch-badge", "tr-rehook-btn", "tr-last-preview"):
+            self.assertIn(f'id="{req_id}"', card_html)
+        self.assertIn('onclick="rehookTranslator()"', card_html)
+
+        # JS recent[0] fix, esc() XSS escaping, and rehook_translator RPC call
+        self.assertNotIn("recentArr[recentArr.length - 1]", html)
+        self.assertIn("recentArr[0]", html)
+        self.assertIn('callApi("rehook_translator")', html)
+        m_render = re.search(r"function _renderTranslatorStatus\(st\).*?async function rehookTranslator", html, flags=re.S)
+        self.assertIsNotNone(m_render)
+        self.assertIn("esc(", m_render.group(0))
+
     def test_zero_em_dashes_and_zero_prohibited_terms(self) -> None:
         term1_re = re.compile(r"\bcom" + r"mander\b", re.I)
         term2_re = re.compile(r"cour" + r"age\s+bad" + r"ges?", re.I)
         em_dash = "\u2014"
+        en_dash = "\u2013"
         mdash_entity = "&" + "mdash;"
         owned = [
             PROJECT_ROOT / "tools" / "live translator server.py",
@@ -587,6 +1274,7 @@ class TestDaemonWiringAndGuardrails(unittest.TestCase):
         for path in owned:
             text = path.read_text(encoding="utf-8")
             self.assertNotIn(em_dash, text, f"Em dash found in {path.name}")
+            self.assertNotIn(en_dash, text, f"En dash found in {path.name}")
             self.assertNotIn(mdash_entity, text, f"HTML mdash entity found in {path.name}")
             self.assertIsNone(term1_re.search(text), f"Forbidden term 1 in {path.name}")
             self.assertIsNone(term2_re.search(text), f"Forbidden term 2 in {path.name}")

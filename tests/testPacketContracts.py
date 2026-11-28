@@ -743,6 +743,94 @@ class TestPacketContracts(unittest.TestCase):
             self.assertIs(hp_rules["allow_sp_equip"], False)
             self.assertIs(hp_rules["use_universal_sp_shards"], False)
 
+    def test_production_rf_hq_under_attack_lua_compiles_and_executes(self) -> None:
+        """Verify run_rf_hq_under_attack Lua compiles cleanly under Lupa and executes self-threat + ally-reinforce paths."""
+        from lupa import LuaRuntime
+
+        captured_lua: list[str] = []
+
+        class _FakeCD:
+            def _xlua_loaded(self, pid: int) -> bool:
+                return True
+
+            def frida_eval_lua(self, pid: int, code: str, timeout: float = 8.0):
+                captured_lua.append(code)
+                lua = LuaRuntime(unpack_returned_tuples=True)
+                ok_load, err_load = lua.eval("function(c) local f, e = load(c); return f ~= nil, e end")(code)
+                if not ok_load:
+                    raise AssertionError(f"Lua compile failed: {err_load}")
+                lua.execute(
+                    r"""
+                    _G._sentMarches = {}
+                    LuaEntry = {
+                        Player = {
+                            GetUid = function() return "1001" end,
+                            GetName = function() return "MainHero" end,
+                            GetCurServerId = function() return 702 end,
+                            GetSelfServerId = function() return 702 end,
+                            GetMainWorldPos = function() return 500500 end,
+                            GetCurStamina = function() return 120 end,
+                            IsInAlliance = function() return true end,
+                            GetAllianceUid = function() return "ally_1" end,
+                            GetAllianceAbbr = function() return "ALY" end,
+                            GetPower = function() return 50000000 end,
+                        }
+                    }
+                    UITimeManager = { GetInstance = function() return { GetServerSeconds = function() return 1700000000 end } end }
+                    SceneManager = { IsInWorld = function() return true end }
+                    ChatInterface = {}
+                    MarchTargetType = { ASSISTANCE_CITY = 14 }
+                    DataCenter = {
+                        BuildManager = { MainLv = 30 },
+                        StatusManager = { CheckShield = function() return false end },
+                        RadarAlarmDataManager = {
+                            GetAllMarches = function()
+                                return {
+                                    { uuid = "m_self", target = 11, targetUid = "1001", targetPos = 500500, ownerUid = "9999", allianceUid = "enemy", allianceAbbr = "ENM", ownerName = "Attacker", endTime = 1700000120000 },
+                                    { uuid = "m_ally", target = 11, targetUid = "2002", targetPos = 505505, ownerUid = "9998", allianceUid = "enemy", allianceAbbr = "ENM", ownerName = "Raider", endTime = 1700000180000 },
+                                }
+                            end
+                        },
+                        AllianceAlertDataManager = { GetAllianceAlertList = function() return {} end },
+                        WorldMarchDataManager = { allMarches = {} },
+                        ArmyFormationDataManager = {
+                            GetArmyFormationList = function()
+                                return {
+                                    { uuid = "111", index = 1, state = 0, curSoldierNum = 1000, maxSoldierNum = 1000 },
+                                }
+                            end,
+                            GetCurSoldierNum = function() return 1000 end,
+                            GetInMarchArmyFormationUuids = function() return {} end,
+                        },
+                        ItemData = { ItemInfos = {} },
+                        ItemTemplateManager = {},
+                    }
+                    package.loaded["Util.MarchUtil_SLG"] = {
+                        CheckWorldPointHasMyTroop = function() return false end,
+                        SendCreateMarchMessage = function(fUuid, mType, pt, tUid, a, b, c, srvId)
+                            table.insert(_G._sentMarches, { fUuid = tostring(fUuid), mType = mType, pt = pt, tUid = tUid, srvId = srvId })
+                        end,
+                    }
+                    """
+                )
+                out = lua.execute(code)
+                return True, str(out)
+
+        res = ba.run_rf_hq_under_attack(
+            _FakeCD(),
+            1234,
+            {},
+            {"rf_hq_under_attack": {"auto_shield_on_self_attack": False, "reinforce_protected_uids": True, "reinforce_alliance_members": True}},
+            dry_run=False,
+            context={"protected_uids": ["2002"], "reinforced_targets": []},
+        )
+        self.assertEqual(len(captured_lua), 1)
+        self.assertTrue(res.get("ok"), f"Unexpected failure: {res}")
+        self.assertTrue(res.get("self_under_attack"))
+        self.assertEqual(len(res.get("threats", [])), 2)
+        self.assertEqual(len(res.get("reinforcements", [])), 1)
+        self.assertEqual(res["reinforcements"][0]["targetPoint"], 505505)
+
 
 if __name__ == "__main__":
     unittest.main()

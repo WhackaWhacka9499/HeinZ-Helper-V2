@@ -977,6 +977,1645 @@ class TestR2HookAndBridgeContracts(unittest.TestCase):
             self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetServerLod(6)"), 1)
             self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetServerLod(1)"), 0)
 
+    def test_lua_corner_to_corner_should_build_point_now_100pct_coverage(self) -> None:
+        """lupa: ShouldBuildPointNow returns true across all 4 map corners and all point types when toggles are active."""
+        with tempfile.TemporaryDirectory() as tmp:
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702)
+            lua.execute(
+                r"""
+                DataCenter.WorldPointManager.aoiServerId = 702
+                DataCenter.WorldPointManager.allViewPoints = {}
+                DataCenter.WorldPointManager.AddPointInfo = function(self, idx, info)
+                    self.allViewPoints[idx] = { pointIndex = idx, mainIndex = idx, pointType = info.pointType, pointInfo = info }
+                end
+                _G.ApplyLastZWorldMaster()
+                local mgr = DataCenter.WorldPointManager
+                mgr:AddPointInfo(1002, { pointType = 4, monsterInfo = { type = 2 } })
+                mgr:AddPointInfo(999999, { pointType = 4, monsterInfo = { type = 3 } })
+                mgr:AddPointInfo(999002, { pointType = 6, buildInfo = { buildId = 400000 } })
+                mgr:AddPointInfo(1999, { pointType = 7, resourceInfo = { resourceId = 1 } })
+                mgr:AddPointInfo(500501, { pointType = 22 })
+                """
+            )
+            corners_and_types = [
+                (1, 1, 4, 2),
+                (999, 999, 4, 3),
+                (1, 999, 6, None),
+                (999, 1, 7, None),
+                (500, 500, 22, None),
+            ]
+            for px, py, ptype, mtype in corners_and_types:
+                idx = py * 1000 + px + 1
+                for lod in (1, 3, 7):
+                    extra = f", monsterInfo = {{ type = {mtype} }}" if mtype is not None else ""
+                    ok = lua.eval(
+                        f"_G.ShouldBuildPointNow(DataCenter.WorldPointManager, {idx}, {{ pointType = {ptype}, pointInfo = {{ pointType = {ptype}{extra} }} }}, 500, 500, false)"
+                    )
+                    self.assertTrue(ok, f"ShouldBuildPointNow returned false at ({px},{py}) pType={ptype} lod={lod}")
+
+            # Verify toggles filter accurately
+            lua.execute("_G._MasterToggles.showZombies = false")
+            self.assertFalse(
+                lua.eval(
+                    "_G.ShouldBuildPointNow(DataCenter.WorldPointManager, 1002, { pointType = 4, pointInfo = { pointType = 4, monsterInfo = { type = 2 } } }, 500, 500, false)"
+                )
+            )
+            self.assertTrue(
+                lua.eval(
+                    "_G.ShouldBuildPointNow(DataCenter.WorldPointManager, 999999, { pointType = 4, pointInfo = { pointType = 4, monsterInfo = { type = 3 } } }, 500, 500, false)"
+                )
+            )
+            lua.execute("_G._MasterToggles.showZombies = true; _G._MasterToggles.showBoomers = false")
+            self.assertFalse(
+                lua.eval(
+                    "_G.ShouldBuildPointNow(DataCenter.WorldPointManager, 999999, { pointType = 4, pointInfo = { pointType = 4, monsterInfo = { type = 3 } } }, 500, 500, false)"
+                )
+            )
+            # Verify spatial grid indexed all 5 corner/center entries
+            self.assertEqual(lua.eval("_G._MasterViewPointCount"), 5)
+
+    def test_lua_monster_gpu_instanced_proxy_lod_promotion_click_and_cleanup(self) -> None:
+        """lupa: WorldMonsterObject uses GPU proxy at lodLv>=3/far, promotes near-3D at lod<=2, preserves click, and cleans up handles."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._test3DCreates = 0
+            _G._test3DDestroys = 0
+            _G._testIcons = {}
+            _G._testNextIconHandle = 100
+            _G._testLabels = {}
+            _G._testNextLabelHandle = 500
+            _G._testClickedWorldIdx = nil
+
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileXZ = function(wx, wz, _)
+                    return math.floor(wx), math.floor(wz)
+                end,
+            }
+            ForceChangeScene = { World = 1 }
+            UIUtil = {
+                OnClickWorld = function(_, idx)
+                    _G._testClickedWorldIdx = idx
+                    return true
+                end,
+            }
+            local wmoCls = {
+                _class_type = { __cname = "WorldMonsterObject" },
+                CreateGameObject = function(self)
+                    _G._test3DCreates = _G._test3DCreates + 1
+                    self.instance = { isAsyncReq = true }
+                    self.gameObject = {
+                        _active = true,
+                        SetActive = function(go, v) go._active = v end,
+                        GetComponentsInChildren = function() return { Length = 0 } end,
+                    }
+                end,
+                OnCreateGameObject = function(self) end,
+                Destroy = function(self)
+                    _G._test3DDestroys = _G._test3DDestroys + 1
+                    self.gameObject = nil
+                    self.instance = nil
+                end,
+                UpdateGameObject = function(self) end,
+                SetIsBattle = function(self, v) self.isInBattle = v end,
+                PlayAnim = function(self, name) end,
+                RefreshLodType = function(self) end,
+            }
+            local wimMod = {
+                GetInstancedBuildingClickIndex = function(self, tileIdx) return nil end,
+                ClickWorld = function(self, tileIdx) return nil end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject"] = wmoCls
+            package.loaded["Scene.WorldScene.SubModule.WorldInputManager"] = wimMod
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local iconRenderer = {
+                    AddIcon = function(self, pos, path, cfg)
+                        _G._testNextIconHandle = _G._testNextIconHandle + 1
+                        local h = _G._testNextIconHandle
+                        _G._testIcons[h] = { pos = pos, path = path }
+                        return h
+                    end,
+                    UpdateIcon = function(self, h, pos, path, cfg)
+                        _G._testIcons[h] = { pos = pos, path = path }
+                        return h
+                    end,
+                    RemoveIcon = function(self, h)
+                        _G._testIcons[h] = nil
+                    end,
+                    Clear = function(self)
+                        _G._testIcons = {}
+                    end,
+                    GetCount = function(self)
+                        local c = 0
+                        for _ in pairs(_G._testIcons) do c = c + 1 end
+                        return c
+                    end,
+                }
+                local labelRenderer = {
+                    AddLabel = function(self, pos, lv, cfg)
+                        _G._testNextLabelHandle = _G._testNextLabelHandle + 1
+                        local h = _G._testNextLabelHandle
+                        _G._testLabels[h] = { pos = pos, lv = lv }
+                        return h
+                    end,
+                    UpdateLabel = function(self, h, pos, lv, cfg)
+                        _G._testLabels[h] = { pos = pos, lv = lv }
+                        return h
+                    end,
+                    RemoveLabel = function(self, h)
+                        _G._testLabels[h] = nil
+                    end,
+                    Clear = function(self)
+                        _G._testLabels = {}
+                    end,
+                }
+                DataCenter.MonsterTemplateManager = {
+                    GetTableValue = function(self, mid, key) return 15 end,
+                }
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 7
+                mgr.curCameraTarget = { x = 500, y = 0, z = 500, Set = function() end }
+                mgr.reqPos = { x = 500, y = 500, Set = function() end }
+                mgr.GetIconRenderer = function() return iconRenderer end
+                mgr.GetLabelRenderer = function() return labelRenderer end
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                mgr.OnLodChanged = function(self, lod) self.lodLv = lod end
+                mgr.DestroyObject = function(self, idx)
+                    local o = self.allObj[idx]
+                    if o and o.Destroy then o:Destroy() end
+                    self.allObj[idx] = nil
+                end
+                mgr.RemovePointInfo = function(self, idx, forceRemove, isOutOfView)
+                    self:DestroyObject(idx)
+                    self.allViewPoints[idx] = nil
+                end
+                SceneManager.World = {
+                    GetCurTarget = function() return 500, 0, 500 end,
+                    GetLodLevel = function() return mgr.lodLv end,
+                }
+                CS.SceneManager.World = SceneManager.World
+                _G.ApplyLastZWorldMaster()
+
+                local wmoCls = require("SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+                local function spawnMonster(idx, mtype)
+                    mgr.allViewPoints[idx] = {
+                        pointIndex = idx,
+                        mainIndex = idx,
+                        pointType = 4,
+                        pointInfo = { pointType = 4, monsterInfo = { type = mtype, monsterId = 1001 } },
+                    }
+                    local obj = setmetatable({ pointIndex = idx }, { __index = wmoCls })
+                    obj:CreateGameObject()
+                    mgr.allObj[idx] = obj
+                    return obj
+                end
+
+                _G._nearMon = spawnMonster(500 * 1000 + 505 + 1, 2)
+                _G._farMon = spawnMonster(100 * 1000 + 100 + 1, 3)
+                """
+            )
+            # At lodLv = 7: 0 3D GameObjects created, 2 GPU-instanced proxy icons registered
+            self.assertEqual(lua.eval("_G._test3DCreates"), 0)
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetIconRenderer():GetCount()"), 2)
+            self.assertTrue(lua.eval("_G._nearMon._isProxyMode"))
+            self.assertTrue(lua.eval("_G._farMon._isProxyMode"))
+
+            # Click on proxied monster resolves mainIndex and opens UIUtil:OnClickWorld
+            near_idx = 500 * 1000 + 505 + 1
+            lua.execute(
+                f"""
+                local wim = require("Scene.WorldScene.SubModule.WorldInputManager")
+                _G._clickIdxRes = wim:GetInstancedBuildingClickIndex({near_idx})
+                wim:ClickWorld({near_idx})
+                """
+            )
+            self.assertEqual(lua.eval("_G._clickIdxRes"), near_idx)
+            self.assertEqual(lua.eval("_G._testClickedWorldIdx"), near_idx)
+
+            # Zoom in to lodLv = 1: nearMon promotes to 3D, farMon stays proxy
+            lua.execute(
+                r"""
+                local mgr = DataCenter.WorldPointManager
+                mgr:OnLodChanged(1)
+                _G._nearMon:_ApplyMonsterLodState(mgr:GetPointInfo(_G._nearMon.pointIndex))
+                _G._farMon:_ApplyMonsterLodState(mgr:GetPointInfo(_G._farMon.pointIndex))
+                """
+            )
+            self.assertEqual(lua.eval("_G._test3DCreates"), 1)
+            self.assertFalse(lua.eval("_G._nearMon._isProxyMode"))
+            self.assertTrue(lua.eval("_G._farMon._isProxyMode"))
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetIconRenderer():GetCount()"), 1)
+
+            # Zoom back out to lodLv = 7 via OnLodChanged: nearMon demotes cleanly & destroys 3D GO
+            lua.execute("DataCenter.WorldPointManager:OnLodChanged(7)")
+            self.assertEqual(lua.eval("_G._test3DDestroys"), 1)
+            self.assertTrue(lua.eval("_G._nearMon._isProxyMode"))
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetIconRenderer():GetCount()"), 2)
+
+            # RemovePointInfo removes proxy icon & label cleanly
+            lua.execute(f"DataCenter.WorldPointManager:RemovePointInfo({near_idx}, true, false)")
+            self.assertEqual(lua.eval("DataCenter.WorldPointManager:GetIconRenderer():GetCount()"), 1)
+            self.assertIsNone(lua.eval("_G._MasterNear3DMonsters[_G._nearMon.pointIndex]"))
+
+            # Fallback DrawMeshInstanced path activates when GetIconRenderer() is nil
+            lua.execute(
+                r"""
+                DataCenter.WorldPointManager.GetIconRenderer = function() return nil end
+                _G._farMon:_ClearProxyVisual()
+                _G._farMon:_EnsureProxyVisual(DataCenter.WorldPointManager:GetPointInfo(_G._farMon.pointIndex))
+                """
+            )
+            self.assertEqual(lua.eval("_G._MasterMonsterFallbackBatch.count"), 1)
+            lua.execute("_G._farMon:Destroy()")
+            self.assertEqual(lua.eval("_G._MasterMonsterFallbackBatch.count"), 0)
+
+    def test_lua_os_clock_midframe_budgeting_no_realtime_since_startup(self) -> None:
+        """lupa + static: IsSyncBusy, IsBusy, and _streamWork use os.clock() (not realtimeSinceStartup) and trip mid-frame."""
+        for fn_pat in (r"mgr\.IsBusy\s*=\s*function", r"mgr\.IsSyncBusy\s*=\s*function", r"local function _streamWork\s*\("):
+            blk = _extract_lua_block(self.master_lua, fn_pat)
+            self.assertTrue(blk, f"Block not found: {fn_pat}")
+            self.assertIn("os.clock()", blk, f"{fn_pat} must use os.clock() for mid-frame budgeting")
+            self.assertNotIn("realtimeSinceStartup", blk, f"{fn_pat} must NOT rely on Time.realtimeSinceStartup")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702)
+            lua.execute(
+                r"""
+                _G._mockClock = 10.0
+                os.clock = function() return _G._mockClock end
+                CS.UnityEngine.Time = { frameCount = 42, realtimeSinceStartup = 100.0 }
+                _G.ApplyLastZWorldMaster()
+                """
+            )
+            # First 4 calls stay below budget even in same frame
+            self.assertFalse(lua.eval("DataCenter.WorldPointManager:IsSyncBusy()"))
+            self.assertFalse(lua.eval("DataCenter.WorldPointManager:IsBusy()"))
+            # Advance os.clock() mid-frame while realtimeSinceStartup & frameCount stay frozen!
+            lua.execute("_G._mockClock = 10.005")
+            for _ in range(4):
+                lua.execute("DataCenter.WorldPointManager:IsSyncBusy(); DataCenter.WorldPointManager:IsBusy()")
+            self.assertTrue(
+                lua.eval("DataCenter.WorldPointManager:IsSyncBusy()"),
+                "IsSyncBusy must trip on advancing os.clock() even when Time.realtimeSinceStartup is frozen mid-frame",
+            )
+            self.assertTrue(
+                lua.eval("DataCenter.WorldPointManager:IsBusy()"),
+                "IsBusy must trip on advancing os.clock() even when Time.realtimeSinceStartup is frozen mid-frame",
+            )
+
+    def test_lua_optimize_instance_handle_resolution_and_nil_guard(self) -> None:
+        """lupa + static: OnMainModelLoaded resolves go/model/gameObject (never raw async self.instance) and guards GetComponentsInChildren."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testCompQueries = 0
+            local wboCls = {
+                OnMainModelLoaded = function(self, go) end,
+                SetAutoAdjustLod = function(self, info) end,
+                SetProtectRenderVisible = function(self, v) end,
+                LodChange = function(self, lod) end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldBuildObject"] = wboCls
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                _G.ApplyLastZWorldMaster()
+                local wbo = require("SlgEngine.DataCenter.WorldPointManager.WorldBuildObject")
+                -- Case 1: self.instance is an async InstanceRequest (lacks GetComponentsInChildren) -> must NOT throw!
+                local asyncOnlyObj = { instance = { isInstanceRequest = true } }
+                wbo.OnMainModelLoaded(asyncOnlyObj, nil)
+                wbo.OnMainModelLoaded({ model = nil, gameObject = nil }, nil)
+
+                -- Case 2: valid GameObject passed via go (or self.model) optimizes and memoizes material ID
+                _G._testMat = {
+                    GetInstanceID = function() return 777 end,
+                    shader = { name = "Universal Render Pipeline/Lit" },
+                    enableInstancing = false,
+                }
+                local validGo = {
+                    GetComponentsInChildren = function(_, t)
+                        _G._testCompQueries = _G._testCompQueries + 1
+                        if t == CS.UnityEngine.Renderer then
+                            return { Length = 1, [0] = { sharedMaterial = _G._testMat } }
+                        end
+                        return { Length = 0 }
+                    end,
+                }
+                wbo.OnMainModelLoaded({ instance = { isInstanceRequest = true } }, validGo)
+                """
+            )
+            self.assertEqual(lua.eval("_G._testCompQueries"), 3)
+            self.assertTrue(lua.eval("_G._testMat.enableInstancing"))
+            self.assertTrue(lua.eval("_G._MasterSeenMaterialIds[777]"))
+
+    def test_lua_hud_and_cache_micro_optimisations(self) -> None:
+        """lupa + static: F5 removes SafeTableCount(allObj) from heartbeat, gates SetAsLastSibling, defers sweep save, and short-circuits pollHotkeys."""
+        self.assertIn('local _DEFAULT_CACHE_DIR = "./data/cache"', self.master_lua)
+        overlay_blk = _extract_lua_block(self.master_lua, r"function _G\.RefreshMasterOverlayUI\s*\(")
+        self.assertNotIn("SafeTableCount(mgr.allObj)", overlay_blk)
+        self.assertNotIn("SafeTableCount(mgr.allViewPoints)", overlay_blk)
+
+        sstep_blk = _extract_lua_block(self.master_lua, r"local function sStep\s*\(")
+        self.assertTrue(sstep_blk)
+        self.assertRegex(sstep_blk, re.compile(r"mgr\.isInit\s*~=\s*true|_deferredIdleSave"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testSiblingCalls = 0
+            _G._testGetKeyCalls = 0
+            local function makeGo()
+                local go = { activeSelf = true, layer = 5 }
+                go.transform = {
+                    SetParent = function() end,
+                    SetAsLastSibling = function() _G._testSiblingCalls = _G._testSiblingCalls + 1 end,
+                }
+                function go:AddComponent()
+                    return {
+                        anchorMin = CS.UnityEngine.Vector2.zero,
+                        anchorMax = CS.UnityEngine.Vector2.one,
+                        pivot = CS.UnityEngine.Vector2.zero,
+                        anchoredPosition = CS.UnityEngine.Vector2.zero,
+                        sizeDelta = CS.UnityEngine.Vector2(1060, 32),
+                        offsetMin = CS.UnityEngine.Vector2.zero,
+                        offsetMax = CS.UnityEngine.Vector2.zero,
+                        color = {},
+                        text = "",
+                    }
+                end
+                function go:GetComponent() return { sizeDelta = CS.UnityEngine.Vector2(1060, 32) } end
+                function go:SetActive(v) self.activeSelf = v end
+                return go
+            end
+            CS.UnityEngine.GameObject = function() return makeGo() end
+            CS.UnityEngine.UI = { Image = {} }
+            CS.TMPro = { TextMeshProUGUI = {}, TextAlignmentOptions = { Center = 1 } }
+            CS.UnityEngine.Color = function(r,g,b,a) return {r=r,g=g,b=b,a=a} end
+            CS.UnityEngine.Input = {
+                anyKey = false,
+                anyKeyDown = false,
+                GetKey = function() _G._testGetKeyCalls = _G._testGetKeyCalls + 1; return false end,
+                GetKeyDown = function() _G._testGetKeyCalls = _G._testGetKeyCalls + 1; return false end,
+            }
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                UIManager.GetInstance = function()
+                    return {
+                        __cProjectStateReady = true,
+                        m_topCanvas = {
+                            gameObject = { layer = 5 },
+                            Find = function() return nil end,
+                        },
+                    }
+                end
+                _G.RefreshMasterOverlayUI()
+                _G.RefreshMasterOverlayUI()
+                _G.RefreshMasterOverlayUI()
+                -- Run pollHotkeys timer item while Input.anyKey == false and anyKeyDown == false
+                for i = 1, #_G._testTimerQueue do
+                    local item = _G._testTimerQueue[i]
+                    if item and item.delay == 0.05 and item.fn then
+                        item.fn()
+                        break
+                    end
+                end
+                """
+            )
+            # SetAsLastSibling called only ONCE on creation, NOT 3 times on repeated refreshes!
+            self.assertEqual(lua.eval("_G._testSiblingCalls"), 1)
+            # pollHotkeys short-circuited with 0 GetKey calls when idle
+            self.assertEqual(lua.eval("_G._testGetKeyCalls"), 0)
+
+    def test_lua_reconcile_promotion_and_budget_continuation_no_livelock(self) -> None:
+        """lupa: zooming to lodLv<=2 promotes near proxied monsters without nil errors and budget-yield reconcile finishes 100% of 441 objects."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._test3DCreates = 0
+            _G._test3DDestroys = 0
+            _G._testReconcileResCalls = 0
+            _G._testReconcileResUnique = {}
+            _G._testMockClock = 100.0
+            os.clock = function() return _G._testMockClock end
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileXZ = function(wx, wz, _)
+                    return math.floor(wx), math.floor(wz)
+                end,
+            }
+            ForceChangeScene = { World = 1 }
+            local wmoCls = {
+                _class_type = { __cname = "WorldMonsterObject" },
+                CreateGameObject = function(self)
+                    _G._test3DCreates = _G._test3DCreates + 1
+                    self.gameObject = {
+                        _active = true,
+                        SetActive = function(go, v) go._active = v end,
+                        GetComponentsInChildren = function() return { Length = 0 } end,
+                    }
+                end,
+                Destroy = function(self)
+                    _G._test3DDestroys = _G._test3DDestroys + 1
+                    self.gameObject = nil
+                    self.instance = nil
+                end,
+            }
+            local wroiCls = {
+                _class_type = { __cname = "WorldResObjectInstanced" },
+                RefreshInstancedModel = function(selfObj)
+                    _G._testMockClock = _G._testMockClock + 0.0001
+                    _G._testReconcileResCalls = _G._testReconcileResCalls + 1
+                    _G._testReconcileResUnique[selfObj.pointIndex] = true
+                end,
+                RemoveInstancedModel = function() end,
+                RefreshInstancedFarIcon = function() end,
+                RefreshInstancedLabel = function() end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject"] = wmoCls
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldResObjectInstanced"] = wroiCls
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local ir = {
+                    AddIcon = function(_, pos, path, cfg) return 1 end,
+                    UpdateIcon = function(_, h) return h end,
+                    RemoveIcon = function() end,
+                    Clear = function() end,
+                }
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 7
+                mgr.curCameraTarget = { x = 500, y = 0, z = 500, Set = function() end }
+                mgr.reqPos = { x = 500, y = 500, Set = function() end }
+                mgr.GetIconRenderer = function() return ir end
+                mgr.GetLabelRenderer = function() return nil end
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                mgr.OnLodChanged = function(self, lod) self.lodLv = lod end
+                SceneManager.World = {
+                    GetCurTarget = function() return 500, 0, 500 end,
+                    GetLodLevel = function() return mgr.lodLv end,
+                }
+                CS.SceneManager.World = SceneManager.World
+                _G.ApplyLastZWorldMaster()
+
+                local wmoCls = require("SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+                local wroiCls = require("SlgEngine.DataCenter.WorldPointManager.WorldResObjectInstanced")
+                local nearIdx = 500 * 1000 + 520 + 1
+                local farIdx = 100 * 1000 + 100 + 1
+                for _, idx in ipairs({ nearIdx, farIdx }) do
+                    local info = { pointType = 4, monsterInfo = { type = 2, monsterId = 101 } }
+                    mgr.allViewPoints[idx] = { pointIndex = idx, mainIndex = idx, pointType = 4, pointInfo = info }
+                    local o = setmetatable({ pointIndex = idx }, { __index = wmoCls })
+                    o:CreateGameObject()
+                    mgr.allObj[idx] = o
+                end
+
+                -- Add 441 instanced resources in a 21x21 square around (500, 500), each costing 0.1ms
+                for dx = -10, 10 do
+                    for dy = -10, 10 do
+                        local rx, ry = 500 + dx, 500 + dy
+                        local rIdx = ry * 1000 + rx + 1
+                        local rInfo = { pointType = 7, resourceInfo = { resourceId = 1 } }
+                        mgr.allViewPoints[rIdx] = { pointIndex = rIdx, mainIndex = rIdx, pointType = 7, pointInfo = rInfo }
+                        mgr.allObj[rIdx] = setmetatable({ pointIndex = rIdx, lodLv = 7 }, { __index = wroiCls })
+                    end
+                end
+                _G.ApplyLastZWorldMaster()
+
+                -- Capture runCameraStreamer callback (3rd 0.05s timer registered at boot)
+                local streamerFn = nil
+                local seen05 = 0
+                for i = 1, #_G._testTimerQueue do
+                    local item = _G._testTimerQueue[i]
+                    if item and item.delay == 0.05 then
+                        seen05 = seen05 + 1
+                        if seen05 == 3 then
+                            streamerFn = item.fn
+                            break
+                        end
+                    end
+                end
+                _G._testStreamerFn = streamerFn
+
+                -- Switch to lodLv = 2 and drain streamer ticks (wrapping pcall to catch any internal Lua error)
+                _G._testPcallErrors = {}
+                local origPcall = pcall
+                pcall = function(fn, ...)
+                    local ok, r1, r2, r3 = origPcall(fn, ...)
+                    if not ok then
+                        _G._testPcallErrors[#_G._testPcallErrors + 1] = tostring(r1)
+                    end
+                    return ok, r1, r2, r3
+                end
+
+                mgr:OnLodChanged(2)
+                for tick = 1, 25 do
+                    _G._testTimerQueue = {}
+                    _G._testStreamerFn()
+                    for i = 1, #_G._testTimerQueue do
+                        _G._testStreamerFn = _G._testTimerQueue[i].fn
+                    end
+                    if _G._MasterLodDirty ~= true and _G._MasterStreamActive ~= true then
+                        break
+                    end
+                end
+                pcall = origPcall
+
+                local uniqueCnt = 0
+                for _ in pairs(_G._testReconcileResUnique) do uniqueCnt = uniqueCnt + 1 end
+                _G._testUniqueResCount = uniqueCnt
+                _G._testNearIsProxy = mgr.allObj[nearIdx]._isProxyMode
+                _G._testFarIsProxy = mgr.allObj[farIdx]._isProxyMode
+                """
+            )
+            self.assertEqual(lua.eval("#_G._testPcallErrors"), 0, f"Unexpected pcall errors: {lua.eval('table.concat(_G._testPcallErrors, \" | \")')}")
+            self.assertFalse(lua.eval("_G._testNearIsProxy"), "Near monster must promote to 3D at lodLv=2")
+            self.assertTrue(lua.eval("_G._testFarIsProxy"), "Far monster must stay proxy at lodLv=2")
+            self.assertEqual(lua.eval("_G._test3DCreates"), 1)
+            self.assertEqual(lua.eval("_G._testUniqueResCount"), 441, "All 441 resources must finish reconciliation across yield ticks without livelock")
+            self.assertEqual(lua.eval("_G._testReconcileResCalls"), 441, "Continuation pass must not repeat already-reconciled resources")
+            self.assertFalse(lua.eval("_G._MasterLodDirty"))
+
+            # Zoom back out to lodLv = 7 -> near monster demotes back to proxy
+            lua.execute("DataCenter.WorldPointManager:OnLodChanged(7)")
+            self.assertEqual(lua.eval("_G._test3DDestroys"), 1)
+            self.assertTrue(lua.eval("DataCenter.WorldPointManager.allObj[500 * 1000 + 520 + 1]._isProxyMode"))
+
+    def test_lua_refresh_slice_preserves_instanced_and_async_plus_on_create_race(self) -> None:
+        """lupa: _refreshSlice preserves WorldResObjectInstanced and async-pending instance~=nil; wmo.OnCreateGameObject cleans up late async GO if _isProxyMode."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testOptCalls = 0
+            _G._testDestroyedGos = 0
+            CS.UnityEngine.Object = {
+                Destroy = function(go) _G._testDestroyedGos = _G._testDestroyedGos + 1 end,
+            }
+            local wmoCls = {
+                _class_type = { __cname = "WorldMonsterObject" },
+                CreateGameObject = function(self) end,
+                OnCreateGameObject = function(self, go)
+                    self.gameObject = go
+                end,
+                Destroy = function(self) end,
+                UpdateGameObject = function(self) end,
+                SetIsBattle = function(self) end,
+                PlayAnim = function(self) end,
+                RefreshLodType = function(self) end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject"] = wmoCls
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 4
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                mgr.allViewPoints = {
+                    [3004] = { pointIndex = 3004, mainIndex = 3004, pointType = 7, pointInfo = { pointType = 7, resourceInfo = { resourceId = 1 } } },
+                    [600601] = { pointIndex = 600601, mainIndex = 600601, pointType = 4, pointInfo = { pointType = 4, monsterInfo = { type = 2, monsterId = 1 } } },
+                    [600602] = { pointIndex = 600602, mainIndex = 600602, pointType = 4, pointInfo = { pointType = 4, monsterInfo = { type = 2, monsterId = 1 } } },
+                    [600603] = { pointIndex = 600603, mainIndex = 600603, pointType = 6, pointInfo = { pointType = 6 } },
+                }
+                local wmoCls = require("SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+                mgr.allObj = {
+                    [3004] = { pointIndex = 3004, _class_type = { __cname = "WorldResObjectInstanced" }, gameObject = nil },
+                    [600601] = setmetatable({ pointIndex = 600601, instance = { asyncPending = true }, gameObject = nil, _isProxyMode = false }, { __index = wmoCls }),
+                    [600602] = setmetatable({ pointIndex = 600602, instance = nil, gameObject = nil, _isProxyMode = true }, { __index = wmoCls }),
+                    [600603] = { pointIndex = 600603, _class_type = { __cname = "WorldBuildObject" }, instance = nil, gameObject = nil },
+                }
+                _G.ApplyLastZWorldMaster()
+
+                -- Now simulate late InstantiateAsync completing AFTER monster 600602 was demoted to _isProxyMode = true
+                local lateGo = {
+                    SetActive = function() end,
+                    GetComponentsInChildren = function()
+                        _G._testOptCalls = _G._testOptCalls + 1
+                        return { Length = 0 }
+                    end,
+                }
+                mgr.allObj[600602]:OnCreateGameObject(lateGo)
+                """
+            )
+            self.assertIsNotNone(lua.eval("DataCenter.WorldPointManager.allObj[3004]"), "WorldResObjectInstanced must NOT be wiped by _refreshSlice")
+            self.assertIsNotNone(lua.eval("DataCenter.WorldPointManager.allObj[600601]"), "Async-pending object with instance~=nil must NOT be wiped by _refreshSlice")
+            self.assertIsNotNone(lua.eval("DataCenter.WorldPointManager.allObj[600602]"), "Proxied monster must NOT be wiped by _refreshSlice")
+            self.assertIsNone(lua.eval("DataCenter.WorldPointManager.allObj[600603]"), "Dead non-instanced non-async GO must still be cleaned")
+            self.assertEqual(lua.eval("_G._testDestroyedGos"), 1, "Late async GO for demoted proxy monster must be destroyed")
+            self.assertEqual(lua.eval("_G._testOptCalls"), 0, "optimizeInstance must NOT run on late GO for demoted proxy monster")
+            self.assertIsNone(lua.eval("DataCenter.WorldPointManager.allObj[600602].gameObject"))
+            self.assertIsNone(lua.eval("_G._MasterNear3DMonsters[600602]"))
+
+    def test_lua_fallback_batch_nil_on_precull_hook_and_main_camera_filter(self) -> None:
+        """lupa: _MonsterFallbackBatch hooks Camera.onPreCull when it starts nil and only draws on Camera.main."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testDrawCalls = 0
+            local mainCam = { name = "MainCamera" }
+            local uiCam = { name = "UICamera" }
+            _G._testMainCam = mainCam
+            _G._testUiCam = uiCam
+            CS.UnityEngine.Camera = { main = mainCam, onPreCull = nil }
+            CS.UnityEngine.Mesh = function()
+                local m = { RecalculateBounds = function() end }
+                return m
+            end
+            CS.UnityEngine.Shader = { Find = function(n) return { name = n } end }
+            CS.UnityEngine.Material = function(s) return { shader = s, enableInstancing = false } end
+            CS.UnityEngine.MaterialPropertyBlock = function() return {} end
+            CS.UnityEngine.Color = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end
+            CS.UnityEngine.Quaternion = { Euler = function() return {} end }
+            CS.UnityEngine.Matrix4x4 = { TRS = function(p, r, s) return { p = p, r = r, s = s } end }
+            CS.UnityEngine.Graphics = {
+                DrawMeshInstanced = function(mesh, sub, mat, mats, len, mpb)
+                    _G._testDrawCalls = _G._testDrawCalls + 1
+                end,
+            }
+            CS.System.Array = { CreateInstance = function(_, n) return {} end }
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                DataCenter.WorldPointManager.isInit = true
+                _G.ApplyLastZWorldMaster()
+                _G._MasterMonsterFallbackBatch.Set(1002, { x = 1, y = 0, z = 1 })
+                -- Non-main camera must be ignored
+                CS.UnityEngine.Camera.onPreCull(_G._testUiCam)
+                _G._drawsAfterUiCam = _G._testDrawCalls
+                -- Main camera must render
+                CS.UnityEngine.Camera.onPreCull(_G._testMainCam)
+                _G._drawsAfterMainCam = _G._testDrawCalls
+                """
+            )
+            self.assertTrue(lua.eval("_G._MasterMonsterFallbackBatch.hookedCamera"))
+            self.assertIsNotNone(lua.eval("CS.UnityEngine.Camera.onPreCull"))
+            self.assertEqual(lua.eval("_G._drawsAfterUiCam"), 0)
+            self.assertEqual(lua.eval("_G._drawsAfterMainCam"), 1)
+
+    def test_lua_click_world_1arg_vector3_and_no_double_fire(self) -> None:
+        """lupa: ClickWorld(1) resolves Vector3 click pos, GetInstancedBuildingClickIndex accepts Vector3, and void origClickWorld never double-fires UIUtil.OnClickWorld."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testOnClickWorldCalls = {}
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileIndex = function(pos, _)
+                    if not pos or pos.x == nil or pos.z == nil then return 0 end
+                    return math.floor(pos.z) * 1000 + math.floor(pos.x) + 1
+                end,
+            }
+            ForceChangeScene = { World = 1 }
+            UIUtil = {
+                OnClickWorld = function(_, idx)
+                    _G._testOnClickWorldCalls[#_G._testOnClickWorldCalls + 1] = idx
+                    return true
+                end,
+            }
+            local wimMod = {
+                curClickPos = nil,
+                GetInstancedBuildingClickIndex = function(self, posOrIdx) return nil end,
+                ClickWorld = function(self, optArg)
+                    if self._mode == "void_via_getidx" then
+                        local idx = self:GetInstancedBuildingClickIndex(self.curClickPos)
+                        if idx and idx > 0 then
+                            UIUtil:OnClickWorld(idx)
+                        end
+                        return nil
+                    end
+                    return nil
+                end,
+                OnInputClick = function(self, a1, a2, a3)
+                    return self:ClickWorld()
+                end,
+            }
+            package.loaded["Scene.WorldScene.SubModule.WorldInputManager"] = wimMod
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                local mIdx = 20 * 1000 + 30 + 1
+                mgr.allViewPoints = { [mIdx] = { pointIndex = mIdx, mainIndex = mIdx, pointType = 4 } }
+                mgr.allObj = { [mIdx] = { pointIndex = mIdx, _isProxyMode = true } }
+                _G.ApplyLastZWorldMaster()
+
+                local wim = require("Scene.WorldScene.SubModule.WorldInputManager")
+                -- 1. GetInstancedBuildingClickIndex accepts Vector3 world pos
+                _G._vecClickIdx = wim:GetInstancedBuildingClickIndex({ x = 30.0, y = 0.0, z = 20.0 })
+
+                -- 2. Void origClickWorld that resolved via GetInstancedBuildingClickIndex must fire UIUtil:OnClickWorld ONLY ONCE
+                wim._mode = "void_via_getidx"
+                wim.curClickPos = { x = 30.0, y = 0.0, z = 20.0 }
+                wim:ClickWorld()
+                _G._callsAfterVoidGetIdx = #_G._testOnClickWorldCalls
+
+                -- 3. 1-arg ClickWorld(self) when origClickWorld returns nil without calling GetInstancedBuildingClickIndex resolves curClickPos
+                _G._testOnClickWorldCalls = {}
+                wim._mode = "direct_nil"
+                wim.curClickPos = { x = 30.0, y = 0.0, z = 20.0 }
+                wim:ClickWorld()
+                _G._callsAfter1ArgClick = #_G._testOnClickWorldCalls
+                _G._resolved1ArgIdx = _G._testOnClickWorldCalls[1]
+                """
+            )
+            expected_idx = 20 * 1000 + 30 + 1
+            self.assertEqual(lua.eval("_G._vecClickIdx"), expected_idx)
+            self.assertEqual(lua.eval("_G._callsAfterVoidGetIdx"), 1, "Void origClickWorld must NOT double-fire UIUtil:OnClickWorld")
+            self.assertEqual(lua.eval("_G._callsAfter1ArgClick"), 1, "1-arg ClickWorld() must resolve proxied monster from curClickPos")
+            self.assertEqual(lua.eval("_G._resolved1ArgIdx"), expected_idx)
+
+    def test_lua_monster_update_game_object_refreshes_type_level_and_sync_count(self) -> None:
+        """lupa: wmo.UpdateGameObject refreshes monsterInfo/icon/level, GetMonsterCategory handles nil pointInfo, and _syncMasterObjCount resets on in-place clear."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testIcons = {}
+            _G._testLabels = {}
+            _G._testNextH = 10
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileXZ = function(wx, wz, _)
+                    return math.floor(wx), math.floor(wz)
+                end,
+            }
+            ForceChangeScene = { World = 1 }
+            local wmoCls = {
+                _class_type = { __cname = "WorldMonsterObject" },
+                CreateGameObject = function(self) end,
+                Destroy = function(self) end,
+                UpdateGameObject = function(self) end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject"] = wmoCls
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local ir = {
+                    AddIcon = function(_, pos, path, cfg)
+                        _G._testNextH = _G._testNextH + 1
+                        _G._testIcons[_G._testNextH] = { path = path }
+                        return _G._testNextH
+                    end,
+                    UpdateIcon = function(_, h, pos, path, cfg)
+                        _G._testIcons[h] = { path = path }
+                        return h
+                    end,
+                    RemoveIcon = function(_, h) _G._testIcons[h] = nil end,
+                }
+                local lr = {
+                    AddLabel = function(_, pos, lv, cfg)
+                        _G._testNextH = _G._testNextH + 1
+                        _G._testLabels[_G._testNextH] = { lv = lv }
+                        return _G._testNextH
+                    end,
+                    RemoveLabel = function(_, h) _G._testLabels[h] = nil end,
+                    UpdateLabel = function(_, h, pos, lv)
+                        _G._testLabels[h] = { lv = lv }
+                        return h
+                    end,
+                }
+                DataCenter.MonsterTemplateManager = {
+                    GetTableValue = function(_, mid, key)
+                        if mid == 105 then return 99 end
+                        return 15
+                    end,
+                }
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 4
+                mgr.GetIconRenderer = function() return ir end
+                mgr.GetLabelRenderer = function() return lr end
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                mgr.CreateObject = function(self, idx)
+                    self.allObj[idx] = { pointIndex = idx }
+                end
+                _G.ApplyLastZWorldMaster()
+
+                local wmoCls = require("SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+                local idx = 999 * 1000 + 999 + 1
+                mgr.allViewPoints[idx] = {
+                    pointIndex = idx,
+                    mainIndex = idx,
+                    pointType = 4,
+                    pointInfo = { pointType = 4, monsterInfo = { type = 3, monsterId = 102 } },
+                }
+                local obj = setmetatable({ pointIndex = idx }, { __index = wmoCls })
+                obj:CreateGameObject()
+                mgr.allObj[idx] = obj
+
+                _G._beforePath = obj._proxyIconPath
+                _G._beforeLv = obj._proxyLabelLv
+
+                -- Mutate monsterInfo in place to BOSS mid=105 lv=99 and call UpdateGameObject
+                mgr.allViewPoints[idx].pointInfo.monsterInfo = { type = 14, monsterId = 105 }
+                obj:UpdateGameObject()
+                _G._afterPath = obj._proxyIconPath
+                _G._afterLv = obj._proxyLabelLv
+
+                -- Test _ShouldUseNear3D with nil pointInfo (even when GetPointInfo returns nil) and self.monsterInfo.type=14
+                mgr.allViewPoints[idx] = nil
+                _G._MasterToggles.showBoomers = false
+                _G._nilPiMode = obj:_ShouldUseNear3D(nil)
+                _G._MasterToggles.showBoomers = true
+
+                -- Test _syncMasterObjCount reset on in-place DestroyAll clear (same table ref, next(allObj) == nil)
+                local sameRef = mgr.allObj
+                mgr:CreateObject(1001)
+                mgr:CreateObject(1002)
+                _G._countBeforeClear = _G._MasterObjCount
+                for k in pairs(sameRef) do sameRef[k] = nil end
+                mgr:CreateObject(1003)
+                _G._countAfterRecreate = _G._MasterObjCount
+                """
+            )
+            self.assertEqual(lua.eval("_G._beforePath"), "Assets/Main/Sprites/LodIcon/G_Sj_iocnboss_1.png")
+            self.assertEqual(lua.eval("_G._beforeLv"), 15)
+            self.assertEqual(lua.eval("_G._afterPath"), "Assets/Main/Sprites/LodIcon/UIworld_img_boss.png")
+            self.assertEqual(lua.eval("_G._afterLv"), 99)
+            self.assertEqual(lua.eval("_G._nilPiMode"), "HIDDEN")
+            self.assertGreaterEqual(lua.eval("_G._countBeforeClear"), 2)
+            self.assertEqual(lua.eval("_G._countAfterRecreate"), 1, "_syncMasterObjCount must reset count when same allObj table is cleared in place")
+
+    def test_lua_proxy_monster_labels_cleared_at_lod5_and_budget_drain(self) -> None:
+        """lupa: zooming to lodLv>=5 clears all active proxy monster labels both immediately and across LABELS budget ticks."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testMockClock = 100.0
+            os.clock = function() return _G._testMockClock end
+            _G._testLabels = {}
+            _G._testNextLblH = 0
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileXZ = function(wx, wz, _)
+                    return math.floor(wx), math.floor(wz)
+                end,
+            }
+            ForceChangeScene = { World = 1 }
+            local wmoCls = {
+                _class_type = { __cname = "WorldMonsterObject" },
+                CreateGameObject = function(self)
+                    self.gameObject = {
+                        _active = true,
+                        SetActive = function(go, v) go._active = v end,
+                        GetComponentsInChildren = function() return { Length = 0 } end,
+                    }
+                end,
+                Destroy = function(self)
+                    self.gameObject = nil
+                    self.instance = nil
+                end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject"] = wmoCls
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local ir = {
+                    AddIcon = function(_, pos, path, cfg) return 1 end,
+                    UpdateIcon = function(_, h) return h end,
+                    RemoveIcon = function() end,
+                    Clear = function() end,
+                }
+                local lr = {
+                    AddLabel = function(_, pos, lv, cfg)
+                        _G._testNextLblH = _G._testNextLblH + 1
+                        local h = _G._testNextLblH
+                        _G._testLabels[h] = lv
+                        return h
+                    end,
+                    RemoveLabel = function(_, h)
+                        _G._testLabels[h] = nil
+                        if _G._testAdvanceClockOnRemove then
+                            _G._testMockClock = _G._testMockClock + 0.0002
+                        end
+                    end,
+                    Clear = function() _G._testLabels = {} end,
+                }
+                local function countLabels()
+                    local c = 0
+                    for _ in pairs(_G._testLabels) do c = c + 1 end
+                    return c
+                end
+                DataCenter.MonsterTemplateManager = { GetTableValue = function() return 15 end }
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 4
+                mgr.curCameraTarget = { x = 500, y = 0, z = 500, Set = function() end }
+                mgr.GetIconRenderer = function() return ir end
+                mgr.GetLabelRenderer = function() return lr end
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                mgr.OnLodChanged = function(self, lod) self.lodLv = lod end
+                SceneManager.World = {
+                    GetCurTarget = function() return 500, 0, 500 end,
+                    GetLodLevel = function() return mgr.lodLv end,
+                }
+                CS.SceneManager.World = SceneManager.World
+                _G.ApplyLastZWorldMaster()
+
+                local wmoCls = require("SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+                local function spawnAt(x, y)
+                    local idx = y * 1000 + x + 1
+                    mgr.allViewPoints[idx] = {
+                        pointIndex = idx,
+                        mainIndex = idx,
+                        pointType = 4,
+                        pointInfo = { pointType = 4, monsterInfo = { type = 2, monsterId = 101 } },
+                    }
+                    local o = setmetatable({ pointIndex = idx }, { __index = wmoCls })
+                    o:CreateGameObject()
+                    mgr.allObj[idx] = o
+                end
+
+                -- Part A: 500 proxied monsters at lodLv=4 -> OnLodChanged(7) clears all 500 labels
+                for i = 0, 499 do
+                    spawnAt(10 + (i % 40), 10 + math.floor(i / 40))
+                end
+                _G._lblCountAtLod4 = countLabels()
+                mgr:OnLodChanged(7)
+                _G._lblCountAfterLod4To7 = countLabels()
+
+                -- Part B: lodLv=7 -> 2 at (500,500) -> pan (10,10) -> pan (990,990) -> pan (500,500) -> OnLodChanged(7)
+                -- with os.clock advancing per RemoveLabel so OnLodChanged hits budget and LABELS phase finishes drain
+                for i = 0, 59 do
+                    spawnAt(490 + (i % 10), 490 + math.floor(i / 10))
+                    spawnAt(10 + (i % 10), 10 + math.floor(i / 10))
+                end
+                _G.ApplyLastZWorldMaster()
+                local streamerFn = nil
+                local seen05 = 0
+                for i = 1, #_G._testTimerQueue do
+                    local item = _G._testTimerQueue[i]
+                    if item and item.delay == 0.05 then
+                        seen05 = seen05 + 1
+                        if seen05 == 3 then streamerFn = item.fn; break end
+                    end
+                end
+                local function drainStreamer(maxTicks)
+                    for _ = 1, (maxTicks or 40) do
+                        _G._testTimerQueue = {}
+                        streamerFn()
+                        for i = 1, #_G._testTimerQueue do
+                            streamerFn = _G._testTimerQueue[i].fn
+                        end
+                        if _G._MasterLodDirty ~= true and _G._MasterStreamActive ~= true then
+                            break
+                        end
+                    end
+                end
+
+                mgr:OnLodChanged(2)
+                drainStreamer(20)
+                SceneManager.World.GetCurTarget = function() return 10, 0, 10 end
+                drainStreamer(20)
+                SceneManager.World.GetCurTarget = function() return 990, 0, 990 end
+                drainStreamer(20)
+                SceneManager.World.GetCurTarget = function() return 500, 0, 500 end
+                drainStreamer(20)
+
+                _G._testAdvanceClockOnRemove = true
+                mgr:OnLodChanged(7)
+                _G._lblCountMidBudget = countLabels()
+                drainStreamer(40)
+                _G._testAdvanceClockOnRemove = false
+                _G._lblCountAfterDrain = countLabels()
+                _G._remainingTrackedLabels = 0
+                for _ in pairs(_G._MasterProxyMonsterLabels) do
+                    _G._remainingTrackedLabels = _G._remainingTrackedLabels + 1
+                end
+                """
+            )
+            self.assertEqual(lua.eval("_G._lblCountAtLod4"), 500)
+            self.assertEqual(lua.eval("_G._lblCountAfterLod4To7"), 0)
+            self.assertGreater(lua.eval("_G._lblCountMidBudget"), 0, "Expected budget break before all labels drained")
+            self.assertLess(lua.eval("_G._lblCountMidBudget"), 500, "OnLodChanged(7) should start draining within 2ms budget")
+            self.assertEqual(lua.eval("_G._lblCountAfterDrain"), 0, "LABELS phase must drain 100% of remaining proxy labels")
+            self.assertEqual(lua.eval("_G._remainingTrackedLabels"), 0)
+
+    def test_lua_incremental_5tile_pan_updates_world_res_instanced_labels(self) -> None:
+        """lupa: 5-tile and 2-tile incremental camera pans trigger WorldResObjectInstanced label show/hide without starvation."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testCamX = 500
+            _G._testCamY = 500
+            _G._testMockClock = 100.0
+            os.clock = function() return _G._testMockClock end
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileXZ = function(wx, wz, _)
+                    return math.floor(wx), math.floor(wz)
+                end,
+            }
+            ForceChangeScene = { World = 1 }
+            TableName = TableName or {}
+            TableName.GatherResource = "GatherResource"
+            GetTableData = function() return 1 end
+            local wroiCls = {
+                _class_type = { __cname = "WorldResObjectInstanced" },
+                RefreshInstancedModel = function() end,
+                RemoveInstancedModel = function() end,
+                RefreshInstancedFarIcon = function() end,
+                RefreshInstancedLabel = function(self, info)
+                    self._labelShown = self:_ShouldShowInstancedLabel(info)
+                end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldResObjectInstanced"] = wroiCls
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local ir = {
+                    AddIcon = function() return 1 end,
+                    UpdateIcon = function(_, h) return h end,
+                    RemoveIcon = function() end,
+                }
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 2
+                mgr.curCameraTarget = { x = 500, y = 0, z = 500, Set = function() end }
+                mgr.GetIconRenderer = function() return ir end
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                SceneManager.World = {
+                    GetCurTarget = function() return _G._testCamX, 0, _G._testCamY end,
+                    GetLodLevel = function() return mgr.lodLv end,
+                }
+                CS.SceneManager.World = SceneManager.World
+                local wroiCls = require("SlgEngine.DataCenter.WorldPointManager.WorldResObjectInstanced")
+                local idx500 = 500 * 1000 + 500 + 1
+                local idx600 = 500 * 1000 + 600 + 1
+                for _, idx in ipairs({ idx500, idx600 }) do
+                    local info = { pointType = 7, resourceInfo = { resourceId = 1 } }
+                    mgr.allViewPoints[idx] = { pointIndex = idx, mainIndex = idx, pointType = 7, pointInfo = info }
+                    mgr.allObj[idx] = setmetatable({ pointIndex = idx, lodLv = 2 }, { __index = wroiCls })
+                end
+                _G.ApplyLastZWorldMaster()
+
+                local streamerFn = nil
+                local seen05 = 0
+                for i = 1, #_G._testTimerQueue do
+                    local item = _G._testTimerQueue[i]
+                    if item and item.delay == 0.05 then
+                        seen05 = seen05 + 1
+                        if seen05 == 3 then streamerFn = item.fn; break end
+                    end
+                end
+                local function drain()
+                    for _ = 1, 10 do
+                        _G._testTimerQueue = {}
+                        streamerFn()
+                        for i = 1, #_G._testTimerQueue do
+                            streamerFn = _G._testTimerQueue[i].fn
+                        end
+                        if _G._MasterLodDirty ~= true and _G._MasterStreamActive ~= true then
+                            break
+                        end
+                    end
+                end
+
+                drain()
+                _G._r500Before = mgr.allObj[idx500]._labelShown
+                _G._r600Before = mgr.allObj[idx600]._labelShown
+
+                -- 5-tile incremental pan from (500,500) to (600,500)
+                for cx = 505, 600, 5 do
+                    _G._testCamX = cx
+                    drain()
+                end
+                _G._r500After5 = mgr.allObj[idx500]._labelShown
+                _G._r600After5 = mgr.allObj[idx600]._labelShown
+
+                -- 2-tile incremental pan back from (600,500) to (500,500)
+                for cx = 598, 500, -2 do
+                    _G._testCamX = cx
+                    drain()
+                end
+                _G._r500AfterBack2 = mgr.allObj[idx500]._labelShown
+                _G._r600AfterBack2 = mgr.allObj[idx600]._labelShown
+                """
+            )
+            self.assertTrue(lua.eval("_G._r500Before"))
+            self.assertFalse(lua.eval("_G._r600Before"))
+            self.assertFalse(lua.eval("_G._r500After5"), "(500,500) resource label must hide after 5-tile incremental pan to (600,500)")
+            self.assertTrue(lua.eval("_G._r600After5"), "(600,500) resource label must show after 5-tile incremental pan to (600,500)")
+            self.assertTrue(lua.eval("_G._r500AfterBack2"))
+            self.assertFalse(lua.eval("_G._r600AfterBack2"))
+
+    def test_lua_void_update_icon_and_non_table_click_guard(self) -> None:
+        """lupa: void ir.UpdateIcon updates _proxyIconPath and GetInstancedBuildingClickIndex(true) returns nil safely."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileXZ = function(x, z, _) return math.floor(x), math.floor(z) end,
+            }
+            ForceChangeScene = { World = 1 }
+            local wmoCls = {
+                _class_type = { __cname = "WorldMonsterObject" },
+                CreateGameObject = function() end,
+                Destroy = function() end,
+                UpdateGameObject = function() end,
+            }
+            local wimMod = {
+                GetInstancedBuildingClickIndex = function() return nil end,
+                ClickWorld = function() return nil end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject"] = wmoCls
+            package.loaded["Scene.WorldScene.SubModule.WorldInputManager"] = wimMod
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local ir = {
+                    AddIcon = function(_, pos, path, cfg) return 42 end,
+                    UpdateIcon = function(_, h, pos, path, cfg)
+                        -- Void UpdateIcon (mutates in place, returns nil)
+                        _G._lastVoidUpdatePath = path
+                        return nil
+                    end,
+                    RemoveIcon = function() end,
+                }
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 7
+                mgr.GetIconRenderer = function() return ir end
+                mgr.GetLabelRenderer = function() return nil end
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                _G.ApplyLastZWorldMaster()
+
+                local wmoCls = require("SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+                local idx = 500 * 1000 + 500 + 1
+                mgr.allViewPoints[idx] = {
+                    pointIndex = idx,
+                    mainIndex = idx,
+                    pointType = 4,
+                    pointInfo = { pointType = 4, monsterInfo = { type = 3, monsterId = 102 } },
+                }
+                local obj = setmetatable({ pointIndex = idx }, { __index = wmoCls })
+                obj:CreateGameObject()
+                mgr.allObj[idx] = obj
+
+                _G._handleBefore = obj._proxyIconHandle
+                _G._pathBefore = obj._proxyIconPath
+
+                mgr.allViewPoints[idx].pointInfo.monsterInfo = { type = 14, monsterId = 105 }
+                obj:UpdateGameObject()
+                _G._handleAfter = obj._proxyIconHandle
+                _G._pathAfter = obj._proxyIconPath
+
+                local wim = require("Scene.WorldScene.SubModule.WorldInputManager")
+                _G._okBoolClick, _G._resBoolClick = pcall(wim.GetInstancedBuildingClickIndex, wim, true)
+                _G._okStrClick, _G._resStrClick = pcall(wim.GetInstancedBuildingClickIndex, wim, "bad_input")
+                """
+            )
+            self.assertEqual(lua.eval("_G._handleBefore"), 42)
+            self.assertEqual(lua.eval("_G._pathBefore"), "Assets/Main/Sprites/LodIcon/G_Sj_iocnboss_1.png")
+            self.assertEqual(lua.eval("_G._handleAfter"), 42, "Void UpdateIcon must preserve existing _proxyIconHandle")
+            self.assertEqual(lua.eval("_G._pathAfter"), "Assets/Main/Sprites/LodIcon/UIworld_img_boss.png", "Void UpdateIcon must update _proxyIconPath")
+            self.assertTrue(lua.eval("_G._okBoolClick"), "GetInstancedBuildingClickIndex(true) must not throw")
+            self.assertIsNone(lua.eval("_G._resBoolClick"))
+            self.assertTrue(lua.eval("_G._okStrClick"), "GetInstancedBuildingClickIndex('bad_input') must not throw")
+            self.assertIsNone(lua.eval("_G._resStrClick"))
+
+    def test_lua_background_world_preloader_covers_row_999_and_col_999(self) -> None:
+        """lupa: StartBackgroundWorldPreloader svLod=1 grid covers 100% of 0..999 tiles including x=999 and y=999."""
+        with tempfile.TemporaryDirectory() as tmp:
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702)
+            lua.execute(
+                r"""
+                _G._sentSectors = {}
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.DoSendViewRequest = function(self, cx, cy, svLod, sid)
+                    _G._sentSectors[#_G._sentSectors + 1] = { x = cx, y = cy, lod = svLod }
+                end
+                _G._testTimerQueue = {}
+                _G.StartBackgroundWorldPreloader(true)
+
+                local guard = 0
+                while guard < 200 and #_G._testTimerQueue > 0 do
+                    guard = guard + 1
+                    local q = _G._testTimerQueue
+                    _G._testTimerQueue = {}
+                    local progressed = false
+                    for i = 1, #q do
+                        local item = q[i]
+                        if item and item.delay <= 0.15 and item.fn then
+                            item.fn()
+                            progressed = true
+                        end
+                    end
+                    if not progressed then break end
+                end
+                """
+            )
+            sectors = _lua_to_py(lua.eval("_G._sentSectors"))
+            self.assertGreater(len(sectors), 0)
+            xs_sent = {int(s["x"]) for s in sectors}
+            ys_sent = {int(s["y"]) for s in sectors}
+            # svLod = 1 returns 71x101 box (half-width 35, half-height 50)
+            for tx in range(1000):
+                self.assertTrue(any(abs(tx - cx) <= 35 for cx in xs_sent), f"Tile x={tx} is uncovered by StartBackgroundWorldPreloader xs={sorted(xs_sent)}")
+            for ty in range(1000):
+                self.assertTrue(any(abs(ty - cy) <= 50 for cy in ys_sent), f"Tile y={ty} is uncovered by StartBackgroundWorldPreloader ys={sorted(ys_sent)}")
+            self.assertGreaterEqual(max(ys_sent), 949, f"Expected max(ys) >= 949 so y=999 is covered, got {max(ys_sent)}")
+
+    def test_lua_refresh_master_overlay_ui_re_layers_on_child_count_change(self) -> None:
+        """lupa: RefreshMasterOverlayUI re-calls SetAsLastSibling when m_topCanvas.childCount changes in same scene and skips when unchanged."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testSiblingCalls = 0
+            _G._testCanvasChildCount = 2
+            _G._testBarSibIdx = 1
+            local function makeGo()
+                local go = { activeSelf = true, layer = 5 }
+                go.transform = {
+                    parent = nil,
+                    SetParent = function(self, p) self.parent = p end,
+                    GetSiblingIndex = function() return _G._testBarSibIdx end,
+                    SetAsLastSibling = function()
+                        _G._testSiblingCalls = _G._testSiblingCalls + 1
+                        _G._testBarSibIdx = _G._testCanvasChildCount - 1
+                    end,
+                }
+                function go:AddComponent()
+                    return {
+                        anchorMin = CS.UnityEngine.Vector2.zero,
+                        anchorMax = CS.UnityEngine.Vector2.one,
+                        pivot = CS.UnityEngine.Vector2.zero,
+                        anchoredPosition = CS.UnityEngine.Vector2.zero,
+                        sizeDelta = CS.UnityEngine.Vector2(1060, 32),
+                        offsetMin = CS.UnityEngine.Vector2.zero,
+                        offsetMax = CS.UnityEngine.Vector2.zero,
+                        color = {},
+                        text = "",
+                    }
+                end
+                function go:GetComponent() return { sizeDelta = CS.UnityEngine.Vector2(1060, 32) } end
+                function go:SetActive(v) self.activeSelf = v end
+                return go
+            end
+            CS.UnityEngine.GameObject = function() return makeGo() end
+            CS.UnityEngine.UI = { Image = {} }
+            CS.TMPro = { TextMeshProUGUI = {}, TextAlignmentOptions = { Center = 1 } }
+            CS.UnityEngine.Color = function(r,g,b,a) return {r=r,g=g,b=b,a=a} end
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local topCanvas = setmetatable({
+                    gameObject = { layer = 5 },
+                    Find = function() return nil end,
+                }, {
+                    __index = function(_, k)
+                        if k == "childCount" then return _G._testCanvasChildCount end
+                    end,
+                })
+                UIManager.GetInstance = function()
+                    return {
+                        __cProjectStateReady = true,
+                        m_topCanvas = topCanvas,
+                    }
+                end
+                SceneManager.CurrSceneID = 2
+
+                -- 1. Creation (childCount=2) -> calls SetAsLastSibling (1)
+                _G.RefreshMasterOverlayUI()
+                _G._callsAfterCreate = _G._testSiblingCalls
+
+                -- 2. Repeated idle refreshes in same scene with same childCount -> skips SetAsLastSibling (still 1)
+                _G.RefreshMasterOverlayUI()
+                _G.RefreshMasterOverlayUI()
+                _G._callsAfterIdle = _G._testSiblingCalls
+
+                -- 3. New popup added to m_topCanvas in same scene (childCount: 2 -> 3) -> re-calls SetAsLastSibling (2)
+                _G._testCanvasChildCount = 3
+                _G.RefreshMasterOverlayUI()
+                _G._callsAfterChildAdded = _G._testSiblingCalls
+
+                -- 4. Idle refresh with childCount=3 -> skips (still 2)
+                _G.RefreshMasterOverlayUI()
+                _G._callsAfterChildIdle = _G._testSiblingCalls
+
+                -- 5. Sibling reordered in front without changing childCount -> re-calls SetAsLastSibling (3)
+                _G._testBarSibIdx = 1
+                _G.RefreshMasterOverlayUI()
+                _G._callsAfterReordered = _G._testSiblingCalls
+                """
+            )
+            self.assertEqual(lua.eval("_G._callsAfterCreate"), 1)
+            self.assertEqual(lua.eval("_G._callsAfterIdle"), 1)
+            self.assertEqual(lua.eval("_G._callsAfterChildAdded"), 2)
+            self.assertEqual(lua.eval("_G._callsAfterChildIdle"), 2)
+            self.assertEqual(lua.eval("_G._callsAfterReordered"), 3)
+
+    def test_lua_zoom_back_restores_proxy_monster_labels_mid_and_post_drain(self) -> None:
+        """lupa: zooming back lodLv>=5->4 mid-LABELS drain or post-full drain restores 100% of proxy monster labels without icon churn."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pre_lua = r"""
+            _G._testMockClock = 100.0
+            os.clock = function() return _G._testMockClock end
+            _G._testLabels = {}
+            _G._testNextLblH = 0
+            _G._testIconAdds = 0
+            _G._testIconUpdates = 0
+            _G._testAdvanceClockOnLabelOp = false
+            SceneUtils = {
+                TileIndexToWorld = function(idx, _)
+                    local z = idx - 1
+                    local py = math.floor(z / 1000)
+                    local px = z - py * 1000
+                    return { x = px * 1.0, y = 0.0, z = py * 1.0 }
+                end,
+                WorldToTileXZ = function(wx, wz, _)
+                    return math.floor(wx), math.floor(wz)
+                end,
+            }
+            ForceChangeScene = { World = 1 }
+            local wmoCls = {
+                _class_type = { __cname = "WorldMonsterObject" },
+                CreateGameObject = function(self)
+                    self.gameObject = {
+                        _active = true,
+                        SetActive = function(go, v) go._active = v end,
+                        GetComponentsInChildren = function() return { Length = 0 } end,
+                    }
+                end,
+                Destroy = function(self)
+                    self.gameObject = nil
+                    self.instance = nil
+                end,
+            }
+            package.loaded["SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject"] = wmoCls
+            """
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702, pre_lua=pre_lua)
+            lua.execute(
+                r"""
+                local ir = {
+                    AddIcon = function(_, pos, path, cfg)
+                        _G._testIconAdds = _G._testIconAdds + 1
+                        return _G._testIconAdds
+                    end,
+                    UpdateIcon = function(_, h)
+                        _G._testIconUpdates = _G._testIconUpdates + 1
+                        return h
+                    end,
+                    RemoveIcon = function() end,
+                    Clear = function() end,
+                }
+                local lr = {
+                    AddLabel = function(_, pos, lv, cfg)
+                        _G._testNextLblH = _G._testNextLblH + 1
+                        local h = _G._testNextLblH
+                        _G._testLabels[h] = lv
+                        if _G._testAdvanceClockOnLabelOp then
+                            _G._testMockClock = _G._testMockClock + 0.0002
+                        end
+                        return h
+                    end,
+                    RemoveLabel = function(_, h)
+                        _G._testLabels[h] = nil
+                        if _G._testAdvanceClockOnLabelOp then
+                            _G._testMockClock = _G._testMockClock + 0.0002
+                        end
+                    end,
+                    Clear = function() _G._testLabels = {} end,
+                }
+                local function countTbl(t)
+                    local c = 0
+                    for _ in pairs(t or {}) do c = c + 1 end
+                    return c
+                end
+                DataCenter.MonsterTemplateManager = { GetTableValue = function() return 15 end }
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                mgr.lodLv = 4
+                mgr.curCameraTarget = { x = 500, y = 0, z = 500, Set = function() end }
+                mgr.GetIconRenderer = function() return ir end
+                mgr.GetLabelRenderer = function() return lr end
+                mgr.GetPointInfo = function(self, idx)
+                    local vp = self.allViewPoints[idx]
+                    return vp and vp.pointInfo or nil
+                end
+                mgr.OnLodChanged = function(self, lod) self.lodLv = lod end
+                SceneManager.World = {
+                    GetCurTarget = function() return 500, 0, 500 end,
+                    GetLodLevel = function() return mgr.lodLv end,
+                }
+                CS.SceneManager.World = SceneManager.World
+                _G.ApplyLastZWorldMaster()
+
+                local wmoCls = require("SlgEngine.DataCenter.WorldPointManager.WorldMonsterObject")
+                for i = 0, 499 do
+                    local x = 10 + (i % 40)
+                    local y = 10 + math.floor(i / 40)
+                    local idx = y * 1000 + x + 1
+                    mgr.allViewPoints[idx] = {
+                        pointIndex = idx,
+                        mainIndex = idx,
+                        pointType = 4,
+                        pointInfo = { pointType = 4, monsterInfo = { type = 2, monsterId = 101 } },
+                    }
+                    local o = setmetatable({ pointIndex = idx }, { __index = wmoCls })
+                    o:CreateGameObject()
+                    mgr.allObj[idx] = o
+                end
+                _G.ApplyLastZWorldMaster()
+
+                local streamerFn = nil
+                local seen05 = 0
+                for i = 1, #_G._testTimerQueue do
+                    local item = _G._testTimerQueue[i]
+                    if item and item.delay == 0.05 then
+                        seen05 = seen05 + 1
+                        if seen05 == 3 then streamerFn = item.fn; break end
+                    end
+                end
+                local function stepStreamer()
+                    _G._testTimerQueue = {}
+                    streamerFn()
+                    for i = 1, #_G._testTimerQueue do
+                        streamerFn = _G._testTimerQueue[i].fn
+                    end
+                end
+                local function drainStreamer(maxTicks)
+                    for _ = 1, (maxTicks or 80) do
+                        stepStreamer()
+                        if _G._MasterLodDirty ~= true and _G._MasterStreamActive ~= true then
+                            break
+                        end
+                    end
+                end
+
+                _G._testPcallErrors = {}
+                local origPcall = pcall
+                pcall = function(fn, ...)
+                    local ok, r1, r2, r3 = origPcall(fn, ...)
+                    if not ok then
+                        _G._testPcallErrors[#_G._testPcallErrors + 1] = tostring(r1)
+                    end
+                    return ok, r1, r2, r3
+                end
+
+                _G._initLbl = countTbl(_G._testLabels)
+                _G._initProxy = countTbl(_G._MasterProxyMonsters)
+
+                -- Scenario A: 4 -> 7 mid-LABELS drain -> 4 + drain
+                _G._testAdvanceClockOnLabelOp = true
+                mgr:OnLodChanged(7)
+                stepStreamer()
+                _G._midDrainPhase = _G._MasterReconcilePass and _G._MasterReconcilePass.phase or "NONE"
+                _G._midDrainLbl = countTbl(_G._testLabels)
+
+                mgr:OnLodChanged(4)
+                drainStreamer(80)
+                _G._afterMidZoomBackLbl = countTbl(_G._testLabels)
+                _G._afterMidZoomBackMap = countTbl(_G._MasterProxyMonsterLabels)
+
+                -- Scenario B: 4 -> 7 full drain to 0 -> 4 + drain
+                mgr:OnLodChanged(7)
+                drainStreamer(80)
+                _G._afterFullDrainLbl = countTbl(_G._testLabels)
+                _G._afterFullDrainMap = countTbl(_G._MasterProxyMonsterLabels)
+
+                mgr:OnLodChanged(4)
+                drainStreamer(80)
+                _G._afterPostZoomBackLbl = countTbl(_G._testLabels)
+                _G._afterPostZoomBackMap = countTbl(_G._MasterProxyMonsterLabels)
+
+                -- Verify proto.Close resets _MasterProxyMonsters
+                mgr:Close()
+                _G._afterCloseProxy = countTbl(_G._MasterProxyMonsters)
+
+                pcall = origPcall
+                """
+            )
+            self.assertEqual(lua.eval("#_G._testPcallErrors"), 0)
+            self.assertEqual(lua.eval("_G._initLbl"), 500)
+            self.assertEqual(lua.eval("_G._initProxy"), 500)
+            self.assertEqual(lua.eval("_G._midDrainPhase"), "LABELS")
+            self.assertGreater(lua.eval("_G._midDrainLbl"), 0)
+            self.assertLess(lua.eval("_G._midDrainLbl"), 500)
+            self.assertEqual(lua.eval("_G._afterMidZoomBackLbl"), 500)
+            self.assertEqual(lua.eval("_G._afterMidZoomBackMap"), 500)
+            self.assertEqual(lua.eval("_G._afterFullDrainLbl"), 0)
+            self.assertEqual(lua.eval("_G._afterFullDrainMap"), 0)
+            self.assertEqual(lua.eval("_G._afterPostZoomBackLbl"), 500)
+            self.assertEqual(lua.eval("_G._afterPostZoomBackMap"), 500)
+            self.assertEqual(lua.eval("_G._testIconAdds"), 500)
+            self.assertEqual(lua.eval("_G._testIconUpdates"), 0)
+            self.assertEqual(lua.eval("_G._afterCloseProxy"), 0)
+
+    def test_lua_background_world_preloader_tiny_map_50x50_and_1000x1000(self) -> None:
+        """lupa: StartBackgroundWorldPreloader handles tiny 50x50 maps (1 sector, 0 errors) and preserves 192 sectors on 1000x1000."""
+        with tempfile.TemporaryDirectory() as tmp:
+            lua, _ = _boot_master_lua_in_lupa(self.master_lua, cache_dir=tmp, active_sid=702)
+            lua.execute(
+                r"""
+                local mgr = DataCenter.WorldPointManager
+                mgr.isInit = true
+                local function runPreload(w, h)
+                    _G.TileCountX = w
+                    _G.TileCountY = h
+                    _G._sentSectors = {}
+                    mgr.DoSendViewRequest = function(self, cx, cy, svLod, sid)
+                        _G._sentSectors[#_G._sentSectors + 1] = { x = cx, y = cy, lod = svLod }
+                    end
+                    _G._testTimerQueue = {}
+                    local ok, res = pcall(_G.StartBackgroundWorldPreloader, true)
+                    if not ok then return ok, tostring(res), {} end
+                    local guard = 0
+                    while guard < 200 and #_G._testTimerQueue > 0 do
+                        guard = guard + 1
+                        local q = _G._testTimerQueue
+                        _G._testTimerQueue = {}
+                        local progressed = false
+                        for i = 1, #q do
+                            local item = q[i]
+                            if item and item.delay <= 0.15 and item.fn then
+                                item.fn()
+                                progressed = true
+                            end
+                        end
+                        if not progressed then break end
+                    end
+                    return true, res, _G._sentSectors
+                end
+                _G._ok50, _G._res50, _G._sec50 = runPreload(50, 50)
+                _G._ok1000, _G._res1000, _G._sec1000 = runPreload(1000, 1000)
+                """
+            )
+            self.assertTrue(lua.eval("_G._ok50"), f"50x50 preloader errored: {lua.eval('_G._res50')}")
+            sec50 = _lua_to_py(lua.eval("_G._sec50"))
+            self.assertEqual(len(sec50), 1)
+            for tx in range(50):
+                self.assertTrue(any(abs(tx - int(s["x"])) <= 35 for s in sec50))
+            for ty in range(50):
+                self.assertTrue(any(abs(ty - int(s["y"])) <= 50 for s in sec50))
+
+            self.assertTrue(lua.eval("_G._ok1000"), f"1000x1000 preloader errored: {lua.eval('_G._res1000')}")
+            sec1000 = _lua_to_py(lua.eval("_G._sec1000"))
+            self.assertEqual(len(sec1000), 192)
+
 
 
 class TestR3MegamindPreloadContracts(unittest.TestCase):
@@ -1424,6 +3063,31 @@ class TestR4GuardrailContracts(unittest.TestCase):
                     violations.append(f"{path.relative_to(PROJECT_ROOT)}:{idx}")
 
         self.assertEqual(violations, [], f"R4 prohibited term matches found at: {violations}")
+
+    def test_r4_no_personal_paths_or_em_en_dashes_in_m1_files(self) -> None:
+        """All 5 M1 files must contain zero personal user paths, zero em/en dashes, and zero HTML dash entities."""
+        em_dash = "\u2014"
+        en_dash = "\u2013"
+        mdash_ent = "&" + "mdash;"
+        ndash_ent = "&" + "ndash;"
+        # Dynamically construct pattern so no literal personal path appears in test source
+        user_path_re = re.compile(r"[A-Za-z]:[/\\]Users[/\\][^/\\]+")
+        m1_files = [
+            PROJECT_ROOT / "daemon" / "apply widescreen smooth map.py",
+            PROJECT_ROOT / "daemon" / "lastz auto engine daemon.py",
+            PROJECT_ROOT / "tools" / "client discovery.py",
+            PROJECT_ROOT / "tests" / "testR2R3PreloadContracts.py",
+            PROJECT_ROOT / "tests" / "testPerformanceOptimisations.py",
+        ]
+        issues: list[str] = []
+        for path in m1_files:
+            text = path.read_text(encoding="utf-8")
+            for idx, line in enumerate(text.splitlines(), start=1):
+                if em_dash in line or en_dash in line or mdash_ent in line or ndash_ent in line:
+                    issues.append(f"{path.relative_to(PROJECT_ROOT)}:{idx}:dash")
+                if user_path_re.search(line):
+                    issues.append(f"{path.relative_to(PROJECT_ROOT)}:{idx}:user_path")
+        self.assertEqual(issues, [], f"R4 hygiene violations in M1 files: {issues}")
 
 
 if __name__ == "__main__":

@@ -899,6 +899,33 @@ class TestR1UiAndHubOptimisations(unittest.TestCase):
                 self.assertNotEqual(snap2, {}, "_build_config_snapshot wiped snapshot to {} on transient error")
                 self.assertEqual(snap2["cycle_interval_seconds"], 245)
 
+    def test_hub_run_action_rejects_invalid_and_covers_all_ui_routes(self) -> None:
+        """HubBackend.run_action must reject invalid/empty/unknown action_id without spawning threads and cover all UI routes."""
+        with (
+            mock.patch.object(self.hub.HubBackend, "_load_cached_state"),
+            mock.patch.object(self.hub.HubBackend, "_load_always_on_daemon_config"),
+            mock.patch.object(self.hub.HubBackend, "_start_always_on_daemon"),
+            mock.patch.object(self.hub.HubBackend, "log"),
+        ):
+            backend = self.hub.HubBackend()
+
+        with mock.patch.object(self.hub.threading, "Thread") as thread_mock:
+            for bad_id in (None, "", "   ", 123, ["quick_shield"], "nonexistent_action_xyz", " quick_shield "):
+                res = backend.run_action(bad_id, {})  # type: ignore[arg-type]
+                self.assertFalse(res.get("ok"), f"Expected ok=False for {bad_id!r}, got {res!r}")
+                self.assertIn("error", res, f"Expected error key for {bad_id!r}")
+                self.assertNotIn("queued", res, f"Unexpected queued key for {bad_id!r}")
+            thread_mock.assert_not_called()
+
+        self.assertEqual(len(self.hub.HubBackend._BG_ACTION_IDS), 35)
+        ui_literals = set(re.findall(r'doAction\(\s*["\']([a-zA-Z0-9_]+)["\']', self.html))
+        ui_literals.update({"dispatch_resource", "navigate_resource"})
+        run_action_src = inspect.getsource(self.hub.HubBackend.run_action)
+        sync_ids = set(re.findall(r'action_id\s*==\s*["\']([a-zA-Z0-9_]+)["\']', run_action_src))
+        all_supported = sync_ids | set(self.hub.HubBackend._BG_ACTION_IDS)
+        missing = sorted(ui_literals - all_supported)
+        self.assertEqual(missing, [], f"UI doAction routes missing from HubBackend: {missing}")
+
 
 class TestR1BotAndDiscoveryOptimisations(unittest.TestCase):
     """R1/R2 Bot & Discovery contracts (`multi client bot.py`, `bot actions.py`, `client discovery.py`)."""
@@ -1402,6 +1429,290 @@ class TestR1BotAndDiscoveryOptimisations(unittest.TestCase):
         with mock.patch.object(daemon_mod.psutil, "pid_exists", return_value=False):
             self.assertFalse(daemon_mod._is_parent_alive(54321, 1700000100.25))
 
+    def test_daemon_nonblocking_next_retry_at_and_dead_pid_cleanup(self) -> None:
+        """Daemon patch loop must have zero time.sleep(0.5), use per-PID next_retry_at backoff, and prune dead unpatched PIDs."""
+        daemon_src = (PROJECT_ROOT / "daemon" / "lastz auto engine daemon.py").read_text(encoding="utf-8")
+        daemon_mod = _load_mod("test_perf_daemon_nonblock", "daemon/lastz auto engine daemon.py")
+
+        self.assertNotIn("time.sleep(0.5)", daemon_src, "Blocking time.sleep(0.5) must be removed from daemon")
+
+        current_map = {
+            101: {"pid": 101, "role": "main", "exe_name": "Survival.exe", "label": "Main"},
+            102: {"pid": 102, "role": "farm", "exe_name": "FarmGame.exe", "label": "Farm1"},
+        }
+        patched_pids: dict = {}
+        patch_next_retry_at: dict = {}
+        preload_state: dict = {}
+        translator_hook_sig: dict = {101: ("old",), 999: ("dead",)}
+        translator_retry_after: dict = {999: 50.0}
+        patch_calls: list[int] = []
+
+        class _FakeCD:
+            def _xlua_loaded(self, pid: int) -> bool:
+                return True
+
+        def _fake_main_patch(pid: int, cd=None):
+            patch_calls.append(pid)
+            return (False, "BOOTING_WAIT") if len(patch_calls) == 1 else (True, "OK_MAIN")
+
+        def _fake_farm_patch(cd, pid: int):
+            patch_calls.append(pid)
+            return True, "OK_FARM"
+
+        with mock.patch.object(daemon_mod.time, "sleep", side_effect=AssertionError("time.sleep must not be called in patch pass")):
+            # Pass 1 at t=100.0: PID 101 returns BOOTING_WAIT, PID 102 still succeeds immediately
+            has_pending = daemon_mod._process_pending_client_patches(
+                _FakeCD(),
+                current_map,
+                patched_pids,
+                patch_next_retry_at,
+                preload_state,
+                once=False,
+                now_mono=100.0,
+                patch_main_fn=_fake_main_patch,
+                patch_farm_fn=_fake_farm_patch,
+            )
+            self.assertTrue(has_pending)
+            self.assertEqual(patch_calls, [101, 102])
+            self.assertIn(102, patched_pids)
+            self.assertNotIn(101, patched_pids)
+            self.assertAlmostEqual(patch_next_retry_at[101], 102.0)
+
+            # Pass 2 at t=101.0: PID 101 is still in cooldown -> skipped
+            daemon_mod._process_pending_client_patches(
+                _FakeCD(),
+                current_map,
+                patched_pids,
+                patch_next_retry_at,
+                preload_state,
+                once=False,
+                now_mono=101.0,
+                patch_main_fn=_fake_main_patch,
+                patch_farm_fn=_fake_farm_patch,
+            )
+            self.assertEqual(patch_calls, [101, 102])
+
+            # Pass 3 at t=102.5: cooldown expired -> PID 101 retried and succeeds
+            daemon_mod._process_pending_client_patches(
+                _FakeCD(),
+                current_map,
+                patched_pids,
+                patch_next_retry_at,
+                preload_state,
+                once=False,
+                now_mono=102.5,
+                patch_main_fn=_fake_main_patch,
+                patch_farm_fn=_fake_farm_patch,
+            )
+            self.assertEqual(patch_calls, [101, 102, 101])
+            self.assertIn(101, patched_pids)
+            self.assertNotIn(101, patch_next_retry_at)
+
+        # Dead PID pruning cleans up exited patched & unpatched PIDs
+        patch_next_retry_at[777] = 200.0
+        preload_state[777] = {"done": False}
+        daemon_mod._prune_dead_pid_state(
+            {102},
+            patched_pids,
+            patch_next_retry_at,
+            preload_state,
+            translator_hook_sig,
+            translator_retry_after,
+        )
+        self.assertNotIn(101, patched_pids)
+        self.assertNotIn(777, patch_next_retry_at)
+        self.assertNotIn(777, preload_state)
+        self.assertNotIn(999, translator_hook_sig)
+        self.assertNotIn(999, translator_retry_after)
+        self.assertIn(102, patched_pids)
+
+    def test_daemon_translator_config_mtime_size_cache_and_throttled_probe(self) -> None:
+        """Daemon caches translator config by (mtime_ns, size) and throttles ensure_server_running() probes to 30s."""
+        daemon_mod = _load_mod("test_perf_daemon_tr_cache", "daemon/lastz auto engine daemon.py")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg_path = Path(tmp) / "translator config.json"
+            cache_state: dict = {}
+            probe_calls = 0
+            sync_calls = 0
+
+            class _FakeTrMod:
+                def get_config_path(self):
+                    return cfg_path
+
+                def ensure_server_running(self):
+                    nonlocal probe_calls
+                    probe_calls += 1
+                    return {"running": True, "external": True, "port": 18765}
+
+                def build_translator_lua_hook(self, **kwargs):
+                    return "return 'OK'"
+
+            tr_mod = _FakeTrMod()
+
+            # 1. Missing config returns clean defaults without raising
+            missing_cfg = daemon_mod._load_translator_config_cached(tr_mod, cache_state=cache_state)
+            self.assertTrue(missing_cfg["enabled"])
+            self.assertEqual(missing_cfg["target_lang"], "auto")
+
+            # 2. Malformed JSON returns clean defaults without raising
+            cfg_path.write_text("{broken json", encoding="utf-8")
+            bad_cfg = daemon_mod._load_translator_config_cached(tr_mod, cache_state=cache_state)
+            self.assertTrue(bad_cfg["enabled"])
+
+            # 3. Valid config cached by (mtime_ns, size): unchanged stat -> 0 json.load calls
+            cfg_path.write_text(json.dumps({"enabled": True, "target_lang": "es", "auto_translate_chat": False}), encoding="utf-8")
+            c1 = daemon_mod._load_translator_config_cached(tr_mod, cache_state=cache_state)
+            self.assertEqual(c1["target_lang"], "es")
+            self.assertFalse(c1["auto_translate_chat"])
+
+            with mock.patch.object(daemon_mod.json, "load", side_effect=AssertionError("json.load must not run on stat cache hit")):
+                c2 = daemon_mod._load_translator_config_cached(tr_mod, cache_state=cache_state)
+                self.assertEqual(c2["target_lang"], "es")
+
+            # 4. Size change invalidates cache even within same mtime tick, and mtime change invalidates same-size edits
+            cfg_path.write_text(json.dumps({"enabled": False, "target_lang": "fr-FR", "auto_translate_chat": True}), encoding="utf-8")
+            c3 = daemon_mod._load_translator_config_cached(tr_mod, cache_state=cache_state)
+            self.assertFalse(c3["enabled"])
+            self.assertEqual(c3["target_lang"], "fr-FR")
+
+            st_prev = cfg_path.stat()
+            cfg_path.write_text(json.dumps({"enabled": False, "target_lang": "de-DE", "auto_translate_chat": True}), encoding="utf-8")
+            os.utime(cfg_path, ns=(st_prev.st_atime_ns, st_prev.st_mtime_ns + 1_000_000))
+            c4 = daemon_mod._load_translator_config_cached(tr_mod, cache_state=cache_state)
+            self.assertEqual(c4["target_lang"], "de-DE")
+
+            # 5. _sync_translator_tick throttles ensure_server_running() to 30s and retries on toggle/failure
+            tr_state = {"port": 0, "started_here": False, "last_probe_at": 0.0, "prev_enabled": True}
+            patched_pids = {101: {"pid": 101, "exe_name": "Survival.exe", "label": "Main"}}
+            hook_sig: dict = {}
+            retry_after: dict = {}
+
+            def _fake_sync_hook(*args, **kwargs):
+                nonlocal sync_calls
+                sync_calls += 1
+                return True, "SYNCED"
+
+            with mock.patch.object(daemon_mod, "sync_translator_hook", side_effect=_fake_sync_hook):
+                # Initial probe at t=100.0 (last_probe_at == 0.0)
+                daemon_mod._sync_translator_tick(None, tr_mod, {101}, patched_pids, hook_sig, retry_after, tr_state, cache_state, now_mono=100.0)
+                self.assertEqual(probe_calls, 1)
+                # Repeated ticks within 30s do NOT call ensure_server_running()
+                daemon_mod._sync_translator_tick(None, tr_mod, {101}, patched_pids, hook_sig, retry_after, tr_state, cache_state, now_mono=110.0)
+                daemon_mod._sync_translator_tick(None, tr_mod, {101}, patched_pids, hook_sig, retry_after, tr_state, cache_state, now_mono=125.0)
+                self.assertEqual(probe_calls, 1)
+                # At +30s -> probes once
+                daemon_mod._sync_translator_tick(None, tr_mod, {101}, patched_pids, hook_sig, retry_after, tr_state, cache_state, now_mono=130.0)
+                self.assertEqual(probe_calls, 2)
+                # Enable toggle False -> True triggers immediate probe + hook sync
+                st_cur = cfg_path.stat()
+                cfg_path.write_text(json.dumps({"enabled": True, "target_lang": "pt-BR", "auto_translate_chat": True}), encoding="utf-8")
+                os.utime(cfg_path, ns=(st_cur.st_atime_ns, st_cur.st_mtime_ns + 2_000_000))
+                daemon_mod._sync_translator_tick(None, tr_mod, {101}, patched_pids, hook_sig, retry_after, tr_state, cache_state, now_mono=132.0)
+                self.assertEqual(probe_calls, 3)
+                self.assertEqual(sync_calls, 1)
+
+    def test_client_discovery_scan_roots_name_first_no_eager_exe(self) -> None:
+        """_scan_filesystem_roots() must iterate psutil.process_iter(['name']) and never call .exe() on non-game processes."""
+        with tempfile.TemporaryDirectory() as tmp:
+            game_dir = Path(tmp) / "Last Z" / "Game"
+            game_dir.mkdir(parents=True)
+            (game_dir / "GameAssembly.dll").write_bytes(b"MZ")
+            (game_dir / "Survival_Data").mkdir()
+            (game_dir / "Survival.exe").write_bytes(b"MZ")
+
+            non_game_exe_calls = 0
+
+            class _FakeProc:
+                def __init__(self, name: str, exe_path: str, is_game: bool) -> None:
+                    self.info = {"name": name}
+                    self._exe_path = exe_path
+                    self._is_game = is_game
+
+                def exe(self) -> str:
+                    nonlocal non_game_exe_calls
+                    if not self._is_game:
+                        non_game_exe_calls += 1
+                        raise AssertionError(f".exe() called on non-game process {self.info['name']}")
+                    return self._exe_path
+
+            fake_procs = [
+                _FakeProc("svchost.exe", r"C:\Windows\System32\svchost.exe", False),
+                _FakeProc("chrome.exe", r"C:\Program Files\Google\Chrome\chrome.exe", False),
+                _FakeProc("Survival.exe", str(game_dir / "Survival.exe"), True),
+            ]
+            seen_attrs: list[Any] = []
+
+            def _fake_iter(attrs=None):
+                seen_attrs.append(list(attrs) if attrs is not None else None)
+                return fake_procs
+
+            with (
+                mock.patch.object(self.cd.psutil, "process_iter", side_effect=_fake_iter),
+                mock.patch.object(self.cd, "_fixed_drive_letters", return_value=[]),
+                mock.patch.object(self.cd, "_scan_uninstall_registry", return_value=set()),
+                mock.patch.object(self.cd, "_scan_shortcut_dirs", return_value=set()),
+                mock.patch.object(self.cd.os.path, "expandvars", side_effect=lambda s: str(Path(tmp) / "NoSuchRoot")),
+            ):
+                roots = self.cd._scan_filesystem_roots()
+
+            self.assertEqual(seen_attrs, [["name"]])
+            self.assertEqual(non_game_exe_calls, 0)
+            self.assertIn(game_dir, roots)
+
+    def test_client_discovery_parallel_discover_running_clients_deterministic_order(self) -> None:
+        """discover_running_clients(query_lua=True) must run per-PID queries concurrently, preserve order, and isolate errors."""
+        fake_running = [
+            {"pid": 101, "exe_name": "Survival.exe", "role": "main", "label": "Main"},
+            {"pid": 102, "exe_name": "FarmGame.exe", "role": "farm", "label": "Farm1"},
+            {"pid": 103, "exe_name": "Alt2Game.exe", "role": "farm", "label": "Alt2"},
+            {"pid": 104, "exe_name": "Alt3Game.exe", "role": "farm", "label": "Alt3"},
+        ]
+        lock = threading.Lock()
+        active_now = 0
+        max_concurrent = 0
+        barrier = threading.Barrier(3, timeout=2.0)
+
+        def _fake_xlua(pid: int) -> bool:
+            return pid != 104
+
+        def _fake_eval(pid: int, lua_code: str, timeout: float = 5.0, retries: int = 3):
+            nonlocal active_now, max_concurrent
+            with lock:
+                active_now += 1
+                if active_now > max_concurrent:
+                    max_concurrent = active_now
+            try:
+                barrier.wait()
+                # Inverted latencies: PID 101 slowest, PID 103 fastest
+                if pid == 101:
+                    time.sleep(0.04)
+                elif pid == 102:
+                    time.sleep(0.02)
+                if pid == 103:
+                    return False, "RPC timeout"
+                return True, json.dumps({"loggedIn": True, "name": f"Acc{pid}", "allianceTag": "HZ", "selfServerId": 702})
+            finally:
+                with lock:
+                    active_now -= 1
+
+        with (
+            mock.patch.object(self.cd, "find_running_processes", return_value=fake_running),
+            mock.patch.object(self.cd, "_xlua_loaded", side_effect=_fake_xlua),
+            mock.patch.object(self.cd, "frida_eval_lua", side_effect=_fake_eval),
+        ):
+            res = self.cd.discover_running_clients(query_lua=True)
+
+        self.assertGreaterEqual(max_concurrent, 2, "Expected concurrent frida_eval_lua across running PIDs")
+        self.assertEqual([r["pid"] for r in res], [101, 102, 103, 104])
+        self.assertTrue(res[0]["loggedIn"])
+        self.assertIn("Acc101", res[0]["statusText"])
+        self.assertTrue(res[1]["loggedIn"])
+        self.assertFalse(res[2]["loggedIn"])
+        self.assertIn("Lua unavailable", res[2]["statusText"])
+        self.assertFalse(res[3]["loggedIn"])
+        self.assertEqual(res[3]["statusText"], "Booting (xlua pending)")
+
     def test_bot_actions_preparedness_probe_ok_and_dry_run_guard(self) -> None:
         """_probe_preparedness_phase must set ok=True and skip ActivityEventInfoGet when allow_network_refresh=False."""
         sig = inspect.signature(self.bot_actions._probe_preparedness_phase)
@@ -1661,6 +1972,51 @@ class TestPerformanceBenchmarks(unittest.TestCase):
             self.assertFalse(mr.get("skipped"), f"Map Rip benchmark must not skip when cache is on disk: {mr}")
             self.assertTrue(mr["cold_ok"])
             self.assertGreater(mr["unshielded_count"], 0)
+
+
+class TestMapCacheLiveAutoRefresh(unittest.TestCase):
+    """Verify runtime _MasterCacheDirOverride injection and Map Rip live world_cache_sig auto-refresh."""
+
+    @staticmethod
+    def _load_py(name: str, path: Path):
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_build_master_lua_payload_injects_runtime_cache_dir(self) -> None:
+        mod = self._load_py("apply_widescreen_map_test", PROJECT_ROOT / "daemon" / "apply widescreen smooth map.py")
+        self.assertIn('local _DEFAULT_CACHE_DIR = "./data/cache"', mod.MASTER_LUA_CODE)
+        payload = mod.build_master_lua_payload(force_full_map_load=True, cache_dir=r"C:\Temp\HeinzData\cache")
+        self.assertTrue(payload.startswith('_G._MasterCacheDirOverride = "C:/Temp/HeinzData/cache"\n'))
+        self.assertIn("local _FORCE_FULL_LOAD = true", payload)
+
+    def test_world_map_cache_sig_updates_on_write_and_wired_in_ui(self) -> None:
+        hub = self._load_py("hub_web_map_sig_test", PROJECT_ROOT / "launcher" / "heinzhubweb.py")
+        prev_data_dir = hub.DATA_DIR
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                hub.DATA_DIR = tmp
+                hub._WORLD_CACHE_SIG_MEMO.clear()
+                sig0 = hub._get_world_map_cache_sig(max_age_sec=0.0)
+                self.assertEqual(sig0, "")
+                cdir = Path(tmp) / "cache"
+                cdir.mkdir(parents=True, exist_ok=True)
+                cfile = cdir / "world_map_cache_s702.json"
+                cfile.write_text('{"1":{"x":500,"y":500}}', encoding="utf-8")
+                sig1 = hub._get_world_map_cache_sig(max_age_sec=0.0)
+                self.assertIn("world_map_cache_s702.json:", sig1)
+                cfile.write_text('{"1":{"x":500,"y":500},"2":{"x":501,"y":501}}', encoding="utf-8")
+                sig2 = hub._get_world_map_cache_sig(max_age_sec=0.0)
+                self.assertNotEqual(sig1, sig2)
+        finally:
+            hub.DATA_DIR = prev_data_dir
+            hub._WORLD_CACHE_SIG_MEMO.clear()
+
+        html = (PROJECT_ROOT / "launcher" / "web" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("s.world_cache_sig !== _lastWorldCacheSig", html)
+        self.assertIn("refreshMapFinder(true)", html)
 
 
 if __name__ == "__main__":

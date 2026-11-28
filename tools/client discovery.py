@@ -1,4 +1,5 @@
 import atexit
+import concurrent.futures
 import ctypes
 from ctypes import wintypes
 import types
@@ -661,6 +662,19 @@ def _scan_uninstall_registry() -> set[Path]:
     return found
 
 
+def _is_candidate_game_exe_name(name: str, known_exe_names: set[str] | None = None) -> bool:
+    """Fast name-only filter for candidate Last Z game executables."""
+    low = (name or "").lower()
+    if not low.endswith(".exe") or low in IGNORE_EXES:
+        return False
+    return (
+        low in ("survival.exe", "farmgame.exe", "alt3game.exe")
+        or (known_exe_names is not None and low in known_exe_names)
+        or "lastz" in low
+        or (low.startswith(("farm", "alt")) and "game" in low)
+    )
+
+
 def _scan_filesystem_roots():
     """Locate any Last Z Game installations on any PC without user-specific hardcoding."""
     candidates = set()
@@ -693,9 +707,12 @@ def _scan_filesystem_roots():
             except OSError:
                 continue
 
-    for proc in psutil.process_iter(["name", "exe"]):
+    for proc in psutil.process_iter(["name"]):
         try:
-            exe = proc.info.get("exe")
+            pname = (proc.info.get("name") or "").lower()
+            if not _is_candidate_game_exe_name(pname):
+                continue
+            exe = _resolve_proc_exe(proc)
             if exe:
                 gdir = Path(exe).parent
                 if (gdir / "GameAssembly.dll").exists() and ((gdir / "Survival_Data").exists() or (gdir / "Survival.exe").exists()):
@@ -975,15 +992,7 @@ def is_lastz_process(proc, known_exe_names: set[str] | None = None):
     """Return True if proc looks like a Last Z game binary (name-first fast filter)."""
     try:
         name = (proc.info.get("name") or "").lower()
-        if not name.endswith(".exe") or name in IGNORE_EXES:
-            return False
-        fast_match = (
-            name in ("survival.exe", "farmgame.exe", "alt3game.exe")
-            or (known_exe_names is not None and name in known_exe_names)
-            or "lastz" in name
-            or (name.startswith(("farm", "alt")) and "game" in name)
-        )
-        if not fast_match:
+        if not _is_candidate_game_exe_name(name, known_exe_names=known_exe_names):
             return False
         exe = _resolve_proc_exe(proc)
         if exe:
@@ -1413,20 +1422,17 @@ def resolve_target_pid(pid=None, profile=None):
     return None
 
 
-def discover_running_clients(query_lua=True):
-    """Discover all running Last Z processes with optional live in-game Lua state."""
-    running = find_running_processes()
-    if not query_lua:
-        return running
+_DISCOVER_MAX_WORKERS = 6
 
-    enriched = []
-    for r in running:
-        item = dict(r)
+
+def _query_running_client_entry(r: dict[str, Any]) -> dict[str, Any]:
+    """Query live Lua status for a single running Last Z client (thread-safe per-PID)."""
+    item = dict(r)
+    try:
         if not _xlua_loaded(r["pid"]):
             item["loggedIn"] = False
             item["statusText"] = "Booting (xlua pending)"
-            enriched.append(item)
-            continue
+            return item
 
         ok, out = frida_eval_lua(r["pid"], LUA_QUICK_STATUS)
         if ok:
@@ -1444,8 +1450,25 @@ def discover_running_clients(query_lua=True):
         else:
             item["loggedIn"] = False
             item["statusText"] = f"Lua unavailable: {out}"
-        enriched.append(item)
-    return enriched
+    except Exception as exc:
+        item["loggedIn"] = False
+        item["statusText"] = f"Discovery query error: {exc}"
+    return item
+
+
+def discover_running_clients(query_lua=True):
+    """Discover all running Last Z processes with optional live in-game Lua state."""
+    running = find_running_processes()
+    if not query_lua or not running:
+        return running
+
+    if len(running) == 1:
+        return [_query_running_client_entry(running[0])]
+
+    max_workers = max(1, min(len(running), _DISCOVER_MAX_WORKERS))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="hz_disc") as pool:
+        futures = [pool.submit(_query_running_client_entry, r) for r in running]
+        return [fut.result() for fut in futures]
 
 
 if __name__ == "__main__":

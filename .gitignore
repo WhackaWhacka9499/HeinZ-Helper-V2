@@ -39,6 +39,9 @@ data/json cache/shield watchlist.json
 data/json cache/ui preferences.json
 data/json cache/bound accounts.json
 data/json cache/heinz login prefs.json
+data/json cache/local dpapi vault.json
+data/json cache/translator dpapi keys.json
+data/json cache/*.corrupt.*.json
 /engine/
 
 # Agent logs and temporary runtime manifests

@@ -930,7 +930,7 @@ class TestHeroProgression(unittest.TestCase):
         self.assertNotRegex(hp_ba_src, bad_rank_re)
 
     # ------------------------------------------------------------------
-    # 7. Regression Tests (Fixes 1-6)
+    # 7. Cross-Model Opus 5.5 Review Regression Tests (Fixes 1-6)
     # ------------------------------------------------------------------
     def test_fix1_probe_missing_ok_and_theme_only_matching(self) -> None:
         """Fix 1: _is_hero_progression_event_active works without 'ok', rejects error dicts, and ignores score_labels."""

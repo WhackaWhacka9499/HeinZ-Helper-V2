@@ -18,8 +18,14 @@ import json
 import sys
 import threading
 import time
+import weakref
 from pathlib import Path
 from typing import Any
+
+try:
+    import psutil
+except Exception:
+    psutil = None  # type: ignore[assignment]
 
 TOOLS_DIR = Path(__file__).resolve().parent
 ROOT_DIR = TOOLS_DIR.parent
@@ -467,13 +473,170 @@ local function _get_player_snapshot()
     chatReady = chatReady,
   }
 end
+
+local function _get_mine_gather_res_meta(resId)
+  local rid = tostring(resId or '')
+  if rid == '' or rid == '0' then return nil end
+  local cache = _G.__hzMineResCache
+  if type(cache) ~= 'table' then
+    cache = {}
+    _G.__hzMineResCache = cache
+  end
+  local hit = cache[rid]
+  if hit ~= nil then return hit end
+  local lc = LocalController and LocalController.instance and LocalController.instance() or nil
+  if not (lc and lc.getLine and TableName and TableName.GatherResource) then return nil end
+  local row = _safe_call(function() return lc:getLine(TableName.GatherResource, rid) end, nil)
+  if not (row and row.getValue) then return nil end
+  local rTypeNum = tonumber(_safe_call(function() return row:getValue('resource_type') or row:getValue('type') end, -1)) or -1
+  local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+  local meta = { resource_type = rTypeNum, level = lv }
+  cache[rid] = meta
+  return meta
+end
 """
+
+_HZ_MINE_VERSION = 1
+
+_LUA_MINE_BOOTSTRAP = LUA_MINE_MELEE_HELPERS + f"""
+_G.__hzMineVer = {_HZ_MINE_VERSION}
+_G.__hzMineBridge = {{
+  esc = _esc,
+  jdict = _jdict,
+  jarr = _jarr,
+  enc = _enc,
+  safe_call = _safe_call,
+  first_pos = _first_pos,
+  first_pos_prop = _first_pos_prop,
+  to_xy = _to_xy,
+  dist = _dist,
+  extract_collection = _extract_collection,
+  get_player_snapshot = _get_player_snapshot,
+  get_mine_gather_res_meta = _get_mine_gather_res_meta,
+}}
+"""
+
+_LUA_MINE_SHIM = f"""local _hzMB = _G.__hzMineBridge
+if _G.__hzMineVer ~= {_HZ_MINE_VERSION} or type(_hzMB) ~= 'table' then
+  return '__HZ_MINE_NEED_BOOTSTRAP__'
+end
+local _esc = _hzMB.esc
+local _jdict = _hzMB.jdict
+local _jarr = _hzMB.jarr
+local _enc = _hzMB.enc
+local _safe_call = _hzMB.safe_call
+local _first_pos = _hzMB.first_pos
+local _first_pos_prop = _hzMB.first_pos_prop
+local _to_xy = _hzMB.to_xy
+local _dist = _hzMB.dist
+local _extract_collection = _hzMB.extract_collection
+local _get_player_snapshot = _hzMB.get_player_snapshot
+local _get_mine_gather_res_meta = _hzMB.get_mine_gather_res_meta
+"""
+
+_HZ_MINE_BRIDGE_LOCK = threading.RLock()
+_HZ_MINE_BOOTSTRAPPED_TARGETS: dict[tuple[int, int, float], float] = {}
+_HZ_MINE_FINALIZED_IDS: set[int] = set()
+_MINE_PID_CTIME_CACHE: dict[int, tuple[float, float]] = {}
+_MINE_PID_CTIME_TTL_S = 10.0
+
+
+def _get_mine_pid_create_time(pid: int) -> float:
+    try:
+        pid_i = int(pid)
+        if pid_i <= 0 or psutil is None:
+            return 0.0
+        now_m = time.monotonic()
+        with _HZ_MINE_BRIDGE_LOCK:
+            cached = _MINE_PID_CTIME_CACHE.get(pid_i)
+            if cached is not None and (now_m - cached[1]) < _MINE_PID_CTIME_TTL_S:
+                return cached[0]
+        ctime = round(float(psutil.Process(pid_i).create_time()), 3)
+        with _HZ_MINE_BRIDGE_LOCK:
+            if len(_MINE_PID_CTIME_CACHE) >= 256:
+                _MINE_PID_CTIME_CACHE.clear()
+            _MINE_PID_CTIME_CACHE[pid_i] = (ctime, time.monotonic())
+        return ctime
+    except Exception:
+        return 0.0
+
+
+def _invalidate_mine_pid_ctime(pid: int) -> None:
+    try:
+        pid_i = int(pid)
+    except Exception:
+        return
+    with _HZ_MINE_BRIDGE_LOCK:
+        _MINE_PID_CTIME_CACHE.pop(pid_i, None)
+
+
+def _mark_hz_mine_bootstrapped(cd: Any, cache_key: tuple[int, int, float]) -> None:
+    cd_id = cache_key[0]
+    with _HZ_MINE_BRIDGE_LOCK:
+        if len(_HZ_MINE_BOOTSTRAPPED_TARGETS) >= 128:
+            _HZ_MINE_BOOTSTRAPPED_TARGETS.clear()
+        _HZ_MINE_BOOTSTRAPPED_TARGETS[cache_key] = time.monotonic()
+        if cd_id not in _HZ_MINE_FINALIZED_IDS:
+            _HZ_MINE_FINALIZED_IDS.add(cd_id)
+            try:
+                def _cleanup_cd(
+                    _cid: int = cd_id,
+                    _lock: Any = _HZ_MINE_BRIDGE_LOCK,
+                    _finalized_ids: set[int] = _HZ_MINE_FINALIZED_IDS,
+                    _bootstrapped: dict[tuple[int, int, float], float] = _HZ_MINE_BOOTSTRAPPED_TARGETS,
+                ) -> None:
+                    g = globals()
+                    lock = g.get("_HZ_MINE_BRIDGE_LOCK") if isinstance(g, dict) else None
+                    if lock is None:
+                        lock = _lock
+                    if lock is None:
+                        return
+                    finalized_ids = g.get("_HZ_MINE_FINALIZED_IDS") if isinstance(g, dict) else None
+                    if not isinstance(finalized_ids, set):
+                        finalized_ids = _finalized_ids
+                    bootstrapped = g.get("_HZ_MINE_BOOTSTRAPPED_TARGETS") if isinstance(g, dict) else None
+                    if not isinstance(bootstrapped, dict):
+                        bootstrapped = _bootstrapped
+                    try:
+                        with lock:
+                            if isinstance(finalized_ids, set):
+                                finalized_ids.discard(_cid)
+                            if isinstance(bootstrapped, dict):
+                                for k in [k for k in bootstrapped if isinstance(k, tuple) and k[0] == _cid]:
+                                    bootstrapped.pop(k, None)
+                    except Exception:
+                        pass
+
+                fin = weakref.finalize(cd, _cleanup_cd)
+                fin.atexit = False
+            except TypeError:
+                _HZ_MINE_FINALIZED_IDS.discard(cd_id)
 
 
 def _eval_mine_lua(cd: Any, pid: int, lua_body: str, timeout: float = 10.0) -> dict[str, Any]:
-    lua = LUA_MINE_MELEE_HELPERS + "\n" + lua_body
-    ok, raw = cd.frida_eval_lua(pid, lua, timeout=timeout)
+    cache_key = (id(cd), int(pid), _get_mine_pid_create_time(int(pid)))
+    with _HZ_MINE_BRIDGE_LOCK:
+        is_bootstrapped = cache_key in _HZ_MINE_BOOTSTRAPPED_TARGETS
+
+    if is_bootstrapped:
+        lua = _LUA_MINE_SHIM + "\n" + lua_body
+        ok, raw = cd.frida_eval_lua(pid, lua, timeout=timeout)
+        if ok and isinstance(raw, str) and raw.strip() == "__HZ_MINE_NEED_BOOTSTRAP__":
+            _invalidate_mine_pid_ctime(pid)
+            with _HZ_MINE_BRIDGE_LOCK:
+                _HZ_MINE_BOOTSTRAPPED_TARGETS.pop(cache_key, None)
+            lua_full = _LUA_MINE_BOOTSTRAP + "\n" + lua_body
+            ok, raw = cd.frida_eval_lua(pid, lua_full, timeout=timeout)
+            if ok and not (isinstance(raw, str) and raw.strip() == "__HZ_MINE_NEED_BOOTSTRAP__"):
+                _mark_hz_mine_bootstrapped(cd, cache_key)
+    else:
+        lua = _LUA_MINE_BOOTSTRAP + "\n" + lua_body
+        ok, raw = cd.frida_eval_lua(pid, lua, timeout=timeout)
+        if ok and not (isinstance(raw, str) and raw.strip() == "__HZ_MINE_NEED_BOOTSTRAP__"):
+            _mark_hz_mine_bootstrapped(cd, cache_key)
+
     if not ok:
+        _invalidate_mine_pid_ctime(pid)
         return {"ok": False, "task": "mine_melee_refresh", "error": str(raw)}
     if isinstance(raw, dict):
         return raw
@@ -655,12 +818,14 @@ if amm and snap.inAlliance then
       local cSpd = _first_pos_prop(m, 'collectSpeed', 'speed')
       local expMs = _first_pos_prop(m, 'expireTime', 'endTime')
       local bId = _first_pos_prop(m, 'buildId', 'id')
-      local muuid = tostring(_safe_call(function() return (m.uuid and tostring(m.uuid) ~= '0' and m.uuid) or (m.id and tostring(m.id) ~= '0' and m.id) or entry.key end, entry.key) or '0')
+      local rawMineUuid = _safe_call(function() return (m.uuid and tostring(m.uuid) ~= '0' and m.uuid) or (m.id and tostring(m.id) ~= '0' and m.id) or entry.key end, nil)
+      local muuid = tostring(rawMineUuid or '0')
       if pt > 0 then
         out.alliance_mine_status.mines_found = out.alliance_mine_status.mines_found + 1
         allianceMineByPoint[pt] = {{
           pointId = pt,
           uuid = muuid,
+          rawUuid = rawMineUuid,
           remainNum = rem,
           initNum = initNum,
           collectSpeed = cSpd,
@@ -805,6 +970,7 @@ local collectTargetType = tonumber((MarchTargetType and MarchTargetType.COLLECT)
 local allianceMineTargetType = tonumber((MarchTargetType and MarchTargetType.COLLECT_ALLIANCE_BUILD_RESOURCE) or 35) or 35
 
 local seenMarchUuids = {{}}
+local rawMarchUuidByStr = {{}}
 local activeAllianceMinePoints = {{}}
 
 for _, mSrc in ipairs(marchSources) do
@@ -815,8 +981,10 @@ for _, mSrc in ipairs(marchSources) do
       local ownerUid = tostring(_safe_call(function() return m.uid or m.ownerUid or m.playerUid end, '') or '')
       local isOwn = (not mSrc.filterOwn) or (ownerUid == '') or (snap.uid ~= '' and ownerUid == snap.uid)
       if isOwn then
-        local muuid = tostring(_safe_call(function() return m.uuid or m.marchUuid or m.id end, entry.key) or '')
+        local rawMuuid = _safe_call(function() return m.uuid or m.marchUuid or m.id end, entry.key)
+        local muuid = tostring(rawMuuid or '')
         if muuid ~= '' and not seenMarchUuids[muuid] then
+          rawMarchUuidByStr[muuid] = rawMuuid
           local tType = tonumber(_safe_call(function() return m.target or m.targetType or m.marchType or m.type end, -1)) or -1
           local tPos = _first_pos_prop(m, 'targetPos', 'finalTargetPos', 'realTargetPos', 'targetPoint', 'pointId', 'endIndex', 'targetIndex')
           local isTargetForMineFlag = _safe_call(function()
@@ -1025,7 +1193,16 @@ for _, gm in ipairs(marchesToRecall) do
   else
     local recalledOk = false
     local recallErr = nil
-    local rawMarchUuid = tonumber(gm.marchUuid) or gm.marchUuid
+    local gmUuidStr = tostring(gm.marchUuid or '')
+    local rawMarchUuid = rawMarchUuidByStr[gmUuidStr]
+    if rawMarchUuid == nil then
+      if #gmUuidStr <= 15 then
+        local n = tonumber(gmUuidStr)
+        rawMarchUuid = (n ~= nil and tostring(n) == gmUuidStr) and n or gm.marchUuid
+      else
+        rawMarchUuid = gm.marchUuid
+      end
+    end
     if mu and mu.OnBackHome then
       local okR, errR = pcall(function() mu.OnBackHome(rawMarchUuid) end)
       recalledOk = okR
@@ -1151,12 +1328,24 @@ if preferAllianceMine and fCursor <= #usableForms and bestAllianceMine and bestA
       local sentOk = false
       local sendErr = nil
       if mu and mu.SendCreateMarchMessage then
+        local mineTargetUuid = bestAllianceMine.rawUuid
+        if mineTargetUuid == nil then
+          local uStr = tostring(bestAllianceMine.uuid or '')
+          if uStr == '' or uStr == '0' then
+            mineTargetUuid = 0
+          elseif #uStr <= 15 then
+            local n = tonumber(uStr)
+            mineTargetUuid = (n ~= nil and tostring(n) == uStr) and n or uStr
+          else
+            mineTargetUuid = uStr
+          end
+        end
         local okS, errS = pcall(function()
           mu.SendCreateMarchMessage(
             f.rawUuid,
             allianceMineTargetType,
             alPt,
-            bestAllianceMine.uuid or 0,
+            mineTargetUuid,
             0,
             true,
             true,
@@ -1185,49 +1374,54 @@ end
 if dispatchWorldResources and fCursor <= #usableForms and wpm and wpm.allViewPoints and wpm.GetPointInfo then
   local cands = {{}}
   local worldResType = tonumber((PointType and PointType.WorldResource) or 7) or 7
-  for _, entry in ipairs(_extract_collection(wpm.allViewPoints)) do
-    local ptIdx = entry.key
-    local ptObj = entry.val
-    local ptType = tonumber(_safe_call(function() return ptObj.pointType end, -1)) or -1
-    local pnum = tonumber(ptIdx) or tonumber(_safe_call(function() return ptObj.pointId end, 0)) or 0
-    if ptType == worldResType and pnum > 0 then
-      local claimKey = tostring(snap.serverId) .. ':' .. tostring(pnum)
-      if not claimedPts[claimKey] then
-        local info = _safe_call(function() return wpm:GetPointInfo(pnum) end, nil)
-        local ri = info and info.resourceInfo or nil
-        if ri and tonumber(ri.gatherUuid or 0) == 0 and tostring(ri.ownerUid or '') == '' then
-          local rName = nil
-          local lv = tonumber(ri.level or 0) or 0
-          local row = (LocalController and LocalController.instance and TableName and TableName.GatherResource)
-            and _safe_call(function() return LocalController.instance():getLine(TableName.GatherResource, tostring(ri.resourceId or 0)) end, nil)
-            or nil
-          if row and row.getValue then
-            local rTypeNum = tonumber(_safe_call(function() return row:getValue('resource_type') or row:getValue('type') end, -1)) or -1
-            lv = tonumber(_safe_call(function() return row:getValue('level') end, lv)) or lv
-            rName = resTypeMap[rTypeNum] or tostring(rTypeNum)
-          elseif ri.type ~= nil then
-            local rTypeNum = tonumber(ri.type) or -1
-            rName = resTypeMap[rTypeNum] or tostring(rTypeNum)
-          end
-          local pRank = rName and prioOrder[rName] or nil
-          if pRank and lv >= minLv and lv <= maxLv then
-            local d = snap.mainPos > 0 and _dist(snap.mainPos, pnum) or 0
-            if d <= maxDist then
-              local tx, ty = _to_xy(pnum)
-              table.insert(cands, {{
-                pointId = pnum,
-                coords = {{x = tx, y = ty}},
-                claimKey = claimKey,
-                resourceType = rName,
-                level = lv,
-                dist = math.floor(d * 10) / 10,
-                prio = pRank,
-                score = pRank * 10000 - lv * 200 + d,
-              }})
-            end
-          end
+  local function _scan_vp_point(ptIdx, ptObj)
+    if not ptObj then return end
+    local isTbl = (type(ptObj) == 'table')
+    local ptType = isTbl and (tonumber(ptObj.pointType or -1) or -1) or (tonumber(_safe_call(function() return ptObj.pointType end, -1)) or -1)
+    if ptType ~= worldResType then return end
+    local pnum = tonumber(ptIdx) or (isTbl and tonumber(ptObj.pointId) or tonumber(_safe_call(function() return ptObj.pointId end, 0))) or 0
+    if pnum <= 0 then return end
+    local claimKey = tostring(snap.serverId) .. ':' .. tostring(pnum)
+    if claimedPts[claimKey] then return end
+    local info = _safe_call(function() return wpm:GetPointInfo(pnum) end, nil)
+    local ri = info and info.resourceInfo or nil
+    if ri and tonumber(ri.gatherUuid or 0) == 0 and tostring(ri.ownerUid or '') == '' then
+      local rName = nil
+      local lv = tonumber(ri.level or 0) or 0
+      local rmeta = _get_mine_gather_res_meta(ri.resourceId or 0)
+      if rmeta then
+        rName = resTypeMap[rmeta.resource_type] or tostring(rmeta.resource_type)
+        if rmeta.level > 0 then lv = rmeta.level end
+      elseif ri.type ~= nil then
+        local rTypeNum = tonumber(ri.type) or -1
+        rName = resTypeMap[rTypeNum] or tostring(rTypeNum)
+      end
+      local pRank = rName and prioOrder[rName] or nil
+      if pRank and lv >= minLv and lv <= maxLv then
+        local d = snap.mainPos > 0 and _dist(snap.mainPos, pnum) or 0
+        if d <= maxDist then
+          local tx, ty = _to_xy(pnum)
+          table.insert(cands, {{
+            pointId = pnum,
+            coords = {{x = tx, y = ty}},
+            claimKey = claimKey,
+            resourceType = rName,
+            level = lv,
+            dist = math.floor(d * 10) / 10,
+            prio = pRank,
+            score = pRank * 10000 - lv * 200 + d,
+          }})
         end
       end
+    end
+  end
+  if type(wpm.allViewPoints) == 'table' then
+    for ptIdx, ptObj in pairs(wpm.allViewPoints) do
+      _scan_vp_point(ptIdx, ptObj)
+    end
+  else
+    for _, entry in ipairs(_extract_collection(wpm.allViewPoints)) do
+      _scan_vp_point(entry.key, entry.val)
     end
   end
 

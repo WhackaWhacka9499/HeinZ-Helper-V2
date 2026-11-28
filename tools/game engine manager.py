@@ -347,16 +347,23 @@ def is_valid_game_dir(game_dir: Path) -> bool:
         return False
 
 
+_CD_SINGLETON_NAME = "heinz_client_discovery_singleton"
+
+
 def _load_client_discovery_module():
+    existing = sys.modules.get(_CD_SINGLETON_NAME)
+    if existing is not None:
+        return existing
     cd_path = TOOLS_DIR / "client discovery.py"
     if not cd_path.is_file():
         return None
     try:
-        spec = importlib.util.spec_from_file_location("heinz_gem_client_discovery", str(cd_path))
+        spec = importlib.util.spec_from_file_location(_CD_SINGLETON_NAME, str(cd_path))
         if spec is None or spec.loader is None:
             return None
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
+        sys.modules.setdefault(_CD_SINGLETON_NAME, mod)
         return mod
     except Exception:
         return None
@@ -827,9 +834,26 @@ def import_local_engine(
     expected_rel_set = {rel.as_posix().lower() for _, rel, _ in items}
 
     # Remove stale files/dirs in engine_game_dir that do not belong to clean import
-    for cur_root, cur_dirs, cur_files in os.walk(dst_dir, topdown=False, followlinks=False):
+    # Use topdown=True so NTFS junctions are unlinked before os.walk can traverse into them.
+    dirs_to_prune: list[Path] = []
+    for cur_root, cur_dirs, cur_files in os.walk(dst_dir, topdown=True, followlinks=False):
         cur_p = Path(cur_root)
         rel_parent = cur_p.relative_to(dst_dir)
+        kept_dirs: list[str] = []
+        for dname in cur_dirs:
+            dp = cur_p / dname
+            if _is_reparse_or_junction(dp) or os.path.islink(dp):
+                try:
+                    os.rmdir(dp)
+                except OSError:
+                    try:
+                        os.unlink(dp)
+                    except OSError:
+                        pass
+            else:
+                kept_dirs.append(dname)
+                dirs_to_prune.append(dp)
+        cur_dirs[:] = kept_dirs
         for fname in cur_files:
             rel_key = (rel_parent / fname).as_posix().lower()
             if rel_key not in expected_rel_set:
@@ -837,22 +861,16 @@ def import_local_engine(
                     (cur_p / fname).unlink(missing_ok=True)
                 except OSError:
                     pass
-        for dname in cur_dirs:
-            dp = cur_p / dname
-            if _is_reparse_or_junction(dp):
-                try:
-                    os.rmdir(dp)
-                except OSError:
-                    pass
-            else:
-                try:
-                    if not any(dp.iterdir()):
-                        dp.rmdir()
-                except OSError:
-                    pass
+    for dp in reversed(dirs_to_prune):
+        try:
+            if not any(dp.iterdir()):
+                dp.rmdir()
+        except OSError:
+            pass
 
     done_files = 0
     done_bytes = 0
+    last_copy_emit = 0.0
     same_drive = src_dir.resolve().drive.lower() == dst_dir.resolve().drive.lower()
 
     for src_fp, rel_fp, sz in items:
@@ -885,16 +903,19 @@ def import_local_engine(
 
         done_files += 1
         done_bytes += sz
-        _emit_progress(
-            progress_cb,
-            stage="copying",
-            done_files=done_files,
-            total_files=total_files,
-            done_bytes=done_bytes,
-            total_bytes=total_bytes,
-            current_file=rel_fp.as_posix(),
-            start_ts=start_ts,
-        )
+        now_copy = time.monotonic()
+        if done_files == 1 or done_files == total_files or (now_copy - last_copy_emit) >= 0.15:
+            last_copy_emit = now_copy
+            _emit_progress(
+                progress_cb,
+                stage="copying",
+                done_files=done_files,
+                total_files=total_files,
+                done_bytes=done_bytes,
+                total_bytes=total_bytes,
+                current_file=rel_fp.as_posix(),
+                start_ts=start_ts,
+            )
 
     # Reset master engine identity cleanly back to vanilla LastZ
     patch_unity_identity(dst_dir, "LastZ")
@@ -1125,7 +1146,9 @@ def download_or_update_engine(
 
     eff_workers = max(1, int(max_workers))
     eff_range_streams = max(2, min(12, int(range_streams)))
-    session_pool_size = max(32, eff_workers + eff_range_streams * 2)
+    max_ranged_files = 3
+    range_sem = threading.Semaphore(max_ranged_files)
+    session_pool_size = max(32, eff_workers + (max_ranged_files * eff_range_streams))
     cdn_session = _create_cdn_session(pool_size=session_pool_size)
 
     def _add_progress_bytes(delta: int, rel_path: str) -> None:
@@ -1155,6 +1178,7 @@ def download_or_update_engine(
 
     def _download_single_stream(url: str, part_path: Path, rel_path: str) -> tuple[int, str]:
         """Download a file on one pooled keep-alive stream (or urllib fallback)."""
+        nonlocal done_bytes
         attempt_bytes = 0
         h = hashlib.md5()
         try:
@@ -1200,6 +1224,7 @@ def download_or_update_engine(
         expected_size: int,
     ) -> tuple[int, str]:
         """Download a large file via parallel HTTP Range streams with zero-waste 200 OK fallback."""
+        nonlocal done_bytes
         assert cdn_session is not None
         part_count = min(eff_range_streams, max(2, expected_size // max(1, range_threshold_bytes // 2)))
         part_size = (expected_size + part_count - 1) // part_count
@@ -1313,6 +1338,7 @@ def download_or_update_engine(
             raise
 
     def _download_one(item: tuple[str, str, int, Path]) -> tuple[str, str, int, str]:
+        nonlocal done_bytes
         rel_path, expected_md5, expected_size, dst = item
         if _is_cancelled():
             return ("cancelled", rel_path, 0, "")
@@ -1335,7 +1361,8 @@ def download_or_update_engine(
                     and expected_size >= range_threshold_bytes
                 )
                 if use_ranged:
-                    attempt_bytes, actual_md5 = _download_ranged_parallel(url, part_path, rel_path, expected_size)
+                    with range_sem:
+                        attempt_bytes, actual_md5 = _download_ranged_parallel(url, part_path, rel_path, expected_size)
                 else:
                     attempt_bytes, actual_md5 = _download_single_stream(url, part_path, rel_path)
 
@@ -1678,6 +1705,7 @@ def ensure_account_slot(
     master_ggm_md5 = _file_md5(master_ggm)
     prev_meta = _read_slot_metadata(slot_root)
 
+    ggm_exact_ready = False
     need_refresh_ggm = (
         force_resync
         or not slot_ggm.is_file()
@@ -1693,7 +1721,9 @@ def ensure_account_slot(
     if not need_refresh_ggm:
         try:
             raw_slot_ggm = slot_ggm.read_bytes()
-            if (_READYGO_EXACT_PREFIX + unity_profile.encode("ascii")) not in raw_slot_ggm and unity_profile.encode("ascii") not in raw_slot_ggm:
+            if (_READYGO_EXACT_PREFIX + unity_profile.encode("ascii")) in raw_slot_ggm:
+                ggm_exact_ready = True
+            elif unity_profile.encode("ascii") not in raw_slot_ggm:
                 need_refresh_ggm = True
         except OSError:
             need_refresh_ggm = True
@@ -1702,16 +1732,25 @@ def ensure_account_slot(
         _atomic_copy_file(master_ggm, slot_ggm)
 
     need_refresh_app = force_resync or not slot_app_info.is_file()
+    app_text_ready = False
     if not need_refresh_app and master_app_info.is_file():
         try:
             if os.path.samefile(master_app_info, slot_app_info) or slot_app_info.stat().st_nlink > 1:
                 need_refresh_app = True
         except OSError:
             need_refresh_app = True
+    if not need_refresh_app:
+        try:
+            app_text_ready = (slot_app_info.read_text(encoding="utf-8", errors="ignore") == f"ReadyGo\n{unity_profile}")
+        except OSError:
+            app_text_ready = False
     if need_refresh_app and master_app_info.is_file():
         _atomic_copy_file(master_app_info, slot_app_info)
 
-    patch_unity_identity(slot_game_dir, unity_profile)
+    if need_refresh_ggm or not ggm_exact_ready:
+        patch_unity_identity(slot_game_dir, unity_profile)
+    elif not app_text_ready:
+        _atomic_write_text(slot_app_info, f"ReadyGo\n{unity_profile}", encoding="utf-8")
 
     # 5. Create <ExeStem>_Data NTFS directory junction -> slot's own Survival_Data
     if exe_stem.lower() != "survival":
@@ -1722,9 +1761,7 @@ def ensure_account_slot(
         else:
             used_copy_fallback = True
 
-    shared_mode = "junction_hardlink" if (used_shared and not used_copy_fallback) else (
-        "junction_hardlink" if used_shared else "copy"
-    )
+    shared_mode = "junction_hardlink" if used_shared else "copy"
 
     _write_slot_metadata(
         slot_root,

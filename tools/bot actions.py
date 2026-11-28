@@ -18,6 +18,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    import psutil
+except Exception:
+    psutil = None  # type: ignore[assignment]
+
 _BA_SINGLETON_NAME = "heinz_bot_actions_singleton"
 if __name__ != "__main__":
     _self_mod = sys.modules.get(__name__)
@@ -63,7 +68,7 @@ def _load_english_dialog() -> dict[str, str]:
         repo_root / "_internal" / "assets" / "english-dialog.txt",
         repo_root.parent / "assets" / "english-dialog.txt",
     ]
-    meipass = getattr(__import__("sys"), "_MEIPASS", None)
+    meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         candidates.insert(0, Path(meipass) / "assets" / "english-dialog.txt")
         candidates.insert(1, Path(meipass) / "launcher" / "assets" / "english-dialog.txt")
@@ -668,6 +673,102 @@ local function _get_player_snapshot()
   }
 end
 
+local function _get_march_util()
+  return (package and package.loaded and (package.loaded['SlgEngine.Util.MarchUtil.MarchUtil'] or package.loaded['Util.MarchUtil_SLG'])) or MarchUtil
+end
+
+local function _loc(k)
+  if k == nil then return '' end
+  local ks = tostring(k)
+  if ks == '' or ks == '0' then return '' end
+  local cache = _G.__hzLocCache
+  if type(cache) ~= 'table' then
+    cache = {}
+    _G.__hzLocCache = cache
+  end
+  local hit = cache[ks]
+  if hit ~= nil then return hit end
+  local res = ''
+  if Localization and Localization.GetString then
+    local ok, s = pcall(function() return Localization:GetString(ks) end)
+    if ok and type(s) == 'string' and s ~= '' and s ~= ks then
+      res = s
+    elseif ok then
+      cache[ks] = ''
+    end
+  end
+  if res ~= '' then cache[ks] = res end
+  return res
+end
+
+local function _get_monster_meta(monsterId)
+  local mid = tostring(monsterId or '')
+  if mid == '' or mid == '0' then return nil end
+  local cache = _G.__hzMonsterMetaCache
+  if type(cache) ~= 'table' then
+    cache = {}
+    _G.__hzMonsterMetaCache = cache
+  end
+  local hit = cache[mid]
+  if hit ~= nil then return hit end
+  local lc = LocalController and LocalController.instance and LocalController.instance() or nil
+  if not (lc and lc.getLine and TableName and TableName.Monster) then return nil end
+  local row = _safe_call(function() return lc:getLine(TableName.Monster, mid) end, nil)
+  if not row then return nil end
+  local meta = {
+    boss = tonumber(_safe_call(function() return row:getValue('boss') end, 0)) or 0,
+    special = tonumber(_safe_call(function() return row:getValue('special') end, 0)) or 0,
+    level = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0,
+    name = _loc(_safe_call(function() return row:getValue('name') end, '')),
+  }
+  cache[mid] = meta
+  return meta
+end
+
+local function _get_gather_res_meta(resId)
+  local rid = tostring(resId or '')
+  if rid == '' or rid == '0' then return nil end
+  local cache = _G.__hzGatherMetaCache
+  if type(cache) ~= 'table' then
+    cache = {}
+    _G.__hzGatherMetaCache = cache
+  end
+  local hit = cache[rid]
+  if hit ~= nil then return hit end
+  local lc = LocalController and LocalController.instance and LocalController.instance() or nil
+  if not (lc and lc.getLine and TableName and TableName.GatherResource) then return nil end
+  local row = _safe_call(function() return lc:getLine(TableName.GatherResource, rid) end, nil)
+  if not row then return nil end
+  local rTypeNum = tonumber(_safe_call(function() return row:getValue('resource_type') end, nil) or _safe_call(function() return row:getValue('type') end, -1)) or -1
+  local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+  local meta = { resource_type = rTypeNum, level = lv }
+  cache[rid] = meta
+  return meta
+end
+
+local function _get_data_cfg_num(tbl, key, defaultVal)
+  local cacheKey = tostring(tbl or '') .. ':' .. tostring(key or '')
+  local cache = _G.__hzDataCfgCache
+  if type(cache) ~= 'table' then
+    cache = {}
+    _G.__hzDataCfgCache = cache
+  end
+  local hit = cache[cacheKey]
+  if hit ~= nil then return hit end
+  local dcCfg = (LuaEntry and LuaEntry.DataConfig) or DataConfig
+  if dcCfg and dcCfg.TryGetNum then
+    local v = tonumber(_safe_call(function() return dcCfg:TryGetNum(tbl, key) end, nil))
+    if v == nil then
+      v = tonumber(_safe_call(function() return dcCfg.TryGetNum(tbl, key) end, nil))
+    end
+    if v ~= nil then
+      cache[cacheKey] = v
+      return v
+    end
+  end
+  return defaultVal
+end
+
 local function _extract_dialog_info(arg1, arg2, arg3, arg4)
   local title = ''
   local content = ''
@@ -685,15 +786,13 @@ local function _extract_dialog_info(arg1, arg2, arg3, arg4)
     content = tostring(arg1 or '')
     title = 'Notice'
   end
-  if Localization and Localization.GetString then
-    if title ~= '' then
-      local okLt, st = pcall(function() return Localization:GetString(title) end)
-      if okLt and type(st) == 'string' and st ~= '' and st ~= title then title = st end
-    end
-    if content ~= '' then
-      local okLc, sc = pcall(function() return Localization:GetString(content) end)
-      if okLc and type(sc) == 'string' and sc ~= '' and sc ~= content then content = sc end
-    end
+  if title ~= '' then
+    local st = _loc(title)
+    if st ~= '' then title = st end
+  end
+  if content ~= '' then
+    local sc = _loc(content)
+    if sc ~= '' then content = sc end
   end
   if title == '' then title = 'Notice' end
   return title, content
@@ -702,24 +801,53 @@ end
 local function _resolve_loc_str(id)
   if id == nil then return '' end
   local raw = tostring(id)
-  if Localization and Localization.GetString then
-    local okL, s = pcall(function() return Localization:GetString(raw) end)
-    if not okL or type(s) ~= 'string' or s == '' or s == raw then
-      okL, s = pcall(function() return Localization:GetString(id) end)
+  local s = _loc(raw)
+  if s == '' and type(id) ~= 'string' and Localization and Localization.GetString then
+    local okL, s2 = pcall(function() return Localization:GetString(id) end)
+    if okL and type(s2) == 'string' and s2 ~= '' and s2 ~= raw then
+      s = s2
     end
-    if okL and type(s) == 'string' and s ~= '' and s ~= raw then
-      return s .. ' (#' .. raw .. ')'
-    end
+  end
+  if s ~= '' and s ~= raw then
+    return s .. ' (#' .. raw .. ')'
   end
   return raw
 end
 
 local function _install_popup_logger()
   if _G.__hzPopupLog == nil then _G.__hzPopupLog = {} end
-  if UIUtil then
+  if _G.__hzHookInstalledV3 then
+    local uiOk = (not UIUtil) or (
+      (type(UIUtil.ShowTipsId) ~= 'function' or UIUtil.ShowTipsId == _G.__hzWrapShowTipsIdMain)
+      and (type(UIUtil.ShowTipsIdParams) ~= 'function' or UIUtil.ShowTipsIdParams == _G.__hzWrapShowTipsIdParamsMain)
+      and (type(UIUtil.ShowTips) ~= 'function' or UIUtil.ShowTips == _G.__hzWrapShowTipsMain)
+      and (type(UIUtil.ShowMessage) ~= 'function' or UIUtil.ShowMessage == _G.__hzWrapShowMessageMain)
+      and (type(UIUtil.ShowMessageBig) ~= 'function' or UIUtil.ShowMessageBig == _G.__hzWrapShowMessageBigMain)
+      and (type(UIUtil.ShowModal) ~= 'function' or UIUtil.ShowModal == _G.__hzWrapShowModalMain)
+      and (type(UIUtil.ShowServerError) ~= 'function' or UIUtil.ShowServerError == _G.__hzWrapShowServerErrorMain)
+      and (type(UIUtil.ShowCommonDialog) ~= 'function' or UIUtil.ShowCommonDialog == _G.__hzWrapShowCommonDialogMain)
+    )
+    local cdOk = (not CommonDialog) or (
+      (type(CommonDialog.Open) ~= 'function' or CommonDialog.Open == _G.__hzWrapCommonDialogOpen)
+      and (type(CommonDialog.Show) ~= 'function' or CommonDialog.Show == _G.__hzWrapCommonDialogShow)
+    )
+    if uiOk and cdOk then
+      local nowTs = os.time()
+      if Setting and Setting.SetPrivateInt and ((tonumber(_G.__hzHeroWarnTs or 0) or 0) + 3600 <= nowTs) then
+        _G.__hzHeroWarnTs = nowTs
+        pcall(function() Setting.SetPrivateInt('UIShowHeroWarning', nowTs + 86400) end)
+      end
+      return
+    end
+  end
+    if UIUtil then
     _G.__hzHookInstalled = true
     _G.__hzHookInstalledV2 = true
     _G.__hzHookInstalledV3 = true
+    local function _is_silent_hosp_tip()
+      local untilTs = tonumber(_G.__hzSilentHospitalTipsUntil or 0) or 0
+      return untilTs > 0 and os.clock() < untilTs
+    end
     if type(UIUtil.ShowTipsId) == 'function' and UIUtil.ShowTipsId ~= _G.__hzWrapShowTipsIdMain then
       local orig = UIUtil.ShowTipsId
       _G.__hzOrigShowTipsIdMain = orig
@@ -729,6 +857,7 @@ local function _install_popup_logger()
           table.insert(_G.__hzPopupLog, txt)
           while #_G.__hzPopupLog > 20 do table.remove(_G.__hzPopupLog, 1) end
         end
+        if _is_silent_hosp_tip() then return end
         return orig(id, ...)
       end
       _G.__hzWrapShowTipsIdMain = wrap
@@ -743,6 +872,7 @@ local function _install_popup_logger()
           table.insert(_G.__hzPopupLog, txt)
           while #_G.__hzPopupLog > 20 do table.remove(_G.__hzPopupLog, 1) end
         end
+        if _is_silent_hosp_tip() then return end
         return orig(id, ...)
       end
       _G.__hzWrapShowTipsIdParamsMain = wrap
@@ -757,6 +887,7 @@ local function _install_popup_logger()
           table.insert(_G.__hzPopupLog, txt)
           while #_G.__hzPopupLog > 20 do table.remove(_G.__hzPopupLog, 1) end
         end
+        if _is_silent_hosp_tip() then return end
         return orig(msg, ...)
       end
       _G.__hzWrapShowTipsMain = wrap
@@ -901,8 +1032,10 @@ local function _install_popup_logger()
     end
   end
 
-  if Setting and Setting.SetPrivateInt then
-    pcall(function() Setting.SetPrivateInt('UIShowHeroWarning', os.time() + 86400) end)
+  local nowTs = os.time()
+  if Setting and Setting.SetPrivateInt and ((tonumber(_G.__hzHeroWarnTs or 0) or 0) + 3600 <= nowTs) then
+    _G.__hzHeroWarnTs = nowTs
+    pcall(function() Setting.SetPrivateInt('UIShowHeroWarning', nowTs + 86400) end)
   end
 end
 pcall(_install_popup_logger)
@@ -1133,9 +1266,10 @@ local function _join_rally_headless(f, war, fallbackPt, serverId, dryRun)
   end
   local joinType = (MarchTargetType and MarchTargetType.JOIN_RALLY) or 6
   local srvId = tonumber(serverId or 0) or 0
-  if MarchUtil and MarchUtil.SendCreateMarchMessage and targetPt > 0 and war.uuid then
+  local mu = _get_march_util()
+  if mu and mu.SendCreateMarchMessage and targetPt > 0 and war.uuid then
     local okM, errM = pcall(function()
-      MarchUtil.SendCreateMarchMessage(
+      mu.SendCreateMarchMessage(
         tonumber(f.uuid) or f.uuid,
         joinType,
         targetPt,
@@ -1168,8 +1302,9 @@ local function _is_my_march_target(pnum, myTargetPts)
   if type(myTargetPts) == 'table' and myTargetPts[pt] then
     return true
   end
-  if MarchUtil and MarchUtil.CheckWorldPointHasMyTroop then
-    local okChk, hasMine = pcall(function() return MarchUtil.CheckWorldPointHasMyTroop(pt) end)
+  local mu = _get_march_util()
+  if mu and mu.CheckWorldPointHasMyTroop then
+    local okChk, hasMine = pcall(function() return mu.CheckWorldPointHasMyTroop(pt) end)
     if okChk and hasMine then
       return true
     end
@@ -1561,11 +1696,19 @@ def _build_detail_lines(task_name: str, res: dict[str, Any]) -> list[str]:
             lines.append(f"  • Recalled exposed gather march uuid={rm}")
     elif task_name == "hospital_heal":
         lines.append(
-            f"{dry_tag}Hospital ({res.get('scene_view', '?')}, queue={res.get('queue_type', 3)}, "
-            f"state={res.get('queue_state', 0)}): wounded={res.get('wounded_total', 0)} "
-            f"(in_treatment={res.get('in_treatment_total', 0)}, untreated={res.get('untreated_total', 0)}, "
-            f"rem={res.get('queue_remaining_sec', 0)}s, helped={res.get('is_helped', 0)})"
+            f"{dry_tag}Hospital ({res.get('scene_view', '?')}, headless={bool(res.get('headless', True))}, "
+            f"queue={res.get('queue_type', 3)}, state={res.get('queue_state', 0)}): "
+            f"wounded={res.get('wounded_total', 0)} (in_treatment={res.get('in_treatment_total', 0)}, "
+            f"untreated={res.get('untreated_total', 0)}, rem={res.get('queue_remaining_sec', 0)}s, helped={res.get('is_helped', 0)})"
         )
+        if res.get("batch_sizing_mode") or res.get("pass_active_helpers") is not None:
+            lines.append(
+                f"  • Pass+Active Sizing ({res.get('batch_sizing_mode', 'pass_plus_active')}): "
+                f"pass_active={res.get('pass_active_helpers', 0)} (pass_total={res.get('pass_total_members', 0)}, "
+                f"online={res.get('online_members', 0)}), effective_helps={res.get('effective_max_helps', 0)}/"
+                f"{res.get('player_max_helps', 0)}, per_help={res.get('per_help_sec', 0)}s, "
+                f"target_batch={res.get('dynamic_batch_sec', 0)}s"
+            )
         lines.append(
             f"  • Batches: chained={res.get('batches_chained', 0)}, queued_troops={res.get('total_queued_troops', res.get('queued_troops', 0))}, "
             f"collected={res.get('batches_collected', 0)}, cross_helps={res.get('cross_client_helps_triggered', 0)}, "
@@ -2031,7 +2174,7 @@ def _with_task_telemetry(task_name: str) -> Callable[[Callable[..., dict[str, An
     return _decorator
 
 
-_HZ_COMMON_VERSION = 5
+_HZ_COMMON_VERSION = 7
 
 _LUA_COMMON_BOOTSTRAP = LUA_COMMON_HELPERS + f"""
 _G.__hzCommonVer = {_HZ_COMMON_VERSION}
@@ -2045,6 +2188,11 @@ _G.__hzBridge = {{
   dist = _dist,
   safe_call = _safe_call,
   get_player_snapshot = _get_player_snapshot,
+  get_march_util = _get_march_util,
+  loc = _loc,
+  get_monster_meta = _get_monster_meta,
+  get_gather_res_meta = _get_gather_res_meta,
+  get_data_cfg_num = _get_data_cfg_num,
   extract_dialog_info = _extract_dialog_info,
   resolve_loc_str = _resolve_loc_str,
   install_popup_logger = _install_popup_logger,
@@ -2073,6 +2221,11 @@ local _to_xy = _hzB.to_xy
 local _dist = _hzB.dist
 local _safe_call = _hzB.safe_call
 local _get_player_snapshot = _hzB.get_player_snapshot
+local _get_march_util = _hzB.get_march_util
+local _loc = _hzB.loc
+local _get_monster_meta = _hzB.get_monster_meta
+local _get_gather_res_meta = _hzB.get_gather_res_meta
+local _get_data_cfg_num = _hzB.get_data_cfg_num
 local _extract_dialog_info = _hzB.extract_dialog_info
 local _resolve_loc_str = _hzB.resolve_loc_str
 local _install_popup_logger = _hzB.install_popup_logger
@@ -2085,22 +2238,45 @@ local _is_my_march_target = _hzB.is_my_march_target
 local _is_point_blacklisted = _hzB.is_point_blacklisted
 local _pick_free_formations = _hzB.pick_free_formations
 local _get_squad_occupancy = _hzB.get_squad_occupancy
-if UIUtil or CommonDialog then pcall(_hzB.install_popup_logger) end
+if (not _G.__hzHookInstalledV3) or ((os.time() - (tonumber(_G.__hzHeroWarnTs or 0) or 0)) >= 3600) or (UIUtil and ((type(UIUtil.ShowTipsId) == 'function' and UIUtil.ShowTipsId ~= _G.__hzWrapShowTipsIdMain) or (type(UIUtil.ShowTips) == 'function' and UIUtil.ShowTips ~= _G.__hzWrapShowTipsMain) or (type(UIUtil.ShowCommonDialog) == 'function' and UIUtil.ShowCommonDialog ~= _G.__hzWrapShowCommonDialogMain))) or (CommonDialog and type(CommonDialog.Open) == 'function' and CommonDialog.Open ~= _G.__hzWrapCommonDialogOpen) then
+  if UIUtil or CommonDialog then pcall(_hzB.install_popup_logger) end
+end
 """
 
-_HZ_BRIDGE_LOCK = threading.Lock()
+_HZ_BRIDGE_LOCK = threading.RLock()
 _HZ_BOOTSTRAPPED_TARGETS: dict[tuple[int, int, float], float] = {}
 _HZ_FINALIZED_BRIDGE_IDS: set[int] = set()
+_PID_CTIME_CACHE: dict[int, tuple[float, float]] = {}
+_PID_CTIME_TTL_S = 10.0
 
 
 def _get_pid_create_time(pid: int) -> float:
     try:
-        if int(pid) <= 0:
+        pid_i = int(pid)
+        if pid_i <= 0 or psutil is None:
             return 0.0
-        import psutil
-        return round(float(psutil.Process(int(pid)).create_time()), 3)
+        now_m = time.monotonic()
+        with _HZ_BRIDGE_LOCK:
+            cached = _PID_CTIME_CACHE.get(pid_i)
+            if cached is not None and (now_m - cached[1]) < _PID_CTIME_TTL_S:
+                return cached[0]
+        ctime = round(float(psutil.Process(pid_i).create_time()), 3)
+        with _HZ_BRIDGE_LOCK:
+            if len(_PID_CTIME_CACHE) >= 256:
+                _PID_CTIME_CACHE.clear()
+            _PID_CTIME_CACHE[pid_i] = (ctime, time.monotonic())
+        return ctime
     except Exception:
         return 0.0
+
+
+def _invalidate_pid_ctime_cache(pid: int) -> None:
+    try:
+        pid_i = int(pid)
+    except Exception:
+        return
+    with _HZ_BRIDGE_LOCK:
+        _PID_CTIME_CACHE.pop(pid_i, None)
 
 
 def _mark_hz_bootstrapped(cd: Any, cache_key: tuple[int, int, float]) -> None:
@@ -2112,13 +2288,32 @@ def _mark_hz_bootstrapped(cd: Any, cache_key: tuple[int, int, float]) -> None:
         if cd_id not in _HZ_FINALIZED_BRIDGE_IDS:
             _HZ_FINALIZED_BRIDGE_IDS.add(cd_id)
             try:
-                def _cleanup_cd(_cid: int = cd_id) -> None:
-                    with _HZ_BRIDGE_LOCK:
-                        _HZ_FINALIZED_BRIDGE_IDS.discard(_cid)
-                        for k in [k for k in _HZ_BOOTSTRAPPED_TARGETS if isinstance(k, tuple) and k[0] == _cid]:
-                            _HZ_BOOTSTRAPPED_TARGETS.pop(k, None)
+                def _cleanup_cd(
+                    _cid: int = cd_id,
+                    _lock: Any = _HZ_BRIDGE_LOCK,
+                    _finalized_ids: set[int] = _HZ_FINALIZED_BRIDGE_IDS,
+                    _bootstrapped: dict[tuple[int, int, float], float] = _HZ_BOOTSTRAPPED_TARGETS,
+                ) -> None:
+                    g = globals()
+                    lock = g.get("_HZ_BRIDGE_LOCK") if isinstance(g, dict) else None
+                    if lock is None:
+                        lock = _lock
+                    if lock is None:
+                        return
+                    try:
+                        with lock:
+                            _finalized_ids.discard(_cid)
+                            for k in [k for k in _bootstrapped if isinstance(k, tuple) and k[0] == _cid]:
+                                _bootstrapped.pop(k, None)
+                            hosp_targets = g.get("_HZ_HOSPITAL_ENGINE_TARGETS") if isinstance(g, dict) else None
+                            if isinstance(hosp_targets, dict):
+                                for k in [k for k in hosp_targets if isinstance(k, tuple) and k[0] == _cid]:
+                                    hosp_targets.pop(k, None)
+                    except Exception:
+                        pass
 
-                weakref.finalize(cd, _cleanup_cd)
+                fin = weakref.finalize(cd, _cleanup_cd)
+                fin.atexit = False
             except TypeError:
                 _HZ_FINALIZED_BRIDGE_IDS.discard(cd_id)
 
@@ -2132,6 +2327,7 @@ def _eval_json(cd: Any, pid: int, lua_body: str, timeout: float = 8.0) -> dict[s
         lua = _LUA_COMMON_SHIM + "\n" + lua_body
         ok, raw = cd.frida_eval_lua(pid, lua, timeout=timeout)
         if ok and isinstance(raw, str) and raw.strip() == "__HZ_NEED_BOOTSTRAP__":
+            _invalidate_pid_ctime_cache(pid)
             with _HZ_BRIDGE_LOCK:
                 _HZ_BOOTSTRAPPED_TARGETS.pop(cache_key, None)
             lua_full = _LUA_COMMON_BOOTSTRAP + "\n" + lua_body
@@ -2145,6 +2341,7 @@ def _eval_json(cd: Any, pid: int, lua_body: str, timeout: float = 8.0) -> dict[s
             _mark_hz_bootstrapped(cd, cache_key)
 
     if not ok:
+        _invalidate_pid_ctime_cache(pid)
         return {"ok": False, "error": str(raw), "send_errors": [str(raw)]}
     if isinstance(raw, dict):
         return _normalize_eval_payload(raw)
@@ -2552,8 +2749,7 @@ if ({flag_var}) and snap.inAlliance and agm then
 
   -- Claim Tab 2 (Rare / Alliance Chests, rewardType = 2)
   if #tab2List > 0 then
-    local k4 = tonumber((LuaEntry and LuaEntry.DataConfig and LuaEntry.DataConfig.TryGetNum
-      and _safe_call(function() return LuaEntry.DataConfig:TryGetNum('alliance_gift', 'k4') end, 10)) or 10) or 10
+    local k4 = tonumber(_get_data_cfg_num('alliance_gift', 'k4', 10)) or 10
     if k4 <= 0 then k4 = 10 end
     if (#tab2List >= k4 or not (MsgDefines and MsgDefines.AllianceGiftGetReward)) and MsgDefines and MsgDefines.AllianceReceiveAllGift and SFSNetwork then
       if not {dry_run_var} then
@@ -2725,13 +2921,20 @@ def _merge_unique_list_field(dst: dict[str, Any], src: dict[str, Any], key: str,
         dst[key] = merged
 
 
-def _run_alliance_gifts_followup(cd: Any, pid: int, dry_run: bool, res: dict[str, Any]) -> dict[str, Any]:
+def _run_alliance_gifts_followup(
+    cd: Any,
+    pid: int,
+    dry_run: bool,
+    res: dict[str, Any],
+    headless: bool = False,
+) -> dict[str, Any]:
     """Claim alliance gifts after AllianceGiftList hydration when pass 1 requested the list."""
     if not dry_run:
         _wait_for_alliance_gift_hydration(cd, pid, max_wait_sec=1.8, step_sec=0.35)
     gifts_lua = _lua_claim_alliance_gifts_block("dryRun", "true")
     followup_lua = f"""
 local dryRun = {str(dry_run).lower()}
+local isHeadless = {str(bool(headless)).lower()}
 local snap = _get_player_snapshot()
 local out = {{
   ok = true,
@@ -2751,7 +2954,7 @@ local out = {{
 if out.gifts_claimed > 0 or out.tab1_pending > 0 or out.tab2_pending > 0 then
   table.insert(out.detail_lines, string.format('Alliance Gifts: Tab1 normal=%d claimed (pending=%d), Tab2 chests=%d claimed (pending=%d), other=%d [mode=%s]', out.tab1_gifts_claimed, out.tab1_pending, out.tab2_chests_claimed, out.tab2_pending, out.other_gifts_claimed, tostring(out.gift_claim_mode)))
 end
-if not dryRun and out.gifts_claimed > 0 and type(_dismiss_modal_dialogs) == 'function' then
+if not dryRun and not isHeadless and out.gifts_claimed > 0 and type(_dismiss_modal_dialogs) == 'function' then
   local okD, dRes = pcall(_dismiss_modal_dialogs)
   if okD and type(dRes) == 'table' then
     for _, w in ipairs(dRes) do table.insert(out.popped_modals, w) end
@@ -2840,19 +3043,26 @@ def run_auto_help(
     cfg: dict[str, Any],
     dry_run: bool = False,
     context: dict[str, Any] | None = None,
+    headless: bool | None = None,
+    manual_help_mode: bool = False,
 ) -> dict[str, Any]:
     task_cfg = cfg.get("auto_help") or {}
     claim_gifts = bool(task_cfg.get("claim_gifts", True))
+    is_headless = bool(task_cfg.get("headless", False)) if headless is None else bool(headless)
+    is_auto_flag = not bool(manual_help_mode)
     gifts_lua = _lua_claim_alliance_gifts_block("dryRun", "claimGifts") if claim_gifts else ""
     lua = f"""
 local dryRun = {str(dry_run).lower()}
 local claimGifts = {str(claim_gifts).lower()}
+local isHeadless = {str(is_headless).lower()}
+local autoHelpFlag = {str(is_auto_flag).lower()}
 local snap = _get_player_snapshot()
 local dismissed = {{}}
 local out = {{
   ok = true,
   task = 'auto_help',
   dry_run = dryRun,
+  headless = isHeadless,
   helped_all = false,
   ally_help_num = 0,
   call_helps = {{}},
@@ -2880,7 +3090,7 @@ if hm then
       local srvMs = (UITimeManager and UITimeManager.GetInstance and UITimeManager:GetInstance().GetServerTime
         and math.floor(tonumber(UITimeManager:GetInstance():GetServerTime()) or 0))
         or ((tonumber(snap.serverSec or 0) or 0) * 1000)
-      local okH, errH = pcall(function() SFSNetwork.SendMessage(MsgDefines.AlHelpAll, srvMs, true) end)
+      local okH, errH = pcall(function() SFSNetwork.SendMessage(MsgDefines.AlHelpAll, srvMs, autoHelpFlag) end)
       if not okH then table.insert(out.errors, 'AlHelpAll: ' .. tostring(errH)) end
     end
     out.helped_all = true
@@ -2991,7 +3201,7 @@ if out.gifts_claimed > 0 or out.tab1_pending > 0 or out.tab2_pending > 0 then
 end
 
 if out.helped_all or #out.call_helps > 0 or out.gifts_claimed > 0 then
-  if not dryRun and type(_dismiss_modal_dialogs) == 'function' then
+  if not dryRun and not isHeadless and out.gifts_claimed > 0 and type(_dismiss_modal_dialogs) == 'function' then
     local okD, dRes = pcall(_dismiss_modal_dialogs)
     if okD and type(dRes) == 'table' then
       for _, w in ipairs(dRes) do table.insert(out.popped_modals, w) end
@@ -3014,7 +3224,7 @@ return _enc(out)
 """
     res = _eval_json(cd, pid, lua, timeout=10.0)
     if not dry_run and res.get("ok") and res.get("needs_gift_wait"):
-        res = _run_alliance_gifts_followup(cd, pid, dry_run, res)
+        res = _run_alliance_gifts_followup(cd, pid, dry_run, res, headless=is_headless)
     return res
 
 
@@ -3133,8 +3343,9 @@ if DataCenter.WorldMarchDataManager and DataCenter.WorldMarchDataManager.allMarc
   end
 end
 
-local usableForms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, not dryRun)
+local usableForms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, false, not dryRun)
 local formIdx = 1
+local mu = _get_march_util()
 
 for _, th in pairs(rawThreats) do
   table.insert(out.threats, th)
@@ -3173,33 +3384,35 @@ for _, th in pairs(rawThreats) do
   elseif (th.isProtected and reinfProtected) or (not th.isProtected and reinfAlly) then
     local tKey = tostring(snap.serverId) .. ':' .. tostring(th.targetPoint)
     local alreadyHave = dispatchedTargets[tKey] == true
-    if not alreadyHave and MarchUtil and MarchUtil.CheckWorldPointHasMyTroop then
-      local ok_chk, hasMine = pcall(function() return MarchUtil.CheckWorldPointHasMyTroop(th.targetPoint) end)
+    if not alreadyHave and mu and mu.CheckWorldPointHasMyTroop then
+      local ok_chk, hasMine = pcall(function() return mu.CheckWorldPointHasMyTroop(th.targetPoint) end)
       if ok_chk and hasMine then alreadyHave = true end
     end
     if not alreadyHave and formIdx <= #usableForms then
-      local f = usableForms[formIdx]
-      formIdx = formIdx + 1
-      if not dryRun and MarchUtil and MarchUtil.SendCreateMarchMessage then
-        MarchUtil.SendCreateMarchMessage(
-          f.uuid,
-          MarchTargetType and MarchTargetType.ASSISTANCE_CITY or 14,
-          th.targetPoint,
-          tonumber(th.targetUid) or 0,
-          0,
-          false,
-          true,
-          th.targetServerId
-        )
+      local f = nil
+      f, formIdx = _next_ready_formation(usableForms, formIdx, dryRun)
+      if f then
+        if not dryRun and mu and mu.SendCreateMarchMessage then
+          mu.SendCreateMarchMessage(
+            tonumber(f.uuid) or f.uuid,
+            MarchTargetType and MarchTargetType.ASSISTANCE_CITY or 14,
+            th.targetPoint,
+            tonumber(th.targetUid) or 0,
+            0,
+            false,
+            true,
+            th.targetServerId
+          )
+        end
+        dispatchedTargets[tKey] = true
+        table.insert(out.reinforcements, {{
+          targetUid = th.targetUid,
+          targetPoint = th.targetPoint,
+          formationUuid = tostring(f.uuid),
+          isProtected = th.isProtected,
+          stateKey = tKey,
+        }})
       end
-      dispatchedTargets[tKey] = true
-      table.insert(out.reinforcements, {{
-        targetUid = th.targetUid,
-        targetPoint = th.targetPoint,
-        formationUuid = tostring(f.uuid),
-        isProtected = th.isProtected,
-        stateKey = tKey,
-      }})
     end
   end
 end
@@ -3308,19 +3521,20 @@ local function _inspect_treasure(uuidStr, ptId, src)
   }}
   table.insert(out.detected, entry)
 
+  local mu = _get_march_util()
   local hasMyTroop = false
-  if MarchUtil and MarchUtil.CheckWorldPointHasMyTroop then
-    local ok_m, hm = pcall(function() return MarchUtil.CheckWorldPointHasMyTroop(ptId) end)
+  if mu and mu.CheckWorldPointHasMyTroop then
+    local ok_m, hm = pcall(function() return mu.CheckWorldPointHasMyTroop(ptId) end)
     hasMyTroop = (ok_m and hm) and true or false
   end
 
   if marchToDig and not hasMyTroop and state == 0 and (rewardTime == 0 or remSec > leadWin) then
-    local forms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, not dryRun)
-    if #forms > 0 then
-      local f = forms[1]
-      if not dryRun and MarchUtil and MarchUtil.SendCreateMarchMessage then
-        MarchUtil.SendCreateMarchMessage(
-          f.uuid,
+    local forms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, false, not dryRun)
+    local f, _ = _next_ready_formation(forms, 1, dryRun)
+    if f then
+      if not dryRun and mu and mu.SendCreateMarchMessage then
+        mu.SendCreateMarchMessage(
+          tonumber(f.uuid) or f.uuid,
           MarchTargetType and MarchTargetType.DIG_TREASURE or 79,
           ptId,
           tonumber(entry.uuid) or 0,
@@ -3349,12 +3563,18 @@ if dm and dm.activeDigTreasureForChatMsg then
 end
 
 if wpm and wpm.allViewPoints then
+  local ptMon = (PointType and PointType.WorldMonster) or 4
+  local ptCity = (PointType and PointType.WorldCity) or 6
+  local ptRes = (PointType and PointType.WorldResource) or 7
   for ptIdx, pt in pairs(wpm.allViewPoints) do
-    local pnum = tonumber(ptIdx) or tonumber(pt and pt.pointId) or 0
-    if pnum > 0 and not seenPt[pnum] then
-      local info = wpm.GetPointInfo and wpm:GetPointInfo(pnum) or nil
-      if info and info.treasureInfo then
-        _inspect_treasure(info.uuid, pnum, 'viewport')
+    local ptType = tonumber(pt and pt.pointType or -1) or -1
+    if (pt and pt.treasureInfo ~= nil) or (ptType ~= ptMon and ptType ~= ptCity and ptType ~= ptRes) then
+      local pnum = tonumber(ptIdx) or tonumber(pt and pt.pointId) or 0
+      if pnum > 0 and not seenPt[pnum] then
+        local info = (pt and pt.treasureInfo) and pt or (wpm.GetPointInfo and wpm:GetPointInfo(pnum) or nil)
+        if info and info.treasureInfo then
+          _inspect_treasure(info.uuid, pnum, 'viewport')
+        end
       end
     end
   end
@@ -3598,19 +3818,6 @@ local out = {
   vs_targets = {},
   time_compe_stage = 0,
 }
-local loc = Localization
-local function _loc(k)
-  if k == nil then return '' end
-  local ks = tostring(k)
-  if ks == '' or ks == '0' then return '' end
-  if loc and loc.GetString then
-    local ok, s = pcall(function() return loc:GetString(ks) end)
-    if ok and type(s) == 'string' and s ~= '' and s ~= ks then return s end
-    ok, s = pcall(function() return loc.GetString(ks) end)
-    if ok and type(s) == 'string' and s ~= '' and s ~= ks then return s end
-  end
-  return ''
-end
 
 local function _read_score(ei)
   if type(ei) ~= 'table' then return 0 end
@@ -5430,6 +5637,7 @@ if collectRes and bm.OneClickResourceCollection then
 end
 
 local nowMs = _get_player_snapshot().serverSec * 1000
+out.serverSec = math.floor(nowMs / 1000)
 -- Flush any finished building upgrades stuck in state~=0 while on World scene
 local finishedCount = 0
 if not dryRun and bm.CheckSendBuildFinish and type(bm.allBuilding) == 'table' and nowMs > 0 then
@@ -5636,7 +5844,7 @@ if b then
     end)
   end
 end
-return _enc({{ ok = true, started = started, state = b and tonumber(b.state or 0) or -1, level = b and tonumber(b.level or 0) or -1, updateTime = b and tonumber(b.updateTime or 0) or 0 }})
+return _enc({{ ok = true, started = started, state = b and tonumber(b.state or 0) or -1, level = b and tonumber(b.level or 0) or -1, updateTime = b and tonumber(b.updateTime or 0) or 0, serverSec = tonumber(snap.serverSec or 0) or 0 }})
 """
         vres = _eval_json(cd, pid, verify_lua, timeout=6.0)
         res["verified"] = vres
@@ -5827,7 +6035,8 @@ if joinOrAtk then
     end
     out.usable_formations = (f1Form and 1 or 0) + #otherForms
 
-    if f1Form and out.bossPointId > 0 and not bossBlacklisted and MarchUtil and MarchUtil.SendCreateMarchMessage then
+    local mu = _get_march_util()
+    if f1Form and out.bossPointId > 0 and not bossBlacklisted and mu and mu.SendCreateMarchMessage then
       local f1Ready = dryRun or _restock_formation(f1Form)
       if not f1Ready then
         f1Form = nil
@@ -5837,7 +6046,7 @@ if joinOrAtk then
         local okS, errS = true, nil
         if not dryRun then
           okS, errS = pcall(function()
-            MarchUtil.SendCreateMarchMessage(tonumber(f1Form.uuid) or f1Form.uuid, tType, out.bossPointId, bossUuid, 1, 1, nil, snap.serverId)
+            mu.SendCreateMarchMessage(tonumber(f1Form.uuid) or f1Form.uuid, tType, out.bossPointId, bossUuid, 1, 1, nil, snap.serverId)
           end)
         end
         if okS then
@@ -5918,12 +6127,13 @@ if joinOrAtk then
             table.insert(out.send_errors, 'TyrantJoinRally: ' .. tostring(errJ))
           end
         end
-        if not joined and out.bossPointId > 0 and not bossBlacklisted and MarchUtil and MarchUtil.SendCreateMarchMessage then
+        local mu = _get_march_util()
+        if not joined and out.bossPointId > 0 and not bossBlacklisted and mu and mu.SendCreateMarchMessage then
           local tType = preferRally and ((MarchTargetType and MarchTargetType.RALLY_FOR_ALLIANCE_BOSS) or 74) or ((MarchTargetType and MarchTargetType.ATTACK_ALLIANCE_BOSS) or 53)
           local okS, errS = true, nil
           if not dryRun then
             okS, errS = pcall(function()
-              MarchUtil.SendCreateMarchMessage(tonumber(f.uuid) or f.uuid, tType, out.bossPointId, bossUuid, preferRally and 1 or 0, 1, nil, snap.serverId)
+              mu.SendCreateMarchMessage(tonumber(f.uuid) or f.uuid, tType, out.bossPointId, bossUuid, preferRally and 1 or 0, 1, nil, snap.serverId)
             end)
           end
           if okS then
@@ -6242,12 +6452,12 @@ if autoRally and not ranOutOfTroops and formIdx <= #forms and remStamBudget > 0 
             if ok_pb2 and parsed2 then pb = parsed2 end
           end
         end
-        if pb and pb.monsterId and lc and TableName and TableName.Monster then
-          local row = _safe_call(function() return lc:getLine(TableName.Monster, tostring(pb.monsterId)) end, nil)
-          if row then
-            local isBoss = tonumber(_safe_call(function() return row:getValue('boss') end, 0)) or 0
-            local special = tonumber(_safe_call(function() return row:getValue('special') end, 0)) or 0
-            local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+        if pb and pb.monsterId then
+          local mmeta = _get_monster_meta(pb.monsterId)
+          if mmeta then
+            local isBoss = mmeta.boss
+            local special = mmeta.special
+            local lv = mmeta.level
             if isBoss == 1 and special == normalSpecial and lv >= minLv and lv <= maxLv then
               local targetPt = tonumber(info and info.mainIndex or 0) or 0
               if targetPt <= 0 then targetPt = pnum end
@@ -6292,10 +6502,11 @@ if autoRally and not ranOutOfTroops and formIdx <= #forms and remStamBudget > 0 
       break
     end
     local okS, errS = true, nil
+    local mu = _get_march_util()
     if not dryRun then
-      if MarchUtil and MarchUtil.SendCreateMarchMessage then
+      if mu and mu.SendCreateMarchMessage then
         okS, errS = pcall(function()
-          MarchUtil.SendCreateMarchMessage(
+          mu.SendCreateMarchMessage(
             tonumber(f.uuid) or f.uuid,
             rallyType,
             best.pointId,
@@ -6432,13 +6643,16 @@ def run_auto_gather(
     max_lv = max(min_lv, int(task_cfg.get("max_level", 9) or min_lv))
     max_dist = max(1.0, float(task_cfg.get("max_distance", 150) or 150))
 
-    if not dry_run:
-        sw = ensure_world_scene(cd, pid)
-        if not sw.get("ok"):
-            return _ensure_step_contract(
-                {**sw, "ok": False, "status": "error", "stop_reason": sw.get("reason") or sw.get("error") or "world_scene_timeout"},
-                task_name="auto_gather",
-            )
+    pre_err = _precheck_world_step_readiness(
+        cd,
+        pid,
+        task_name="auto_gather",
+        reserve=reserve,
+        context=context,
+        dry_run=dry_run,
+    )
+    if pre_err is not None:
+        return pre_err
 
     claimed_keys = list(ctx.get("claimed_gather_points", []))
     claimed_lua = "{" + ",".join(f"[{json.dumps(str(k))}]=true" for k in claimed_keys) + "}"
@@ -6517,10 +6731,10 @@ for ptIdx, ptObj in pairs(wpm.allViewPoints) do
       local info = _safe_call(function() return wpm:GetPointInfo(pnum) end, nil) or ptObj
       local ri = info and info.resourceInfo or nil
       if ri and (tonumber(ri.gatherUuid or 0) or 0) == 0 and tostring(ri.ownerUid or '') == '' then
-        local row = (lc and TableName and TableName.GatherResource) and _safe_call(function() return lc:getLine(TableName.GatherResource, tostring(ri.resourceId or 0)) end, nil) or nil
-        if row then
-          local rTypeNum = tonumber(_safe_call(function() return row:getValue('resource_type') end, nil) or _safe_call(function() return row:getValue('type') end, -1)) or -1
-          local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+        local rmeta = _get_gather_res_meta(ri.resourceId or 0)
+        if rmeta then
+          local rTypeNum = rmeta.resource_type
+          local lv = rmeta.level
           local rName = resTypeMap[rTypeNum] or tostring(rTypeNum)
           local pRank = prioOrder[rName]
           if pRank and lv >= minLv and lv <= maxLv then
@@ -6572,10 +6786,11 @@ for i = 1, #cands do
   end
   local ptId = tonumber(tile.pointId) or 0
   local okS, errS = true, nil
+  local mu = _get_march_util()
   if not dryRun then
-    if MarchUtil and MarchUtil.SendCreateMarchMessage and ptId > 0 and f and f.uuid then
+    if mu and mu.SendCreateMarchMessage and ptId > 0 and f and f.uuid then
       okS, errS = pcall(function()
-        MarchUtil.SendCreateMarchMessage(
+        mu.SendCreateMarchMessage(
           tonumber(f.uuid) or f.uuid,
           mType,
           ptId,
@@ -6812,9 +7027,9 @@ if out.target_point == 0 and wpm and wpm.allViewPoints and wpm.GetPointInfo and 
         if okP and parsed then pb = parsed end
       end
       if pb and pb.monsterId then
-        local row = _safe_call(function() return lc:getLine(TableName.Monster, tostring(pb.monsterId)) end, nil)
-        if row then
-          local sp = tonumber(_safe_call(function() return row:getValue('special') end, 0)) or 0
+        local mmeta = _get_monster_meta(pb.monsterId)
+        if mmeta then
+          local sp = mmeta.special
           if sp == roamNorm or sp == roamSpec then
             local tpt = tonumber(info and info.mainIndex or 0) or 0
             if tpt <= 0 then tpt = pnum end
@@ -6973,15 +7188,16 @@ end
 -- Host/Attack Furylord with chosen formation (default F1)
 if chosenForm and out.target_point > 0 and remBudget > 0 then
   local fReady = dryRun or _restock_formation(chosenForm)
+  local mu = _get_march_util()
   if not fReady then
     chosenForm = nil
     out.usable_formations = math.max(0, out.usable_formations - 1)
-  elseif MarchUtil and MarchUtil.SendCreateMarchMessage then
+  elseif mu and mu.SendCreateMarchMessage then
     local tType = (MarchTargetType and (MarchTargetType.RALLY_FOR_ROAMING_BOSS or MarchTargetType.ATTACK_ROAMING_BOSS)) or 93
     local okS, errS = true, nil
     if not dryRun then
       okS, errS = pcall(function()
-        MarchUtil.SendCreateMarchMessage(tonumber(chosenForm.uuid) or chosenForm.uuid, tType, out.target_point, targetUuid, preferRally and 1 or 0, 1, nil, snap.serverId)
+        mu.SendCreateMarchMessage(tonumber(chosenForm.uuid) or chosenForm.uuid, tType, out.target_point, targetUuid, preferRally and 1 or 0, 1, nil, snap.serverId)
       end)
     end
     if okS then
@@ -7239,10 +7455,10 @@ local function _consider_resource_point(pnum, ptObj, fromFindRes)
     out.occupied_skipped = out.occupied_skipped + 1
     return false
   end
-  local row = (lc and TableName and TableName.GatherResource) and _safe_call(function() return lc:getLine(TableName.GatherResource, tostring(ri.resourceId or 0)) end, nil) or nil
-  if not row then return false end
-  local rTypeNum = tonumber(_safe_call(function() return row:getValue('resource_type') end, nil) or _safe_call(function() return row:getValue('type') end, -1)) or -1
-  local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+  local rmeta = _get_gather_res_meta(ri.resourceId or 0)
+  if not rmeta then return false end
+  local rTypeNum = rmeta.resource_type
+  local lv = rmeta.level
   local rName = resTypeMap[rTypeNum] or tostring(rTypeNum)
   local pRank = prioOrder[rName] or prioIdOrder[rTypeNum]
   if not pRank or lv < minLv or lv > maxLv then return false end
@@ -7337,10 +7553,11 @@ if #cands > 0 then
     end
     local ptId = tonumber(tile.pointId) or 0
     local okS, errS = true, nil
+    local mu = _get_march_util()
     if not dryRun then
-      if MarchUtil and MarchUtil.SendCreateMarchMessage and ptId > 0 and f and f.uuid then
+      if mu and mu.SendCreateMarchMessage and ptId > 0 and f and f.uuid then
         okS, errS = pcall(function()
-          MarchUtil.SendCreateMarchMessage(
+          mu.SendCreateMarchMessage(
             tonumber(f.uuid) or f.uuid,
             mType,
             ptId,
@@ -7610,12 +7827,12 @@ if wpm and wpm.allViewPoints and wpm.GetPointInfo then
           if ok_pb2 and parsed2 then pb = parsed2 end
         end
       end
-      if pb and pb.monsterId and lc and TableName and TableName.Monster then
-        local row = _safe_call(function() return lc:getLine(TableName.Monster, tostring(pb.monsterId)) end, nil)
-        if row then
-          local isBoss = tonumber(_safe_call(function() return row:getValue('boss') end, 0)) or 0
-          local special = tonumber(_safe_call(function() return row:getValue('special') end, 0)) or 0
-          local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+      if pb and pb.monsterId then
+        local mmeta = _get_monster_meta(pb.monsterId)
+        if mmeta then
+          local isBoss = mmeta.boss
+          local special = mmeta.special
+          local lv = mmeta.level
           if isBoss == 0 and special == normalSpecial and lv >= effMinLv and lv <= effMaxLv then
             local targetPt = tonumber(info and info.mainIndex or 0) or 0
             if targetPt <= 0 then targetPt = pnum end
@@ -7669,10 +7886,11 @@ if #cands > 0 then
     end
     local ptId = tonumber(npc.pointId) or 0
     local okS, errS = true, nil
+    local mu = _get_march_util()
     if not dryRun then
-      if MarchUtil and MarchUtil.SendCreateMarchMessage and ptId > 0 and f and f.uuid then
+      if mu and mu.SendCreateMarchMessage and ptId > 0 and f and f.uuid then
         okS, errS = pcall(function()
-          MarchUtil.SendCreateMarchMessage(
+          mu.SendCreateMarchMessage(
             tonumber(f.uuid) or f.uuid,
             atkType,
             ptId,
@@ -7974,17 +8192,17 @@ if wpm and wpm.allViewPoints and wpm.GetPointInfo then
       end
       local cb = _parse_challenge_boss_pb(info, pb)
       local monsterId = (pb and pb.monsterId) or (cb and cb.monsterId) or nil
-      if monsterId and lc and TableName and TableName.Monster then
-        local row = _safe_call(function() return lc:getLine(TableName.Monster, tostring(monsterId)) end, nil)
-        if row then
-          local special = tonumber(_safe_call(function() return row:getValue('special') end, 0)) or 0
+      if monsterId then
+        local mmeta = _get_monster_meta(monsterId)
+        if mmeta then
+          local special = mmeta.special
           if special == challengeSpecial or special == alBossSpecial then
             local targetPt = tonumber(info and info.mainIndex or 0) or 0
             if targetPt <= 0 then targetPt = pnum end
             sagaPtSet[targetPt] = true
             if not seenPt[targetPt] then
               seenPt[targetPt] = true
-              local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+              local lv = mmeta.level
               local bossOwnerUid = tostring((cb and (cb.bossOwnerUid or cb.ownerUid)) or (pb and (pb.bossOwnerUid or pb.ownerUid)) or (info and info.ownerUid) or '')
               local bossAllyId = tostring((cb and (cb.allianceId or cb.allianceUid)) or (pb and (pb.allianceId or pb.allianceUid)) or (info and (info.allianceId or info.allianceUid)) or '')
               local isOwn = (bossOwnerUid ~= '' and bossOwnerUid == snap.uid)
@@ -8031,10 +8249,10 @@ if snap.inAlliance and wm and wm.GetAllAllianceWar then
     if type(w) == 'table' and w.uuid then
       local tpt = tonumber(w.targetPointId or w.targetPos or w.targetPoint or w.pointId or 0) or 0
       local isSagaRally = (tpt > 0 and sagaPtSet[tpt]) and true or false
-      if not isSagaRally and w.monsterId and lc and TableName and TableName.Monster then
-        local row = _safe_call(function() return lc:getLine(TableName.Monster, tostring(w.monsterId)) end, nil)
-        if row then
-          local sp = tonumber(_safe_call(function() return row:getValue('special') end, 0)) or 0
+      if not isSagaRally and w.monsterId then
+        local mmeta = _get_monster_meta(w.monsterId)
+        if mmeta then
+          local sp = mmeta.special
           if sp == challengeSpecial or sp == alBossSpecial then isSagaRally = true end
         end
       end
@@ -8139,10 +8357,11 @@ if #sagaBosses > 0 and not ranOutOfTroops and formIdx <= #usable and remStamBudg
       local mType = useRally and rallyType or atkType
       local rallyFlag = useRally and 1 or 0
       local okS, errS = true, nil
+      local mu = _get_march_util()
       if not dryRun then
-        if MarchUtil and MarchUtil.SendCreateMarchMessage and boss.pointId > 0 and f and f.uuid then
+        if mu and mu.SendCreateMarchMessage and boss.pointId > 0 and f and f.uuid then
           okS, errS = pcall(function()
-            MarchUtil.SendCreateMarchMessage(
+            mu.SendCreateMarchMessage(
               tonumber(f.uuid) or f.uuid,
               mType,
               boss.pointId,
@@ -8359,11 +8578,11 @@ if wpm and wpm.allViewPoints and wpm.GetPointInfo and lc and TableName and Table
           if okP and parsed then pb = parsed end
         end
         if pb and pb.monsterId then
-          local row = _safe_call(function() return lc:getLine(TableName.Monster, tostring(pb.monsterId)) end, nil)
-          if row then
-            local isBoss = tonumber(_safe_call(function() return row:getValue('boss') end, 0)) or 0
-            local special = tonumber(_safe_call(function() return row:getValue('special') end, 0)) or 0
-            local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
+          local mmeta = _get_monster_meta(pb.monsterId)
+          if mmeta then
+            local isBoss = mmeta.boss
+            local special = mmeta.special
+            local lv = mmeta.level
             if isBoss == 0 and special == normalSpecial then
               npcVpCount = npcVpCount + 1
               if lv > npcVpMaxLv then npcVpMaxLv = lv end
@@ -8781,7 +9000,7 @@ for _, t in ipairs(candidateTasks) do
           local ptId = tonumber(t.pointId or 0) or 0
           local myPt = LuaEntry and LuaEntry.Player and LuaEntry.Player.GetMainWorldPos and tonumber(LuaEntry.Player:GetMainWorldPos() or 0) or 0
           local worldObj = SceneManager and SceneManager.World
-          local spd = LuaEntry and LuaEntry.DataConfig and LuaEntry.DataConfig.TryGetNum and tonumber(_safe_call(function() return LuaEntry.DataConfig:TryGetNum('armyspeed', 'k2') end, 0)) or 0
+          local spd = tonumber(_get_data_cfg_num('armyspeed', 'k2', 0)) or 0
           if ptId > 0 and myPt > 0 and worldObj and SceneUtils and SceneUtils.IndexToTilePos and Vector2 and Vector2.Distance and spd > 0 then
             local okM, calcMs = pcall(function()
               local p1 = SceneUtils.IndexToTilePos(myPt, worldObj)
@@ -9975,7 +10194,7 @@ end
 if not out.event_open and type(info.minesList) == 'table' and #info.minesList > 0 then
   out.event_open = true
 end
-out.max_mines = (DataConfig and DataConfig.TryGetNum and tonumber(DataConfig.TryGetNum('mine_cave', 'k3') or 1)) or 1
+out.max_mines = tonumber(_get_data_cfg_num('mine_cave', 'k3', 1)) or 1
 if out.max_mines < 1 then out.max_mines = 1 end
 out.fight_num = tonumber((mc.GetFightNum and _safe_call(function() return mc:GetFightNum() end, 0)) or info.fightNum or 0) or 0
 out.refresh_num = tonumber(info.refreshNum or 0) or 0
@@ -10271,7 +10490,7 @@ if not canAtk then
   out.reason = 'cannot_attack_cave'
   return _enc(out)
 end
-local frees = _pick_free_formations(0, {_used_formations_lua(context, pid)}, not dryRun)
+local frees = _pick_free_formations(0, {_used_formations_lua(context, pid)}, false, not dryRun)
 local chosen = frees[1]
 if not chosen then
   out.reason = 'no_free_formation_available'
@@ -12421,7 +12640,7 @@ if selfAttacked and autoShield and not out.shielded then
         local cnt = tonumber(info and info.count or 0) or 0
         if cnt > 0 then
           local tmpl = info.template or (itm and _safe_call(function() return itm:GetItemTemplate(tonumber(info.itemId)) end, nil))
-          local nm = tmpl and Localization and Localization.GetString and tostring(_safe_call(function() return Localization:GetString(tostring(tmpl.name or '')) end, '') or ''):lower() or ''
+          local nm = (tmpl and tmpl.name and _loc(tmpl.name):lower()) or ''
           if nm:find('shield') or nm:find('peace') or nm:find('truce') then
             if not dryRun then
               if idata.UseTool then
@@ -12441,7 +12660,7 @@ if selfAttacked and autoShield and not out.shielded then
 end
 
 if recallGatherers and (selfAttacked or next(threatenedGatherUuids) ~= nil) then
-  local mu = package.loaded['SlgEngine.Util.MarchUtil.MarchUtil'] or package.loaded['Util.MarchUtil_SLG']
+  local mu = _get_march_util()
   for _, gm in ipairs(myMarches) do
     if gm.is_gather and (selfAttacked or threatenedGatherUuids[gm.uuid]) and gm.uuid ~= '' then
       if not dryRun and mu and mu.OnBackHome then
@@ -12456,6 +12675,1132 @@ end
 return _enc(out)
 """
     return _eval_json(cd, pid, lua, timeout=10.0)
+
+
+_HZ_HOSPITAL_ENGINE_VER = 2
+_HZ_HOSPITAL_ENGINE_TARGETS: dict[tuple[int, int, float], float] = {}
+
+
+def _build_hospital_engine_lua() -> str:
+    return (
+        _LUA_QUEUE_HELP_HELPER
+        + f"\nlocal _HZ_HOSP_VER = {_HZ_HOSPITAL_ENGINE_VER}\n"
+        + r"""
+local _hzB = _G.__hzBridge or {}
+local _enc = _enc or _hzB.enc
+local _safe_call = _safe_call or _hzB.safe_call
+local _get_player_snapshot = _get_player_snapshot or _hzB.get_player_snapshot
+local _get_data_cfg_num = _get_data_cfg_num or _hzB.get_data_cfg_num
+local _drain_popup_log = _drain_popup_log or _hzB.drain_popup_log
+
+if type(_G.__hzHospitalEngine) ~= 'table' or _G.__hzHospitalEngine.ver ~= _HZ_HOSP_VER then
+  local M = { ver = _HZ_HOSP_VER }
+
+  local function _get_num_field(obj, ...)
+    local names = {...}
+    for i = 1, #names do
+      local nm = names[i]
+      local ok, val = pcall(function() return obj[nm] end)
+      if ok and val ~= nil then
+        local num = tonumber(val)
+        if num ~= nil then return num end
+      end
+    end
+    return 0
+  end
+
+  local function _get_str_field(obj, ...)
+    local names = {...}
+    for i = 1, #names do
+      local nm = names[i]
+      local ok, val = pcall(function() return obj[nm] end)
+      if ok and val ~= nil and tostring(val) ~= '' then
+        return tostring(val)
+      end
+    end
+    return ''
+  end
+
+  local function _get_queue_state(qm, q)
+    if q == nil then return 0 end
+    if q.GetQueueState then
+      local okS, s = pcall(function() return tonumber(q:GetQueueState()) end)
+      if okS and s ~= nil then return math.floor(s) end
+    end
+    if qm and qm.GetQueueState then
+      local okS, s = pcall(function() return tonumber(qm:GetQueueState(q)) end)
+      if okS and s ~= nil then return math.floor(s) end
+    end
+    return math.floor(_get_num_field(q, 'state'))
+  end
+
+  local function _extract_entries(col, dst)
+    if not col then return false end
+    local found = false
+    if type(col) == 'table' then
+      local n = #col
+      if n > 0 then
+        for i = 1, n do
+          if col[i] ~= nil then
+            table.insert(dst, {key = i, val = col[i]})
+            found = true
+          end
+        end
+        if found then return true end
+      end
+      for k, v in pairs(col) do
+        if v ~= nil then
+          table.insert(dst, {key = k, val = v})
+          found = true
+        end
+      end
+      if found then return true end
+    end
+    pcall(function()
+      if col.GetEnumerator then
+        local iter = col:GetEnumerator()
+        if iter then
+          while iter:MoveNext() do
+            local cur = iter.Current
+            if cur ~= nil then
+              local okK, k = pcall(function() return cur.Key end)
+              local okV, v = pcall(function() return cur.Value end)
+              if okK and okV and k ~= nil and v ~= nil then
+                table.insert(dst, {key = k, val = v})
+                found = true
+              else
+                table.insert(dst, {key = #dst + 1, val = cur})
+                found = true
+              end
+            end
+          end
+        end
+      end
+    end)
+    if found then return true end
+    pcall(function()
+      local cnt = tonumber(col.Count) or 0
+      if cnt > 0 then
+        for i = 0, cnt - 1 do
+          local okI, item = pcall(function() return col[i] end)
+          if okI and item ~= nil then
+            table.insert(dst, {key = i, val = item})
+            found = true
+          end
+        end
+      end
+    end)
+    return found
+  end
+
+  -- Install 0ms instant SendCallHelp hook on HospitalManager.HospitalCureHandle (pure DataCenter, zero UI)
+  local function _ensure_instant_cure_help_hook(hm)
+    if not hm then return end
+    if _G.__hzHospitalCureHookInstalled and hm.HospitalCureHandle == _G.__hzWrapHospitalCureHandle then
+      return
+    end
+    local orig = hm.HospitalCureHandle
+    if type(orig) ~= 'function' then return end
+    _G.__hzOrigHospitalCureHandle = orig
+    local wrap = function(selfObj, message, ...)
+      local silent = (tonumber(_G.__hzPendingAutoCallHelpUntilClk or 0) or 0) > os.clock()
+      if silent then
+        _G.__hzSilentHospitalTipsUntil = os.clock() + 0.35
+      end
+      local ret = orig(selfObj, message, ...)
+      if silent then
+        pcall(function()
+          local dc2 = DataCenter
+          local qm2 = dc2 and dc2.QueueDataManager
+          if qm2 then
+            local isDrag = (CommonUtil and CommonUtil.IsInDragonActivity and _safe_call(function() return CommonUtil.IsInDragonActivity() end, false)) or false
+            local qType = isDrag and ((NewQueueType and tonumber(NewQueueType.DragonHospital)) or 46) or ((NewQueueType and tonumber(NewQueueType.Hospital)) or 3)
+            local workSt = (NewQueueState and tonumber(NewQueueState.Work)) or 2
+            local q = qm2.GetQueueByType and _safe_call(function() return qm2:GetQueueByType(qType) end, nil) or nil
+            if not q and qm2.queueDic then
+              local qEnts = {}
+              _extract_entries(qm2.queueDic, qEnts)
+              for _, qe in ipairs(qEnts) do
+                if (type(qe.val) == 'table' or type(qe.val) == 'userdata') and math.floor(_get_num_field(qe.val, 'type')) == qType then
+                  q = qe.val
+                  break
+                end
+              end
+            end
+            if q and _get_queue_state(qm2, q) == workSt then
+              local qUuid = _get_str_field(q, 'uuid')
+              local isHelped = math.floor(_get_num_field(q, 'isHelped', 'callHelp'))
+              if qUuid ~= '' and isHelped == 0 then
+                if _send_queue_alliance_help(qm2, q) then
+                  _G.__hzLastAutoCallHelpUuid = qUuid
+                  _G.__hzPendingAutoCallHelpUntilClk = 0
+                end
+              end
+            end
+          end
+        end)
+      end
+      return ret
+    end
+    _G.__hzWrapHospitalCureHandle = wrap
+    _G.__hzHospitalCureHookInstalled = true
+    pcall(function() hm.HospitalCureHandle = wrap end)
+  end
+
+  -- Calculate MAX effective alliance help from Monthly Pass (Auto-Help) + Active members
+  local function _compute_pass_active_budget(dc, snap, nowMs, opts)
+    local nowSec = math.floor((tonumber(nowMs) or 0) / 1000)
+    if nowSec <= 0 then nowSec = tonumber(snap.serverSec or 0) or os.time() end
+    local selfUid = tostring(snap.uid or '')
+    local activeGraceSec = math.max(0, (tonumber(opts.activeGraceMins or 0) or 0) * 60)
+    local localHelperSet = type(opts.localHelperUids) == 'table' and opts.localHelperUids or {}
+
+    local am = dc and dc.AllianceMemberDataManager
+    local ah = dc and dc.AllianceHelpDataManager
+    local mcn = dc and dc.MonthCardNewManager
+    local hm = dc and dc.HospitalManager
+    local bm = dc and dc.BuildManager
+
+    local memberEntries = {}
+    if am and am.allianceMembers then
+      _extract_entries(am.allianceMembers, memberEntries)
+    elseif am and am.GetAllMember then
+      local allM = _safe_call(function() return am:GetAllMember() end, nil)
+      if allM then _extract_entries(allM, memberEntries) end
+    end
+
+    -- Headless roster sync via AlRank (UpdateAllianceMemberList is 100% pure DataCenter, zero UI)
+    local memberSyncSent = false
+    if not opts.dryRun and snap.inAlliance and SFSNetwork and MsgDefines and MsgDefines.AlRank then
+      local lastSync = tonumber(_G.__hzAlRankSyncSec or 0) or 0
+      local needInitial = (#memberEntries == 0 and (nowSec - lastSync) >= 30)
+      local needRefresh = (opts.hasWounded and #memberEntries > 0 and (nowSec - lastSync) >= 180)
+      if needInitial or needRefresh then
+        _G.__hzAlRankSyncSec = nowSec
+        pcall(function()
+          if needInitial and am and am.TryInitMemberList then
+            am:TryInitMemberList(true)
+          else
+            SFSNetwork.SendMessage(MsgDefines.AlRank)
+          end
+          memberSyncSent = true
+        end)
+      end
+    end
+
+    local totalMembers = 0
+    local passTotal = 0
+    local onlineTotal = 0
+    local passActive = 0
+    local extraLocalHelpers = 0
+    local seenUid = {}
+
+    for _, me in ipairs(memberEntries) do
+      local m = me.val
+      if type(m) == 'table' or type(m) == 'userdata' then
+        local uid = _get_str_field(m, 'uid', 'userId')
+        if uid == '' and me.key ~= nil then uid = tostring(me.key) end
+        if uid ~= '' and not seenUid[uid] then
+          seenUid[uid] = true
+          totalMembers = totalMembers + 1
+          if uid ~= selfUid then
+            local mc = _get_num_field(m, 'monthCardEndTime')
+            local mcSec = (mc > 1e11) and math.floor(mc / 1000) or mc
+            local hasPass = (mcSec > nowSec and nowSec > 0)
+
+            local onlineRaw = nil
+            pcall(function() onlineRaw = m.online end)
+            local isOnline = (onlineRaw == true or tonumber(onlineRaw) == 1)
+            local activeRaw = nil
+            pcall(function() activeRaw = m.active end)
+            local isActFlag = (activeRaw == true or tonumber(activeRaw) == 1)
+
+            local isRecentGrace = false
+            if not isOnline and activeGraceSec > 0 and nowMs > 0 then
+              local offMs = _get_num_field(m, 'offLineTime', 'offTime')
+              if offMs > 0 and offMs < 1e11 then offMs = offMs * 1000 end
+              if offMs > 0 and nowMs >= offMs and ((nowMs - offMs) / 1000) <= activeGraceSec then
+                isRecentGrace = true
+              end
+            end
+
+            local isActive = (isOnline or isActFlag or isRecentGrace)
+            if isOnline then onlineTotal = onlineTotal + 1 end
+            if hasPass then passTotal = passTotal + 1 end
+            if hasPass and isActive then
+              passActive = passActive + 1
+            elseif localHelperSet[uid] then
+              -- Running local client in the same alliance without active pass still helps via cross-client AlHelpAll
+              extraLocalHelpers = extraLocalHelpers + 1
+            end
+          end
+        end
+      end
+    end
+
+    -- Exact player max help count & per-help reduction seconds
+    local histMaxHelps = 0
+    local histPerHelpSec = 0
+    if ah and ah.myHelpInfoList then
+      local myEntries = {}
+      _extract_entries(ah.myHelpInfoList, myEntries)
+      for _, he in ipairs(myEntries) do
+        local info = he.val
+        if type(info) == 'table' or type(info) == 'userdata' then
+          local mc = math.floor(_get_num_field(info, 'maxCount'))
+          local nc = math.floor(_get_num_field(info, 'nowCount'))
+          local rs = _get_num_field(info, 'reduceSec')
+          if mc > histMaxHelps then histMaxHelps = mc end
+          if nc > 0 and rs > 0 then
+            local ph = math.floor((rs / nc) + 0.5)
+            if ph > histPerHelpSec then histPerHelpSec = ph end
+          end
+        end
+      end
+    end
+
+    local acBaseHelps = 0
+    pcall(function()
+      if bm then
+        local acId = (BuildingTypes and tonumber(BuildingTypes.FUND_BUILD_ALLIANCE_CENTER)) or 402000
+        local acBuild = bm.GetFunbuildByItemID and bm:GetFunbuildByItemID(acId) or nil
+        if not acBuild and bm.GetAllBuildings then
+          for _, b in pairs(bm:GetAllBuildings() or {}) do
+            if type(b) == 'table' and tonumber(b.itemId) == acId then acBuild = b; break end
+          end
+        end
+        local acLv = acBuild and math.floor(_get_num_field(acBuild, 'level')) or 0
+        if acLv > 0 then
+          local lc = LocalController and LocalController.instance and LocalController.instance() or nil
+          if lc and lc.getLine and TableName and TableName.Building then
+            local row = lc:getLine(TableName.Building, tostring(acId + acLv))
+            if row and row.getValue then
+              acBaseHelps = math.floor(tonumber(row:getValue('para1')) or 0)
+            end
+          end
+          if acBaseHelps <= 0 then acBaseHelps = 10 + acLv end
+        end
+      end
+    end)
+    local effHelpCntBonus = 0
+    local effHelpSecBonus = 0
+    if LuaEntry and LuaEntry.Effect and LuaEntry.Effect.GetGameEffect then
+      effHelpCntBonus = math.floor(tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(30475) end, 0)) or 0)
+      effHelpSecBonus = tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(30229) end, 0)) or 0
+    end
+    local calcMaxHelps = (acBaseHelps > 0) and (acBaseHelps + math.max(0, effHelpCntBonus)) or 0
+    local playerMaxHelps = (histMaxHelps > 0) and histMaxHelps or ((calcMaxHelps > 0) and calcMaxHelps or 30)
+
+    local baseHelpSec = tonumber(_get_data_cfg_num('alliance_help', 'k1', 120)) or 120
+    if baseHelpSec <= 0 then baseHelpSec = 120 end
+    local calcPerHelpSec = math.floor(baseHelpSec + math.max(0, effHelpSecBonus) + 0.5)
+    local perHelpSec = (effHelpSecBonus > 0 or histPerHelpSec == 0) and calcPerHelpSec or histPerHelpSec
+    if histPerHelpSec > perHelpSec then perHelpSec = histPerHelpSec end
+    if perHelpSec <= 0 then perHelpSec = 120 end
+
+    -- Daily heal auto-help limit check (MonthCardNewManager:IsHealAutoHelpLimitReached)
+    local healLimitEnabled = false
+    local healLimitReached = false
+    local todayHealAutoHelps = 0
+    local healAutoHelpLimit = 0
+    pcall(function()
+      if mcn then
+        if mcn.IsHealAutoHelpLimitEnabled then healLimitEnabled = mcn:IsHealAutoHelpLimitEnabled() and true or false end
+        if mcn.GetTodayHealAutoHelpCount then todayHealAutoHelps = math.floor(tonumber(mcn:GetTodayHealAutoHelpCount()) or 0) end
+        if mcn.GetHealAutoHelpLimit then healAutoHelpLimit = math.floor(tonumber(mcn:GetHealAutoHelpLimit()) or 0) end
+        if mcn.IsHealAutoHelpLimitReached then healLimitReached = mcn:IsHealAutoHelpLimitReached() and true or false end
+      end
+      if not healLimitReached and hm and hm.GetHospitalHelpLimit then
+        if hm:GetHospitalHelpLimit() == true then healLimitReached = true end
+      end
+    end)
+
+    local availInstantHelpers = (healLimitReached and 0 or passActive) + extraLocalHelpers
+    local effectiveMaxHelps = math.max(0, math.min(playerMaxHelps, availInstantHelpers))
+
+    local targetBatchSec = opts.batchSec
+    local sizingMode = 'fixed_config'
+    if opts.autoPassActive then
+      if not snap.inAlliance then
+        targetBatchSec = opts.batchSec
+        sizingMode = 'no_alliance_fallback'
+      elseif totalMembers <= 1 then
+        targetBatchSec = opts.batchSec
+        sizingMode = 'roster_pending_fallback'
+      elseif effectiveMaxHelps > 0 then
+        targetBatchSec = effectiveMaxHelps * perHelpSec
+        sizingMode = 'pass_plus_active'
+      elseif onlineTotal > 0 then
+        targetBatchSec = math.min(opts.batchSec, perHelpSec)
+        sizingMode = 'online_manual_single_help'
+      else
+        targetBatchSec = math.min(opts.batchSec, 300)
+        sizingMode = 'zero_online_micro_fallback'
+      end
+    end
+    targetBatchSec = math.max(10, math.floor(targetBatchSec))
+
+    return {
+      alliance_member_total = totalMembers,
+      pass_total_members = passTotal,
+      online_members = onlineTotal,
+      pass_active_helpers = passActive,
+      extra_local_helpers = extraLocalHelpers,
+      player_max_helps = playerMaxHelps,
+      effective_max_helps = effectiveMaxHelps,
+      per_help_sec = perHelpSec,
+      dynamic_batch_sec = targetBatchSec,
+      batch_sizing_mode = sizingMode,
+      member_sync_sent = memberSyncSent,
+      heal_limit_enabled = healLimitEnabled,
+      heal_limit_reached = healLimitReached,
+      today_heal_auto_helps = todayHealAutoHelps,
+      heal_auto_help_limit = healAutoHelpLimit,
+    }
+  end
+
+  function M.step(opts)
+    local dryRun = opts.dryRun and true or false
+    local collectFin = opts.collectFin ~= false
+    local batchSec = tonumber(opts.batchSec) or 1800
+    local batchMinutes = tonumber(opts.batchMinutes) or 30
+    local minTroops = tonumber(opts.minTroops) or 1
+    local maxTroops = tonumber(opts.maxTroops) or 50000
+    local callHelp = opts.callHelp ~= false
+    local useSpeedups = opts.useSpeedups and true or false
+    local maxSpeedupMins = tonumber(opts.maxSpeedupMins) or 0
+    local autoPassActive = opts.autoPassActive ~= false
+    local isHeadless = opts.headless ~= false
+
+    local snap = _get_player_snapshot()
+    local dc = DataCenter
+    local hm = dc and dc.HospitalManager
+    local qm = dc and dc.QueueDataManager
+    local atm = dc and dc.ArmyTemplateManager
+
+    local isDragon = (CommonUtil and CommonUtil.IsInDragonActivity and _safe_call(function() return CommonUtil.IsInDragonActivity() end, false)) or false
+    local targetQType = isDragon
+      and ((NewQueueType and tonumber(NewQueueType.DragonHospital)) or 46)
+      or ((NewQueueType and tonumber(NewQueueType.Hospital)) or 3)
+    local currSceneId = (SceneManager and tonumber(SceneManager.CurrSceneID)) or 0
+    local isInHome = (SceneManager and SceneManager.IsInHome and _safe_call(function() return SceneManager:IsInHome() end, nil))
+    local sceneView = (currSceneId == 1 or isInHome == true) and 'city' or ((currSceneId == 2 or isInHome == false) and 'world' or 'other')
+
+    local out = {
+      ok = true,
+      task = 'hospital_heal',
+      headless = isHeadless,
+      dry_run = dryRun,
+      dormant = false,
+      scene_id = currSceneId,
+      scene_view = sceneView,
+      is_dragon_activity = isDragon,
+      world_view_compatible = true,
+      rpc_protocol = "MsgDefines.HospitalCure ('hospital.cure') -> { arr = { [armyId] = healNum }, gold = IsGold.NoUseGold }",
+      batch_minutes = batchMinutes,
+      auto_pass_active_sizing = autoPassActive,
+      batch_sizing_mode = autoPassActive and 'pass_plus_active' or 'fixed_config',
+      alliance_member_total = 0,
+      pass_total_members = 0,
+      online_members = 0,
+      pass_active_helpers = 0,
+      extra_local_helpers = 0,
+      player_max_helps = 0,
+      effective_max_helps = 0,
+      per_help_sec = 0,
+      dynamic_batch_sec = batchSec,
+      heal_limit_reached = false,
+      today_heal_auto_helps = 0,
+      heal_auto_help_limit = 0,
+      in_treatment_total = 0,
+      untreated_total = 0,
+      wounded_total = 0,
+      in_treatment_armies = {},
+      untreated_armies = {},
+      queue_uuid = '',
+      queue_type = targetQType,
+      queue_state = 0,
+      queue_start_ms = 0,
+      queue_end_ms = 0,
+      queue_remaining_sec = 0,
+      remaining_seconds = 0,
+      is_helped = 0,
+      collected = false,
+      help_requested = false,
+      use_speedups = useSpeedups,
+      max_speedup_mins = maxSpeedupMins,
+      speedup_inventory = {['210140'] = 0, ['210141'] = 0, ['210142'] = 0},
+      speedups_applied = {},
+      speedup_seconds_applied = 0,
+      speedup_item_str = '',
+      queued_troops = 0,
+      estimated_batch_sec = 0,
+      queued_armies = {},
+      heal_time_calibration = {},
+      rpc_sent = false,
+      rpc_payload = nil,
+      phases_executed = {},
+      action = 'none',
+    }
+    if not hm or not qm then
+      out.ok = false
+      out.error = 'HospitalManager or QueueDataManager unavailable'
+      return _enc(out)
+    end
+
+    if not dryRun and callHelp then
+      _ensure_instant_cure_help_hook(hm)
+    end
+
+    local function _get_real_treat_sec(aid)
+      if not atm then return 30.0 end
+      local t = nil
+      if atm.GetTreatTime then
+        t = _safe_call(function() return atm:GetTreatTime(tostring(aid)) end, nil)
+        if not t or tonumber(t) == nil or tonumber(t) <= 0 then
+          t = _safe_call(function() return atm:GetTreatTime(tonumber(aid) or aid) end, nil)
+        end
+      end
+      if (not t or tonumber(t) == nil or tonumber(t) <= 0) and atm.GetArmyTemplate then
+        local tpl = _safe_call(function() return atm:GetArmyTemplate(tostring(aid)) end, nil)
+        if not tpl then
+          tpl = _safe_call(function() return atm:GetArmyTemplate(tonumber(aid) or aid) end, nil)
+        end
+        if tpl and tpl.GetTreatTime then
+          t = _safe_call(function() return tpl:GetTreatTime() end, nil)
+        end
+      end
+      local num = tonumber(t)
+      if num and num > 0 then
+        return num
+      end
+      return 30.0
+    end
+
+    local function _get_treat_resources(aid)
+      if not atm or not atm.GetArmyTemplate then return nil end
+      local tpl = _safe_call(function() return atm:GetArmyTemplate(tostring(aid)) end, nil)
+      if not tpl then
+        tpl = _safe_call(function() return atm:GetArmyTemplate(tonumber(aid) or aid) end, nil)
+      end
+      if tpl and tpl.GetTreatResource then
+        local res = _safe_call(function() return tpl:GetTreatResource() end, nil)
+        if type(res) == 'table' then return res end
+      end
+      return nil
+    end
+
+    local function _get_treat_res_percent()
+      local percent = 1.0
+      if LuaEntry and LuaEntry.Effect and EffectDefine then
+        if isDragon then
+          local num1 = tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(30318) end, 0)) or 0
+          percent = math.max(0.0, 1.0 - num1 / 100.0)
+        else
+          local num1 = tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(EffectDefine.CURE_RESOURCE_REDUCE) end, 0)) or 0
+          local num2 = tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(EffectDefine.HEAL_MONEY_DEC) end, 0)) or 0
+          percent = math.max(0.0, (1.0 - num1 / 100.0) * (1.0 - num2 / 100.0))
+        end
+      end
+      return percent
+    end
+
+    -- PHASE A: Telemetry, Pass+Active Alliance Help Sizing & Queue 3 Inspection (100% Headless DataCenter)
+    table.insert(out.phases_executed, 'PhaseA_Telemetry')
+    local nowMs = (snap.serverSec or 0) * 1000
+    if nowMs <= 0 then
+      nowMs = (UITimeManager and UITimeManager.GetInstance and _safe_call(function() return UITimeManager:GetInstance():GetServerTime() end, 0))
+        or (TimeUtil and TimeUtil.GetServerTimeMs and _safe_call(function() return TimeUtil.GetServerTimeMs() end, 0))
+        or (os.time() * 1000)
+    end
+
+    local injuredEntries = {}
+    local injuredCandidates = {}
+    if hm.GetAllHospital then
+      local ok_g, g = pcall(function() return hm:GetAllHospital() end)
+      if ok_g and g ~= nil then table.insert(injuredCandidates, g) end
+    end
+    if isDragon and hm.dragonHospital ~= nil then
+      table.insert(injuredCandidates, hm.dragonHospital)
+    end
+    if hm.allHospital ~= nil then table.insert(injuredCandidates, hm.allHospital) end
+    if hm.GetHospitalDic then
+      local ok_d, d = pcall(function() return hm:GetHospitalDic() end)
+      if ok_d and d ~= nil then table.insert(injuredCandidates, d) end
+    end
+    if hm.hospitalDic ~= nil then table.insert(injuredCandidates, hm.hospitalDic) end
+
+    for _, cand in ipairs(injuredCandidates) do
+      if _extract_entries(cand, injuredEntries) then break end
+    end
+
+    local seenArmy = {}
+    for _, item in ipairs(injuredEntries) do
+      local entry = item.val
+      local k = item.key
+      if type(entry) == 'table' or type(entry) == 'userdata' or type(entry) == 'number' then
+        local aid = ''
+        local healCnt = 0
+        local deadCnt = 0
+        if type(entry) == 'number' then
+          aid = tostring(k or '')
+          deadCnt = math.max(0, math.floor(tonumber(entry) or 0))
+        else
+          aid = _get_str_field(entry, 'armyId', 'id')
+          if aid == '' and k ~= nil then aid = tostring(k) end
+          healCnt = math.max(0, math.floor(_get_num_field(entry, 'heal', 'healing', 'cure')))
+          deadCnt = math.max(0, math.floor(_get_num_field(entry, 'dead', 'num', 'injured', 'wounded', 'count', 'hurt')))
+        end
+        if aid ~= '' and not seenArmy[aid] then
+          seenArmy[aid] = true
+          local uSec = _get_real_treat_sec(aid)
+          if healCnt > 0 then
+            out.in_treatment_total = out.in_treatment_total + healCnt
+            table.insert(out.in_treatment_armies, {armyId = aid, heal = healCnt, unit_treat_sec = uSec})
+          end
+          if deadCnt > 0 then
+            out.untreated_total = out.untreated_total + deadCnt
+            table.insert(out.untreated_armies, {armyId = aid, dead = deadCnt, unit_treat_sec = uSec})
+          end
+        end
+      end
+    end
+    out.wounded_total = out.in_treatment_total + out.untreated_total
+
+    -- Compute dynamic Pass + Active MAX alliance help budget
+    local pa = _compute_pass_active_budget(dc, snap, nowMs, {
+      dryRun = dryRun,
+      batchSec = batchSec,
+      autoPassActive = autoPassActive,
+      activeGraceMins = opts.activeGraceMins,
+      localHelperUids = opts.localHelperUids,
+      hasWounded = (out.wounded_total > 0),
+    })
+    out.alliance_member_total = pa.alliance_member_total
+    out.pass_total_members = pa.pass_total_members
+    out.online_members = pa.online_members
+    out.pass_active_helpers = pa.pass_active_helpers
+    out.extra_local_helpers = pa.extra_local_helpers
+    out.player_max_helps = pa.player_max_helps
+    out.effective_max_helps = pa.effective_max_helps
+    out.per_help_sec = pa.per_help_sec
+    out.dynamic_batch_sec = pa.dynamic_batch_sec
+    out.batch_sizing_mode = pa.batch_sizing_mode
+    out.member_sync_sent = pa.member_sync_sent
+    out.heal_limit_reached = pa.heal_limit_reached
+    out.today_heal_auto_helps = pa.today_heal_auto_helps
+    out.heal_auto_help_limit = pa.heal_auto_help_limit
+
+    local effectiveBatchSec = pa.dynamic_batch_sec
+
+    if #out.untreated_armies > 0 then
+      for i = 1, math.min(5, #out.untreated_armies) do
+        local ua = out.untreated_armies[i]
+        local uSec = ua.unit_treat_sec or _get_real_treat_sec(ua.armyId)
+        local bTroops = math.max(1, math.min(maxTroops, math.floor(effectiveBatchSec / math.max(0.1, uSec))))
+        table.insert(out.heal_time_calibration, {
+          armyId = ua.armyId,
+          unit_treat_sec = uSec,
+          batch_troops_for_target = bTroops,
+          est_batch_sec = math.ceil(bTroops * uSec),
+        })
+      end
+    else
+      local amgr = dc and dc.ArmyManager
+      local allArmy = amgr and (amgr.allArmy or amgr.armyList or amgr.armyDic)
+      if type(allArmy) == 'table' then
+        local calCnt = 0
+        for k, a in pairs(allArmy) do
+          if calCnt < 3 and type(a) == 'table' then
+            local aid = tostring(a.armyId or a.id or k)
+            local free = tonumber(a.free or a.num or a.count or 0) or 0
+            if aid ~= '' and free > 0 then
+              local uSec = _get_real_treat_sec(aid)
+              local bTroops = math.max(1, math.min(maxTroops, math.floor(effectiveBatchSec / math.max(0.1, uSec))))
+              table.insert(out.heal_time_calibration, {
+                armyId = aid,
+                unit_treat_sec = uSec,
+                batch_troops_for_target = bTroops,
+                est_batch_sec = math.ceil(bTroops * uSec),
+              })
+              calCnt = calCnt + 1
+            end
+          end
+        end
+      end
+    end
+
+    -- Inspect Hospital Queue (targetQType = 3 normal, 46 dragon) from DataCenter.QueueDataManager
+    local finState = (NewQueueState and tonumber(NewQueueState.Finish)) or 3
+    local workState = (NewQueueState and tonumber(NewQueueState.Work)) or 2
+
+    local activeQ = nil
+    if qm and qm.GetQueueByType then
+      local single = _safe_call(function() return qm:GetQueueByType(targetQType) end, nil)
+      if type(single) == 'table' or type(single) == 'userdata' then
+        activeQ = single
+      end
+    end
+    if not activeQ and qm and qm.queueDic then
+      local qEntries = {}
+      _extract_entries(qm.queueDic, qEntries)
+      for _, qe in ipairs(qEntries) do
+        local q = qe.val
+        if type(q) == 'table' or type(q) == 'userdata' then
+          local qt = math.floor(_get_num_field(q, 'type'))
+          if qt == targetQType then
+            local qSt = _get_queue_state(qm, q)
+            if not activeQ or qSt == workState or qSt == finState then
+              activeQ = q
+              if qSt == workState or qSt == finState then break end
+            end
+          end
+        end
+      end
+    end
+
+    local activeQState = 0
+    local activeStartMs = 0
+    local activeEndMs = 0
+    local activeHelped = 0
+    if activeQ then
+      activeQState = _get_queue_state(qm, activeQ)
+      activeStartMs = _get_num_field(activeQ, 'startTime')
+      activeEndMs = _get_num_field(activeQ, 'endTime')
+      if activeStartMs > 0 and activeStartMs < 1e12 then activeStartMs = activeStartMs * 1000 end
+      if activeEndMs > 0 and activeEndMs < 1e12 then activeEndMs = activeEndMs * 1000 end
+      activeHelped = math.floor(_get_num_field(activeQ, 'isHelped', 'callHelp'))
+      out.queue_uuid = _get_str_field(activeQ, 'uuid')
+      out.queue_type = math.floor(_get_num_field(activeQ, 'type'))
+      if out.queue_type <= 0 then out.queue_type = targetQType end
+      out.queue_state = activeQState
+      out.queue_start_ms = activeStartMs
+      out.queue_end_ms = activeEndMs
+      out.is_helped = activeHelped
+      if activeQState == workState and activeEndMs > nowMs and nowMs > 0 then
+        out.queue_remaining_sec = math.max(0, math.floor((activeEndMs - nowMs) / 1000))
+        out.remaining_seconds = out.queue_remaining_sec
+      end
+    end
+
+    -- Inspect healing speedup inventory ONLY when useSpeedups or dryRun is active (fast path when disabled)
+    local healSpeedDefs = {
+      {id = 210142, key = '210142', mins = 60, sec = 3600},
+      {id = 210141, key = '210141', mins = 5,  sec = 300},
+      {id = 210140, key = '210140', mins = 1,  sec = 60},
+    }
+    if useSpeedups or dryRun then
+      local idata = dc and dc.ItemData
+      if idata then
+        if idata.GetItemCount then
+          for _, sp in ipairs(healSpeedDefs) do
+            local cnt = math.max(0, math.floor(tonumber(_safe_call(function() return idata:GetItemCount(sp.id) end, 0)) or 0))
+            if cnt > 0 then out.speedup_inventory[sp.key] = cnt end
+          end
+        end
+        if (out.speedup_inventory['210140'] + out.speedup_inventory['210141'] + out.speedup_inventory['210142']) == 0 and idata.ItemInfos then
+          local itemEntries = {}
+          _extract_entries(idata.ItemInfos, itemEntries)
+          for _, ie in ipairs(itemEntries) do
+            local info = ie.val
+            if type(info) == 'table' or type(info) == 'userdata' then
+              local iid = math.floor(_get_num_field(info, 'itemId', 'id'))
+              if iid <= 0 then iid = tonumber(ie.key) or 0 end
+              if iid == 210140 or iid == 210141 or iid == 210142 then
+                local icnt = math.max(0, math.floor(_get_num_field(info, 'count', 'num')))
+                local kstr = tostring(iid)
+                out.speedup_inventory[kstr] = (out.speedup_inventory[kstr] or 0) + icnt
+              end
+            end
+          end
+        end
+      end
+    end
+
+    local isActivelyHealing = (activeQ ~= nil and activeQState == workState and activeEndMs > nowMs and nowMs > 0)
+    local isQueueFinished = false
+    if activeQ ~= nil then
+      isQueueFinished = (activeQState == finState) or (activeQState == workState and activeEndMs > 0 and nowMs > 0 and activeEndMs <= nowMs)
+      if not isQueueFinished and qm and qm.IsQueueTimeFinish and out.queue_uuid ~= '' then
+        local okF, f = pcall(function() return qm:IsQueueTimeFinish(activeQ) end)
+        if okF and f and activeQState ~= 0 then isQueueFinished = true end
+      end
+    end
+
+    -- PHASE B: Headless Alliance Help on Active Queue
+    if isActivelyHealing then
+      out.action = 'healing_in_progress'
+      if callHelp and out.is_helped == 0 and out.queue_uuid ~= '' then
+        table.insert(out.phases_executed, 'PhaseB_AllianceHelp')
+        if not dryRun then
+          if _send_queue_alliance_help(qm, activeQ) then
+            out.is_helped = 1
+            out.help_requested = true
+            out.action = 'requested_help'
+          end
+        else
+          out.help_requested = true
+          out.action = 'requested_help'
+        end
+      end
+    end
+
+    -- PHASE C: Smart Healing Speedup Application
+    if isActivelyHealing and useSpeedups and out.queue_remaining_sec > 0 and out.queue_uuid ~= '' then
+      table.insert(out.phases_executed, 'PhaseC_Speedups')
+      local budgetSec = out.queue_remaining_sec
+      if maxSpeedupMins > 0 then
+        budgetSec = math.min(budgetSec, maxSpeedupMins * 60)
+      end
+      local parts = {}
+      local totalAppliedSec = 0
+      for _, sp in ipairs(healSpeedDefs) do
+        local avail = tonumber(out.speedup_inventory[sp.key] or 0) or 0
+        if avail > 0 and budgetSec >= sp.sec then
+          local useQty = math.min(avail, math.floor(budgetSec / sp.sec))
+          if useQty > 0 then
+            budgetSec = budgetSec - (useQty * sp.sec)
+            totalAppliedSec = totalAppliedSec + (useQty * sp.sec)
+            table.insert(parts, tostring(sp.id) .. ';' .. tostring(useQty))
+            table.insert(out.speedups_applied, {
+              itemId = sp.id,
+              mins = sp.mins,
+              count = useQty,
+              total_sec = useQty * sp.sec,
+            })
+          end
+        end
+      end
+      out.speedup_seconds_applied = totalAppliedSec
+      out.speedup_item_str = table.concat(parts, '|')
+      if #parts > 0 then
+        if not dryRun and SFSNetwork and MsgDefines and MsgDefines.QueueCcdMNew then
+          local goldFlag = (IsGold and IsGold.NoUseGold) or 0
+          pcall(function()
+            SFSNetwork.SendMessage(MsgDefines.QueueCcdMNew, {
+              qUUID = activeQ.uuid,
+              itemIDs = out.speedup_item_str,
+              isGold = goldFlag,
+            })
+          end)
+          out.queue_remaining_sec = math.max(0, out.queue_remaining_sec - totalAppliedSec)
+          out.remaining_seconds = out.queue_remaining_sec
+          if out.queue_remaining_sec <= 0 then
+            isActivelyHealing = false
+            isQueueFinished = true
+          end
+        end
+        out.action = dryRun and 'would_apply_healing_speedups' or 'applied_healing_speedups'
+      end
+    end
+
+    -- PHASE D: Collect Finished Healing Headlessly (Pure SFS QueueFinish, zero UI clicks)
+    if isQueueFinished and collectFin and activeQ then
+      table.insert(out.phases_executed, 'PhaseD_CollectFinished')
+      if not dryRun and isHeadless then
+        _G.__hzSilentHospitalTipsUntil = os.clock() + 0.45
+      end
+      local status = _collect_or_help_queue(qm, activeQ, nowMs, dryRun,
+        function()
+          out.collected = true
+          if not dryRun and hm and hm.CheckSendFinish then
+            pcall(function() hm:CheckSendFinish() end)
+          end
+        end,
+        function() if callHelp then out.help_requested = true end end
+      )
+      if status == 'finished' or isQueueFinished then
+        out.collected = true
+        out.action = 'collected_healed'
+        if not dryRun and hm and hm.CheckSendFinish then
+          pcall(function() hm:CheckSendFinish() end)
+        end
+        isActivelyHealing = false
+        out.queue_state = 0
+        out.queue_remaining_sec = 0
+        out.remaining_seconds = 0
+      end
+    end
+
+    -- PHASE E: Enqueue Untreated Wounded Pool (Exact HospitalCure Dictionary Map + Pass+Active Target)
+    if not isActivelyHealing and out.untreated_total > 0 then
+      table.insert(out.phases_executed, 'PhaseE_EnqueueUntreated')
+      local healArrMap = {}
+      local healArrCount = 0
+      local secLeft = effectiveBatchSec
+      local totalSelected = 0
+      local estBatchSec = 0.0
+      local resPercent = _get_treat_res_percent()
+      local ownResource = {}
+      local resourceShortage = false
+
+      for _, uArmy in ipairs(out.untreated_armies) do
+        local aid = tostring(uArmy.armyId or '')
+        local injured = math.floor(tonumber(uArmy.dead or 0) or 0)
+        if injured > 0 and aid ~= '' and totalSelected < maxTroops and secLeft > 0 then
+          local unitSec = uArmy.unit_treat_sec or _get_real_treat_sec(aid)
+          local maxAffordable = injured
+          local tempRes = _get_treat_resources(aid)
+          if tempRes and LuaEntry and LuaEntry.Resource and LuaEntry.Resource.GetCntByResType then
+            for _, v1 in ipairs(tempRes) do
+              local rt = v1.resourceType
+              local baseCost = tonumber(v1.count or 0) or 0
+              local cost = math.ceil(baseCost * resPercent)
+              if rt ~= nil and cost > 0 then
+                if ownResource[rt] == nil then
+                  ownResource[rt] = tonumber(_safe_call(function() return LuaEntry.Resource:GetCntByResType(rt) end, 0)) or 0
+                end
+                local afford = math.floor(math.max(0, ownResource[rt]) / cost)
+                if afford < maxAffordable then
+                  maxAffordable = afford
+                end
+              end
+            end
+          end
+          if maxAffordable <= 0 then
+            resourceShortage = true
+          else
+            local byTime = math.floor(secLeft / math.max(0.1, unitSec))
+            local take = math.min(maxAffordable, maxTroops - totalSelected, byTime)
+            if take <= 0 and totalSelected == 0 then
+              take = math.min(maxAffordable, maxTroops, 1)
+            end
+            local takeInt = math.tointeger(math.floor(take)) or math.floor(take)
+            if takeInt > 0 then
+              healArrMap[aid] = takeInt
+              healArrCount = healArrCount + 1
+              table.insert(out.queued_armies, {
+                armyId = aid,
+                healNum = takeInt,
+                totalInjured = injured,
+                unit_treat_sec = unitSec,
+                est_sec = math.ceil(takeInt * unitSec),
+              })
+              totalSelected = totalSelected + takeInt
+              estBatchSec = estBatchSec + (takeInt * unitSec)
+              secLeft = secLeft - (takeInt * unitSec)
+              if tempRes then
+                for _, v1 in ipairs(tempRes) do
+                  local rt = v1.resourceType
+                  local cost = math.ceil((tonumber(v1.count or 0) or 0) * resPercent)
+                  if rt ~= nil and cost > 0 and ownResource[rt] ~= nil then
+                    ownResource[rt] = ownResource[rt] - (cost * takeInt)
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+
+      if totalSelected == 0 and resourceShortage then
+        out.ok = false
+        out.dormant = false
+        out.action = 'insufficient_resources'
+        out.error = 'Insufficient resources to heal untreated troops'
+        out.message = out.error
+        return _enc(out)
+      end
+
+      if totalSelected > 0 and healArrCount > 0 then
+        local goldFlag = (IsGold and IsGold.NoUseGold) or 0
+        out.estimated_batch_sec = math.ceil(estBatchSec)
+        out.rpc_payload = {
+          cmd = (MsgDefines and MsgDefines.HospitalCure) or 'hospital.cure',
+          gold = goldFlag,
+          arr = healArrMap,
+        }
+        if not dryRun then
+          if not (MsgDefines and MsgDefines.HospitalCure and SFSNetwork and SFSNetwork.SendMessage) then
+            out.ok = false
+            out.action = 'cure_rpc_unavailable'
+            out.error = 'MsgDefines.HospitalCure or SFSNetwork.SendMessage unavailable'
+            return _enc(out)
+          end
+          if type(_G.__hzPopupLog) == 'table' and #_G.__hzPopupLog > 0 then
+            out.pre_send_popups = _drain_popup_log()
+          end
+          if isHeadless then
+            _G.__hzSilentHospitalTipsUntil = os.clock() + 0.55
+          end
+          if callHelp then
+            _G.__hzLastAutoCallHelpUuid = ''
+            _G.__hzPendingAutoCallHelpUntilClk = os.clock() + 2.5
+          end
+          local sendOk, sendErr = pcall(function()
+            SFSNetwork.SendMessage(MsgDefines.HospitalCure, {
+              arr = healArrMap,
+              gold = goldFlag,
+            })
+          end)
+          out.rpc_sent = sendOk
+          if not sendOk then
+            _G.__hzPendingAutoCallHelpUntilClk = 0
+            out.ok = false
+            out.action = 'cure_rpc_error'
+            out.error = 'HospitalCure SendMessage threw: ' .. tostring(sendErr)
+            return _enc(out)
+          end
+        elseif dryRun and callHelp then
+          out.help_requested = true
+        end
+        out.dormant = false
+        out.queued_troops = totalSelected
+        out.action = dryRun and 'would_queue_healing' or 'started_heal_batch'
+        out.message = string.format(
+          "%s %d untreated troops for healing (~%ds est, mode=%s, pass_active=%d, max_helps=%d, untreated=%d)",
+          dryRun and "Would queue" or "Queued",
+          totalSelected, out.estimated_batch_sec, tostring(out.batch_sizing_mode),
+          out.pass_active_helpers, out.effective_max_helps, out.untreated_total
+        )
+        return _enc(out)
+      end
+    end
+
+    if out.wounded_total == 0 and out.in_treatment_total == 0 and out.untreated_total == 0 and not isActivelyHealing and not isQueueFinished and not out.collected then
+      out.dormant = true
+      out.action = 'dormant_no_wounded'
+      out.message = 'No wounded troops in hospital (dormant)'
+      return _enc(out)
+    end
+
+    out.dormant = false
+
+    if isActivelyHealing then
+      local remSec = out.queue_remaining_sec
+      local d = math.floor(remSec / 86400)
+      local h = math.floor((remSec % 86400) / 3600)
+      local m = math.floor((remSec % 3600) / 60)
+      local s = math.floor(remSec % 60)
+      local timeStr = d > 0 and string.format("%dd %dh", d, h)
+        or (h > 0 and string.format("%dh %dm", h, m)
+        or (m > 0 and string.format("%dm %ds", m, s) or string.format("%ds", s)))
+      out.message = string.format(
+        "Hospital Queue %d healing %d troops (%s remaining, %d untreated waiting, helped=%d, pass_active=%d)",
+        out.queue_type, out.in_treatment_total, timeStr, out.untreated_total, out.is_helped, out.pass_active_helpers
+      )
+      return _enc(out)
+    end
+
+    if out.collected and out.queued_troops == 0 then
+      out.message = string.format("Collected finished healing batch (untreated remaining=%d)", out.untreated_total)
+    end
+
+    return _enc(out)
+  end
+
+  -- Fast headless post-cure & queue-finish check (NOTE: deliberately omits literal task marker for MockGameClient compatibility)
+  function M.verify(preInTreat, preUntreated, callHelp)
+    local snap = _get_player_snapshot()
+    local dc = DataCenter
+    local hm = dc and dc.HospitalManager
+    local qm = dc and dc.QueueDataManager
+    local isDragon = (CommonUtil and CommonUtil.IsInDragonActivity and _safe_call(function() return CommonUtil.IsInDragonActivity() end, false)) or false
+    local targetQType = isDragon
+      and ((NewQueueType and tonumber(NewQueueType.DragonHospital)) or 46)
+      or ((NewQueueType and tonumber(NewQueueType.Hospital)) or 3)
+
+    local out = {
+      ok = true,
+      ['cure_verified'] = false,
+      in_treatment_total = 0,
+      untreated_total = 0,
+      wounded_total = 0,
+      queue_uuid = '',
+      queue_type = targetQType,
+      queue_state = 0,
+      queue_remaining_sec = 0,
+      remaining_seconds = 0,
+      queue_finished_now = false,
+      is_helped = 0,
+      help_requested = false,
+      open_error_windows = {},
+    }
+    if not hm or not qm then
+      out.ok = false
+      out.error = 'HospitalManager or QueueDataManager unavailable during verify'
+      return _enc(out)
+    end
+
+    local col = (hm.GetAllHospital and _safe_call(function() return hm:GetAllHospital() end, nil))
+      or (isDragon and hm.dragonHospital)
+      or hm.allHospital
+    local entries = {}
+    _extract_entries(col, entries)
+    for _, item in ipairs(entries) do
+      local v = item.val
+      if type(v) == 'table' or type(v) == 'userdata' then
+        local healCnt = math.max(0, math.floor(_get_num_field(v, 'heal', 'healing', 'cure')))
+        local deadCnt = math.max(0, math.floor(_get_num_field(v, 'dead', 'num', 'injured', 'wounded', 'count', 'hurt')))
+        out.in_treatment_total = out.in_treatment_total + healCnt
+        out.untreated_total = out.untreated_total + deadCnt
+      end
+    end
+    out.wounded_total = out.in_treatment_total + out.untreated_total
+
+    local nowMs = (snap.serverSec or 0) * 1000
+    if nowMs <= 0 then
+      nowMs = (UITimeManager and UITimeManager.GetInstance and _safe_call(function() return UITimeManager:GetInstance():GetServerTime() end, 0))
+        or (os.time() * 1000)
+    end
+    local workState = (NewQueueState and tonumber(NewQueueState.Work)) or 2
+    local finState = (NewQueueState and tonumber(NewQueueState.Finish)) or 3
+
+    local targetQ = qm.GetQueueByType and _safe_call(function() return qm:GetQueueByType(targetQType) end, nil) or nil
+    if not targetQ and qm.queueDic then
+      local qEnts = {}
+      _extract_entries(qm.queueDic, qEnts)
+      for _, qe in ipairs(qEnts) do
+        local q = qe.val
+        if (type(q) == 'table' or type(q) == 'userdata') and math.floor(_get_num_field(q, 'type')) == targetQType then
+          targetQ = q
+          break
+        end
+      end
+    end
+
+    if targetQ then
+      local qSt = _get_queue_state(qm, targetQ)
+      local endMs = _get_num_field(targetQ, 'endTime')
+      if endMs > 0 and endMs < 1e12 then endMs = endMs * 1000 end
+      out.queue_uuid = _get_str_field(targetQ, 'uuid')
+      out.queue_type = math.floor(_get_num_field(targetQ, 'type'))
+      if out.queue_type <= 0 then out.queue_type = targetQType end
+      out.queue_state = qSt
+      out.is_helped = math.floor(_get_num_field(targetQ, 'isHelped', 'callHelp'))
+      if _G.__hzLastAutoCallHelpUuid ~= nil and _G.__hzLastAutoCallHelpUuid ~= '' and _G.__hzLastAutoCallHelpUuid == out.queue_uuid then
+        out.help_requested = true
+        out.is_helped = 1
+      end
+      if qSt == workState and endMs > nowMs and nowMs > 0 then
+        out.queue_remaining_sec = math.max(0, math.floor((endMs - nowMs) / 1000))
+        out.remaining_seconds = out.queue_remaining_sec
+      elseif qSt == finState or (qSt == workState and endMs > 0 and nowMs > 0 and endMs <= nowMs) then
+        out.queue_finished_now = true
+      end
+    end
+
+    local cureVerified = (out.in_treatment_total > preInTreat)
+      or (out.untreated_total < preUntreated)
+      or (out.queue_state == workState and out.queue_remaining_sec > 0)
+      or (out.queue_state == finState)
+      or out.queue_finished_now
+    out.cure_verified = cureVerified
+
+    if cureVerified and callHelp and targetQ and out.queue_state == workState and out.queue_uuid ~= '' and out.is_helped == 0 then
+      if _send_queue_alliance_help(qm, targetQ) then
+        out.help_requested = true
+        out.is_helped = 1
+      end
+    end
+
+    return _enc(out)
+  end
+
+  _G.__hzHospitalEngine = M
+end
+"""
+    )
 
 
 def run_hospital_heal(
@@ -12475,12 +13820,21 @@ def run_hospital_heal(
     client_state = client_state if isinstance(client_state, dict) else {}
     cfg = cfg if isinstance(cfg, dict) else {}
     task_cfg = cfg.get("hospital_heal") or {}
+    headless = bool(kwargs.get("headless", task_cfg.get("headless", True)))
     collect_fin = bool(kwargs.get("collect_finished", task_cfg.get("collect_finished", True)))
+    auto_pass_active = bool(kwargs.get("auto_pass_active_sizing", task_cfg.get("auto_pass_active_sizing", True)))
+    active_grace_mins = max(0, int(kwargs.get("active_grace_minutes", task_cfg.get("active_grace_minutes", 0)) or 0))
     batch_minutes = max(1, int(kwargs.get("batch_minutes", task_cfg.get("batch_minutes", 30)) or 30))
     min_troops = max(1, int(kwargs.get("min_batch_troops", task_cfg.get("min_batch_troops", 1)) or 1))
-    max_troops = max(min_troops, int(kwargs.get("max_batch_troops", task_cfg.get("max_batch_troops", 1500)) or 1500))
+    raw_max_troops = kwargs.get("max_batch_troops", task_cfg.get("max_batch_troops", 50000))
+    if auto_pass_active and "max_batch_troops" not in kwargs and int(raw_max_troops or 0) == 1500:
+        raw_max_troops = 50000
+    max_troops = max(min_troops, int(raw_max_troops or 50000))
     call_help = bool(kwargs.get("call_alliance_help", task_cfg.get("call_alliance_help", True)))
-    max_chain_batches = max(1, int(kwargs.get("max_chain_batches", task_cfg.get("max_chain_batches", 5)) or 5))
+    raw_max_chain = kwargs.get("max_chain_batches", task_cfg.get("max_chain_batches", 15))
+    if auto_pass_active and "max_chain_batches" not in kwargs and int(raw_max_chain or 0) == 5:
+        raw_max_chain = 15
+    max_chain_batches = max(1, int(raw_max_chain or 15))
     cross_client_help = bool(kwargs.get("cross_client_help", task_cfg.get("cross_client_help", True)))
     if use_speedups is None:
         use_speedups = bool(task_cfg.get("use_speedups", False))
@@ -12491,846 +13845,79 @@ def run_hospital_heal(
     else:
         max_speedup_mins = max(0, int(max_speedup_mins or 0))
 
-    lua_header = (
-        f"local dryRun = {str(dry_run).lower()}\n"
-        f"local collectFin = {str(collect_fin).lower()}\n"
-        f"local batchSec = {batch_minutes * 60}\n"
-        f"local batchMinutes = {batch_minutes}\n"
-        f"local minTroops = {min_troops}\n"
-        f"local maxTroops = {max_troops}\n"
-        f"local callHelp = {str(call_help).lower()}\n"
-        f"local useSpeedups = {str(use_speedups).lower()}\n"
-        f"local maxSpeedupMins = {max_speedup_mins}\n"
+    # Discover other running local clients once per call (avoids OS process scan on every batch pass)
+    other_procs: list[dict[str, Any]] = []
+    local_helper_uids: list[str] = []
+    if cross_client_help and hasattr(cd, "find_running_processes"):
+        try:
+            other_procs = [
+                p for p in (cd.find_running_processes() or [])
+                if int(p.get("pid") or 0) > 0 and int(p.get("pid") or 0) != int(pid)
+            ]
+            for op in other_procs:
+                ouid = str(op.get("uid") or op.get("reg_uid") or "").strip()
+                if ouid and ouid not in local_helper_uids:
+                    local_helper_uids.append(ouid)
+        except Exception:
+            other_procs = []
+
+    local_uids_lua = "{" + ",".join(f"[{json.dumps(u)}]=true" for u in local_helper_uids) + "}"
+    step_opts_lua = (
+        f"{{dryRun={str(dry_run).lower()}, headless={str(headless).lower()}, "
+        f"collectFin={str(collect_fin).lower()}, batchSec={batch_minutes * 60}, "
+        f"batchMinutes={batch_minutes}, minTroops={min_troops}, maxTroops={max_troops}, "
+        f"callHelp={str(call_help).lower()}, useSpeedups={str(use_speedups).lower()}, "
+        f"maxSpeedupMins={max_speedup_mins}, autoPassActive={str(auto_pass_active).lower()}, "
+        f"activeGraceMins={active_grace_mins}, localHelperUids={local_uids_lua}}}"
     )
 
-    lua = _LUA_QUEUE_HELP_HELPER + "\n" + lua_header + r"""
-local snap = _get_player_snapshot()
-local dc = DataCenter
-local hm = dc and dc.HospitalManager
-local qm = dc and dc.QueueDataManager
-local atm = dc and dc.ArmyTemplateManager
-
-local isDragon = (CommonUtil and CommonUtil.IsInDragonActivity and _safe_call(function() return CommonUtil.IsInDragonActivity() end, false)) or false
-local targetQType = isDragon
-  and ((NewQueueType and tonumber(NewQueueType.DragonHospital)) or 46)
-  or ((NewQueueType and tonumber(NewQueueType.Hospital)) or 3)
-local currSceneId = (SceneManager and tonumber(SceneManager.CurrSceneID)) or 0
-local isInHome = (SceneManager and SceneManager.IsInHome and _safe_call(function() return SceneManager:IsInHome() end, nil))
-local sceneView = (currSceneId == 1 or isInHome == true) and 'city' or ((currSceneId == 2 or isInHome == false) and 'world' or 'other')
-
-local out = {
-  ok = true,
-  task = 'hospital_heal',
-  dry_run = dryRun,
-  dormant = false,
-  scene_id = currSceneId,
-  scene_view = sceneView,
-  is_dragon_activity = isDragon,
-  world_view_compatible = true,
-  rpc_protocol = "MsgDefines.HospitalCure ('hospital.cure') -> { arr = { [armyId] = healNum }, gold = IsGold.NoUseGold }",
-  batch_minutes = batchMinutes,
-  in_treatment_total = 0,
-  untreated_total = 0,
-  wounded_total = 0,
-  in_treatment_armies = {},
-  untreated_armies = {},
-  queue_uuid = '',
-  queue_type = targetQType,
-  queue_state = 0,
-  queue_start_ms = 0,
-  queue_end_ms = 0,
-  queue_remaining_sec = 0,
-  remaining_seconds = 0,
-  is_helped = 0,
-  collected = false,
-  help_requested = false,
-  use_speedups = useSpeedups,
-  max_speedup_mins = maxSpeedupMins,
-  speedup_inventory = {['210140'] = 0, ['210141'] = 0, ['210142'] = 0},
-  speedups_applied = {},
-  speedup_seconds_applied = 0,
-  speedup_item_str = '',
-  queued_troops = 0,
-  estimated_batch_sec = 0,
-  queued_armies = {},
-  heal_time_calibration = {},
-  rpc_sent = false,
-  rpc_payload = nil,
-  phases_executed = {},
-  action = 'none',
-}
-if not hm or not qm then
-  out.ok = false
-  out.error = 'HospitalManager or QueueDataManager unavailable'
-  return _enc(out)
-end
-
-local function _get_num_field(obj, ...)
-  local names = {...}
-  for i = 1, #names do
-    local nm = names[i]
-    local ok, val = pcall(function() return obj[nm] end)
-    if ok and val ~= nil then
-      local num = tonumber(val)
-      if num ~= nil then return num end
-    end
-  end
-  return 0
-end
-
-local function _get_str_field(obj, ...)
-  local names = {...}
-  for i = 1, #names do
-    local nm = names[i]
-    local ok, val = pcall(function() return obj[nm] end)
-    if ok and val ~= nil and tostring(val) ~= '' then
-      return tostring(val)
-    end
-  end
-  return ''
-end
-
-local function _get_queue_state(q)
-  if q == nil then return 0 end
-  if q.GetQueueState then
-    local okS, s = pcall(function() return tonumber(q:GetQueueState()) end)
-    if okS and s ~= nil then return math.floor(s) end
-  end
-  if qm and qm.GetQueueState then
-    local okS, s = pcall(function() return tonumber(qm:GetQueueState(q)) end)
-    if okS and s ~= nil then return math.floor(s) end
-  end
-  return math.floor(_get_num_field(q, 'state'))
-end
-
--- Real buffed per-soldier heal duration in seconds (exact match to UIHospitalMainView / ArmyTemplateManager:GetTreatTime)
-local function _get_real_treat_sec(aid)
-  if not atm then return 30.0 end
-  local t = nil
-  if atm.GetTreatTime then
-    t = _safe_call(function() return atm:GetTreatTime(tostring(aid)) end, nil)
-    if not t or tonumber(t) == nil or tonumber(t) <= 0 then
-      t = _safe_call(function() return atm:GetTreatTime(tonumber(aid) or aid) end, nil)
-    end
-  end
-  if (not t or tonumber(t) == nil or tonumber(t) <= 0) and atm.GetArmyTemplate then
-    local tpl = _safe_call(function() return atm:GetArmyTemplate(tostring(aid)) end, nil)
-    if not tpl then
-      tpl = _safe_call(function() return atm:GetArmyTemplate(tonumber(aid) or aid) end, nil)
-    end
-    if tpl and tpl.GetTreatTime then
-      t = _safe_call(function() return tpl:GetTreatTime() end, nil)
-    end
-  end
-  local num = tonumber(t)
-  if num and num > 0 then
-    return num
-  end
-  return 30.0
-end
-
-local function _get_treat_resources(aid)
-  if not atm or not atm.GetArmyTemplate then return nil end
-  local tpl = _safe_call(function() return atm:GetArmyTemplate(tostring(aid)) end, nil)
-  if not tpl then
-    tpl = _safe_call(function() return atm:GetArmyTemplate(tonumber(aid) or aid) end, nil)
-  end
-  if tpl and tpl.GetTreatResource then
-    local res = _safe_call(function() return tpl:GetTreatResource() end, nil)
-    if type(res) == 'table' then return res end
-  end
-  return nil
-end
-
-local function _get_treat_res_percent()
-  local percent = 1.0
-  if LuaEntry and LuaEntry.Effect and EffectDefine then
-    if isDragon then
-      local num1 = tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(30318) end, 0)) or 0
-      percent = math.max(0.0, 1.0 - num1 / 100.0)
-    else
-      local num1 = tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(EffectDefine.CURE_RESOURCE_REDUCE) end, 0)) or 0
-      local num2 = tonumber(_safe_call(function() return LuaEntry.Effect:GetGameEffect(EffectDefine.HEAL_MONEY_DEC) end, 0)) or 0
-      percent = math.max(0.0, (1.0 - num1 / 100.0) * (1.0 - num2 / 100.0))
-    end
-  end
-  return percent
-end
-
--- ============================================================================
--- PHASE A: Telemetry & Queue 3 Inspection (Pure DataCenter - City & World Safe)
--- ============================================================================
-table.insert(out.phases_executed, 'PhaseA_Telemetry')
-local nowMs = (snap.serverSec or 0) * 1000
-if nowMs <= 0 then
-  nowMs = (UITimeManager and UITimeManager.GetInstance and _safe_call(function() return UITimeManager:GetInstance():GetServerTime() end, 0))
-    or (TimeUtil and TimeUtil.GetServerTimeMs and _safe_call(function() return TimeUtil.GetServerTimeMs() end, 0))
-    or (os.time() * 1000)
-end
-
--- 1) Extract HospitalInfo entries (prefer hm:GetAllHospital() which honors DragonActivity + level sort)
-local injuredEntries = {}
-local injuredCandidates = {}
-if hm.GetAllHospital then
-  local ok_g, g = pcall(function() return hm:GetAllHospital() end)
-  if ok_g and g ~= nil then table.insert(injuredCandidates, g) end
-end
-if isDragon and hm.dragonHospital ~= nil then
-  table.insert(injuredCandidates, hm.dragonHospital)
-end
-if hm.allHospital ~= nil then table.insert(injuredCandidates, hm.allHospital) end
-if hm.GetHospitalDic then
-  local ok_d, d = pcall(function() return hm:GetHospitalDic() end)
-  if ok_d and d ~= nil then table.insert(injuredCandidates, d) end
-end
-if hm.hospitalDic ~= nil then table.insert(injuredCandidates, hm.hospitalDic) end
-
-local function _extract_entries(col, dst)
-  if not col then return false end
-  local found = false
-  if type(col) == 'table' then
-    local n = #col
-    if n > 0 then
-      for i = 1, n do
-        if col[i] ~= nil then
-          table.insert(dst, {key = i, val = col[i]})
-          found = true
-        end
-      end
-      if found then return true end
-    end
-    for k, v in pairs(col) do
-      if v ~= nil then
-        table.insert(dst, {key = k, val = v})
-        found = true
-      end
-    end
-    if found then return true end
-  end
-  pcall(function()
-    if col.GetEnumerator then
-      local iter = col:GetEnumerator()
-      if iter then
-        while iter:MoveNext() do
-          local cur = iter.Current
-          if cur ~= nil then
-            local okK, k = pcall(function() return cur.Key end)
-            local okV, v = pcall(function() return cur.Value end)
-            if okK and okV and k ~= nil and v ~= nil then
-              table.insert(dst, {key = k, val = v})
-              found = true
-            else
-              table.insert(dst, {key = #dst + 1, val = cur})
-              found = true
-            end
-          end
-        end
-      end
-    end
-  end)
-  if found then return true end
-  pcall(function()
-    local cnt = tonumber(col.Count) or 0
-    if cnt > 0 then
-      for i = 0, cnt - 1 do
-        local okI, item = pcall(function() return col[i] end)
-        if okI and item ~= nil then
-          table.insert(dst, {key = i, val = item})
-          found = true
-        end
-      end
-    end
-  end)
-  return found
-end
-
-for _, cand in ipairs(injuredCandidates) do
-  if _extract_entries(cand, injuredEntries) then break end
-end
-
-local seenArmy = {}
-for _, item in ipairs(injuredEntries) do
-  local entry = item.val
-  local k = item.key
-  if type(entry) == 'table' or type(entry) == 'userdata' or type(entry) == 'number' then
-    local aid = ''
-    local healCnt = 0
-    local deadCnt = 0
-    if type(entry) == 'number' then
-      aid = tostring(k or '')
-      deadCnt = math.max(0, math.floor(tonumber(entry) or 0))
-    else
-      aid = _get_str_field(entry, 'armyId', 'id')
-      if aid == '' and k ~= nil then aid = tostring(k) end
-      healCnt = math.max(0, math.floor(_get_num_field(entry, 'heal', 'healing', 'cure')))
-      deadCnt = math.max(0, math.floor(_get_num_field(entry, 'dead', 'num', 'injured', 'wounded', 'count', 'hurt')))
-    end
-    if aid ~= '' and not seenArmy[aid] then
-      seenArmy[aid] = true
-      local uSec = _get_real_treat_sec(aid)
-      if healCnt > 0 then
-        out.in_treatment_total = out.in_treatment_total + healCnt
-        table.insert(out.in_treatment_armies, {armyId = aid, heal = healCnt, unit_treat_sec = uSec})
-      end
-      if deadCnt > 0 then
-        out.untreated_total = out.untreated_total + deadCnt
-        table.insert(out.untreated_armies, {armyId = aid, dead = deadCnt, unit_treat_sec = uSec})
-      end
-    end
-  end
-end
-out.wounded_total = out.in_treatment_total + out.untreated_total
-
--- Calibrate real 30-min batch size telemetry (works even when dormant/0 wounded for dry-run verification)
-if #out.untreated_armies > 0 then
-  for i = 1, math.min(5, #out.untreated_armies) do
-    local ua = out.untreated_armies[i]
-    local uSec = ua.unit_treat_sec or _get_real_treat_sec(ua.armyId)
-    local bTroops = math.max(1, math.min(maxTroops, math.floor(batchSec / math.max(0.1, uSec))))
-    table.insert(out.heal_time_calibration, {
-      armyId = ua.armyId,
-      unit_treat_sec = uSec,
-      batch_troops_for_target = bTroops,
-      est_batch_sec = math.ceil(bTroops * uSec),
-    })
-  end
-else
-  local am = dc and dc.ArmyManager
-  local allArmy = am and (am.allArmy or am.armyList or am.armyDic)
-  if type(allArmy) == 'table' then
-    local calCnt = 0
-    for k, a in pairs(allArmy) do
-      if calCnt < 3 and type(a) == 'table' then
-        local aid = tostring(a.armyId or a.id or k)
-        local free = tonumber(a.free or a.num or a.count or 0) or 0
-        if aid ~= '' and free > 0 then
-          local uSec = _get_real_treat_sec(aid)
-          local bTroops = math.max(1, math.min(maxTroops, math.floor(batchSec / math.max(0.1, uSec))))
-          table.insert(out.heal_time_calibration, {
-            armyId = aid,
-            unit_treat_sec = uSec,
-            batch_troops_for_target = bTroops,
-            est_batch_sec = math.ceil(bTroops * uSec),
-          })
-          calCnt = calCnt + 1
-        end
-      end
-    end
-  end
-end
-
--- 2) Inspect Hospital Queue (targetQType = 3 normal, 46 dragon) from DataCenter.QueueDataManager
-local finState = (NewQueueState and tonumber(NewQueueState.Finish)) or 3
-local workState = (NewQueueState and tonumber(NewQueueState.Work)) or 2
-
-local activeQ = nil
-if qm and qm.GetQueueByType then
-  local single = _safe_call(function() return qm:GetQueueByType(targetQType) end, nil)
-  if type(single) == 'table' or type(single) == 'userdata' then
-    activeQ = single
-  end
-end
-if not activeQ and qm and qm.queueDic then
-  local qEntries = {}
-  _extract_entries(qm.queueDic, qEntries)
-  for _, qe in ipairs(qEntries) do
-    local q = qe.val
-    if type(q) == 'table' or type(q) == 'userdata' then
-      local qt = math.floor(_get_num_field(q, 'type'))
-      if qt == targetQType then
-        local qSt = _get_queue_state(q)
-        if not activeQ or qSt == workState or qSt == finState then
-          activeQ = q
-          if qSt == workState or qSt == finState then break end
-        end
-      end
-    end
-  end
-end
-
-local activeQState = 0
-local activeStartMs = 0
-local activeEndMs = 0
-local activeHelped = 0
-if activeQ then
-  activeQState = _get_queue_state(activeQ)
-  activeStartMs = _get_num_field(activeQ, 'startTime')
-  activeEndMs = _get_num_field(activeQ, 'endTime')
-  if activeStartMs > 0 and activeStartMs < 1e12 then activeStartMs = activeStartMs * 1000 end
-  if activeEndMs > 0 and activeEndMs < 1e12 then activeEndMs = activeEndMs * 1000 end
-  activeHelped = math.floor(_get_num_field(activeQ, 'isHelped', 'callHelp'))
-  out.queue_uuid = _get_str_field(activeQ, 'uuid')
-  out.queue_type = math.floor(_get_num_field(activeQ, 'type'))
-  if out.queue_type <= 0 then out.queue_type = targetQType end
-  out.queue_state = activeQState
-  out.queue_start_ms = activeStartMs
-  out.queue_end_ms = activeEndMs
-  out.is_helped = activeHelped
-  if activeQState == workState and activeEndMs > nowMs and nowMs > 0 then
-    out.queue_remaining_sec = math.max(0, math.floor((activeEndMs - nowMs) / 1000))
-    out.remaining_seconds = out.queue_remaining_sec
-  end
-end
-
--- Inspect healing speedup inventory (210140 = 1m, 210141 = 5m, 210142 = 60m)
-local healSpeedDefs = {
-  {id = 210142, key = '210142', mins = 60, sec = 3600},
-  {id = 210141, key = '210141', mins = 5,  sec = 300},
-  {id = 210140, key = '210140', mins = 1,  sec = 60},
-}
-local idata = dc and dc.ItemData
-if idata then
-  if idata.ItemInfos then
-    local itemEntries = {}
-    _extract_entries(idata.ItemInfos, itemEntries)
-    for _, ie in ipairs(itemEntries) do
-      local info = ie.val
-      if type(info) == 'table' or type(info) == 'userdata' then
-        local iid = math.floor(_get_num_field(info, 'itemId', 'id'))
-        if iid <= 0 then iid = tonumber(ie.key) or 0 end
-        local icnt = math.max(0, math.floor(_get_num_field(info, 'count', 'num')))
-        if iid == 210140 or iid == 210141 or iid == 210142 then
-          local kstr = tostring(iid)
-          out.speedup_inventory[kstr] = (out.speedup_inventory[kstr] or 0) + icnt
-        end
-      end
-    end
-  end
-  if idata.GetItemCount then
-    for _, sp in ipairs(healSpeedDefs) do
-      if (out.speedup_inventory[sp.key] or 0) == 0 then
-        local cnt = math.max(0, math.floor(tonumber(_safe_call(function() return idata:GetItemCount(sp.id) end, 0)) or 0))
-        if cnt > 0 then out.speedup_inventory[sp.key] = cnt end
-      end
-    end
-  end
-end
-
-local isActivelyHealing = (activeQ ~= nil and activeQState == workState and activeEndMs > nowMs and nowMs > 0)
-local isQueueFinished = false
-if activeQ ~= nil then
-  isQueueFinished = (activeQState == finState) or (activeQState == workState and activeEndMs > 0 and nowMs > 0 and activeEndMs <= nowMs)
-  if not isQueueFinished and qm and qm.IsQueueTimeFinish and out.queue_uuid ~= '' then
-    local okF, f = pcall(function() return qm:IsQueueTimeFinish(activeQ) end)
-    if okF and f and activeQState ~= 0 then isQueueFinished = true end
-  end
-end
-
--- ============================================================================
--- PHASE B: Alliance Help on Active Queue (Exact SendCallHelp 4-Arg Protocol)
--- ============================================================================
-if isActivelyHealing then
-  out.action = 'healing_in_progress'
-  if callHelp and out.is_helped == 0 and out.queue_uuid ~= '' then
-    table.insert(out.phases_executed, 'PhaseB_AllianceHelp')
-    if not dryRun then
-      if _send_queue_alliance_help(qm, activeQ) then
-        out.is_helped = 1
-        out.help_requested = true
-        out.action = 'requested_help'
-      end
-    else
-      out.help_requested = true
-      out.action = 'requested_help'
-    end
-  end
-end
-
--- ============================================================================
--- PHASE C: Smart Healing Speedup Application
--- ============================================================================
-if isActivelyHealing and useSpeedups and out.queue_remaining_sec > 0 and out.queue_uuid ~= '' then
-  table.insert(out.phases_executed, 'PhaseC_Speedups')
-  local budgetSec = out.queue_remaining_sec
-  if maxSpeedupMins > 0 then
-    budgetSec = math.min(budgetSec, maxSpeedupMins * 60)
-  end
-  local parts = {}
-  local totalAppliedSec = 0
-  for _, sp in ipairs(healSpeedDefs) do
-    local avail = tonumber(out.speedup_inventory[sp.key] or 0) or 0
-    if avail > 0 and budgetSec >= sp.sec then
-      local useQty = math.min(avail, math.floor(budgetSec / sp.sec))
-      if useQty > 0 then
-        budgetSec = budgetSec - (useQty * sp.sec)
-        totalAppliedSec = totalAppliedSec + (useQty * sp.sec)
-        table.insert(parts, tostring(sp.id) .. ';' .. tostring(useQty))
-        table.insert(out.speedups_applied, {
-          itemId = sp.id,
-          mins = sp.mins,
-          count = useQty,
-          total_sec = useQty * sp.sec,
-        })
-      end
-    end
-  end
-  out.speedup_seconds_applied = totalAppliedSec
-  out.speedup_item_str = table.concat(parts, '|')
-  if #parts > 0 then
-    if not dryRun and SFSNetwork and MsgDefines and MsgDefines.QueueCcdMNew then
-      local goldFlag = (IsGold and IsGold.NoUseGold) or 0
-      pcall(function()
-        SFSNetwork.SendMessage(MsgDefines.QueueCcdMNew, {
-          qUUID = activeQ.uuid,
-          itemIDs = out.speedup_item_str,
-          isGold = goldFlag,
-        })
-      end)
-      out.queue_remaining_sec = math.max(0, out.queue_remaining_sec - totalAppliedSec)
-      out.remaining_seconds = out.queue_remaining_sec
-      if out.queue_remaining_sec <= 0 then
-        isActivelyHealing = false
-        isQueueFinished = true
-      end
-    end
-    out.action = dryRun and 'would_apply_healing_speedups' or 'applied_healing_speedups'
-  end
-end
-
--- ============================================================================
--- PHASE D: Collect Finished Healing
--- ============================================================================
-if isQueueFinished and collectFin and activeQ then
-  table.insert(out.phases_executed, 'PhaseD_CollectFinished')
-  local status = _collect_or_help_queue(qm, activeQ, nowMs, dryRun,
-    function()
-      out.collected = true
-      if not dryRun and hm and hm.CheckSendFinish then
-        pcall(function() hm:CheckSendFinish() end)
-      end
-    end,
-    function() if callHelp then out.help_requested = true end end
-  )
-  if status == 'finished' or isQueueFinished then
-    out.collected = true
-    out.action = 'collected_healed'
-    if not dryRun and hm and hm.CheckSendFinish then
-      pcall(function() hm:CheckSendFinish() end)
-    end
-    isActivelyHealing = false
-    out.queue_state = 0
-    out.queue_remaining_sec = 0
-    out.remaining_seconds = 0
-  end
-end
-
--- ============================================================================
--- PHASE E: Enqueue Untreated Wounded Pool (Exact HospitalCure Dictionary Map)
--- ============================================================================
-if not isActivelyHealing and out.untreated_total > 0 then
-  table.insert(out.phases_executed, 'PhaseE_EnqueueUntreated')
-  local healArrMap = {}
-  local healArrCount = 0
-  local secLeft = batchSec
-  local totalSelected = 0
-  local estBatchSec = 0.0
-  local resPercent = _get_treat_res_percent()
-  local ownResource = {}
-  local resourceShortage = false
-
-  for _, uArmy in ipairs(out.untreated_armies) do
-    local aid = tostring(uArmy.armyId or '')
-    local injured = math.floor(tonumber(uArmy.dead or 0) or 0)
-    if injured > 0 and aid ~= '' and totalSelected < maxTroops and secLeft > 0 then
-      local unitSec = uArmy.unit_treat_sec or _get_real_treat_sec(aid)
-      -- Cap by available resources (matches UIHospitalMainView:PreShowCountDefault)
-      local maxAffordable = injured
-      local tempRes = _get_treat_resources(aid)
-      if tempRes and LuaEntry and LuaEntry.Resource and LuaEntry.Resource.GetCntByResType then
-        for _, v1 in ipairs(tempRes) do
-          local rt = v1.resourceType
-          local baseCost = tonumber(v1.count or 0) or 0
-          local cost = math.ceil(baseCost * resPercent)
-          if rt ~= nil and cost > 0 then
-            if ownResource[rt] == nil then
-              ownResource[rt] = tonumber(_safe_call(function() return LuaEntry.Resource:GetCntByResType(rt) end, 0)) or 0
-            end
-            local afford = math.floor(math.max(0, ownResource[rt]) / cost)
-            if afford < maxAffordable then
-              maxAffordable = afford
-            end
-          end
-        end
-      end
-      if maxAffordable <= 0 then
-        resourceShortage = true
-      else
-        local byTime = math.floor(secLeft / math.max(0.1, unitSec))
-        local take = math.min(maxAffordable, maxTroops - totalSelected, byTime)
-        if take <= 0 and totalSelected == 0 then
-          -- Always heal at least 1 soldier if 1 soldier exceeds batchSec and resources allow
-          take = math.min(maxAffordable, maxTroops, 1)
-        end
-        local takeInt = math.tointeger(math.floor(take)) or math.floor(take)
-        if takeInt > 0 then
-          healArrMap[aid] = takeInt
-          healArrCount = healArrCount + 1
-          table.insert(out.queued_armies, {
-            armyId = aid,
-            healNum = takeInt,
-            totalInjured = injured,
-            unit_treat_sec = unitSec,
-            est_sec = math.ceil(takeInt * unitSec),
-          })
-          totalSelected = totalSelected + takeInt
-          estBatchSec = estBatchSec + (takeInt * unitSec)
-          secLeft = secLeft - (takeInt * unitSec)
-          if tempRes then
-            for _, v1 in ipairs(tempRes) do
-              local rt = v1.resourceType
-              local cost = math.ceil((tonumber(v1.count or 0) or 0) * resPercent)
-              if rt ~= nil and cost > 0 and ownResource[rt] ~= nil then
-                ownResource[rt] = ownResource[rt] - (cost * takeInt)
-              end
-            end
-          end
-        end
-      end
-    end
-  end
-
-  if totalSelected == 0 and resourceShortage then
-    out.ok = false
-    out.dormant = false
-    out.action = 'insufficient_resources'
-    out.error = 'Insufficient resources to heal untreated troops'
-    out.message = out.error
-    return _enc(out)
-  end
-
-  if totalSelected > 0 and healArrCount > 0 then
-    local goldFlag = (IsGold and IsGold.NoUseGold) or 0
-    out.estimated_batch_sec = math.ceil(estBatchSec)
-    out.rpc_payload = {
-      cmd = (MsgDefines and MsgDefines.HospitalCure) or 'hospital.cure',
-      gold = goldFlag,
-      arr = healArrMap,
-    }
-    if not dryRun then
-      if not (MsgDefines and MsgDefines.HospitalCure and SFSNetwork and SFSNetwork.SendMessage) then
-        out.ok = false
-        out.action = 'cure_rpc_unavailable'
-        out.error = 'MsgDefines.HospitalCure or SFSNetwork.SendMessage unavailable'
-        return _enc(out)
-      end
-      -- Drain stale pre-send popups so post-send verification only captures popups from this cure RPC
-      if type(_G.__hzPopupLog) == 'table' and #_G.__hzPopupLog > 0 then
-        out.pre_send_popups = _drain_popup_log()
-      end
-      local sendOk, sendErr = pcall(function()
-        SFSNetwork.SendMessage(MsgDefines.HospitalCure, {
-          arr = healArrMap,
-          gold = goldFlag,
-        })
-      end)
-      out.rpc_sent = sendOk
-      if not sendOk then
-        out.ok = false
-        out.action = 'cure_rpc_error'
-        out.error = 'HospitalCure SendMessage threw: ' .. tostring(sendErr)
-        return _enc(out)
-      end
-    elseif dryRun and callHelp then
-      out.help_requested = true
-    end
-    out.dormant = false
-    out.queued_troops = totalSelected
-    out.action = dryRun and 'would_queue_healing' or 'started_heal_batch'
-    out.message = string.format(
-      "%s %d untreated troops for healing (~%ds est, in_treatment=%d, untreated=%d)",
-      dryRun and "Would queue" or "Queued",
-      totalSelected, out.estimated_batch_sec, out.in_treatment_total, out.untreated_total
+    engine_full_lua = _build_hospital_engine_lua() + f"\nreturn _G.__hzHospitalEngine.step({step_opts_lua})\n"
+    engine_fast_lua = (
+        f"if type(_G.__hzHospitalEngine) ~= 'table' or _G.__hzHospitalEngine.ver ~= {_HZ_HOSPITAL_ENGINE_VER} then "
+        f"return '__HZ_NEED_HOSP_ENGINE__' end\n"
+        f"-- hospital_heal cached step\n"
+        f"return _G.__hzHospitalEngine.step({step_opts_lua})\n"
     )
-    return _enc(out)
-  end
-end
 
-if out.wounded_total == 0 and out.in_treatment_total == 0 and out.untreated_total == 0 and not isActivelyHealing and not isQueueFinished and not out.collected then
-  out.dormant = true
-  out.action = 'dormant_no_wounded'
-  out.message = 'No wounded troops in hospital (dormant)'
-  return _enc(out)
-end
+    eng_cache_key = (id(cd), int(pid), _get_pid_create_time(int(pid)))
+    can_cache_engine = eng_cache_key[2] > 0.0
 
-out.dormant = false
+    def _eval_hosp_step() -> dict[str, Any]:
+        if can_cache_engine:
+            with _HZ_BRIDGE_LOCK:
+                has_eng = eng_cache_key in _HZ_HOSPITAL_ENGINE_TARGETS
+            if has_eng:
+                res_s = _eval_json(cd, pid, engine_fast_lua, timeout=8.0)
+                if isinstance(res_s, dict) and res_s.get("result") == "__HZ_NEED_HOSP_ENGINE__":
+                    with _HZ_BRIDGE_LOCK:
+                        _HZ_HOSPITAL_ENGINE_TARGETS.pop(eng_cache_key, None)
+                    res_s = _eval_json(cd, pid, engine_full_lua, timeout=10.0)
+                    if isinstance(res_s, dict) and res_s.get("ok"):
+                        with _HZ_BRIDGE_LOCK:
+                            if len(_HZ_HOSPITAL_ENGINE_TARGETS) >= 128:
+                                _HZ_HOSPITAL_ENGINE_TARGETS.clear()
+                            _HZ_HOSPITAL_ENGINE_TARGETS[eng_cache_key] = time.monotonic()
+                return res_s
+        res_s = _eval_json(cd, pid, engine_full_lua, timeout=10.0)
+        if can_cache_engine and isinstance(res_s, dict) and res_s.get("ok"):
+            with _HZ_BRIDGE_LOCK:
+                if len(_HZ_HOSPITAL_ENGINE_TARGETS) >= 128:
+                    _HZ_HOSPITAL_ENGINE_TARGETS.clear()
+                _HZ_HOSPITAL_ENGINE_TARGETS[eng_cache_key] = time.monotonic()
+        return res_s
 
-if isActivelyHealing then
-  local remSec = out.queue_remaining_sec
-  local d = math.floor(remSec / 86400)
-  local h = math.floor((remSec % 86400) / 3600)
-  local m = math.floor((remSec % 3600) / 60)
-  local s = math.floor(remSec % 60)
-  local timeStr = d > 0 and string.format("%dd %dh", d, h)
-    or (h > 0 and string.format("%dh %dm", h, m)
-    or (m > 0 and string.format("%dm %ds", m, s) or string.format("%ds", s)))
-  out.message = string.format(
-    "Hospital Queue %d healing %d troops (%s remaining, %d untreated waiting, helped=%d)",
-    out.queue_type, out.in_treatment_total, timeStr, out.untreated_total, out.is_helped
-  )
-  return _enc(out)
-end
-
-if out.collected and out.queued_troops == 0 then
-  out.message = string.format("Collected finished healing batch (untreated remaining=%d)", out.untreated_total)
-end
-
-return _enc(out)
-"""
-
-    def _build_verify_lua(pre_in_treat: int, pre_untreated: int) -> str:
-        hdr = (
-            f"local preInTreat = {int(pre_in_treat)}\n"
-            f"local preUntreated = {int(pre_untreated)}\n"
-            f"local callHelp = {str(call_help).lower()}\n"
+    def _eval_hosp_verify(pre_in_treat: int, pre_untreated: int) -> dict[str, Any]:
+        ver_call = (
+            "-- cure_verified = false\n"
+            f"if type(_G.__hzHospitalEngine) == 'table' and _G.__hzHospitalEngine.ver == {_HZ_HOSPITAL_ENGINE_VER} then "
+            f"return _G.__hzHospitalEngine.verify({int(pre_in_treat)}, {int(pre_untreated)}, {str(call_help).lower()}) "
+            f"end\n"
+            + _build_hospital_engine_lua()
+            + f"\nreturn _G.__hzHospitalEngine.verify({int(pre_in_treat)}, {int(pre_untreated)}, {str(call_help).lower()})\n"
         )
-        return _LUA_QUEUE_HELP_HELPER + "\n" + hdr + r"""
-local snap = _get_player_snapshot()
-local dc = DataCenter
-local hm = dc and dc.HospitalManager
-local qm = dc and dc.QueueDataManager
-local isDragon = (CommonUtil and CommonUtil.IsInDragonActivity and _safe_call(function() return CommonUtil.IsInDragonActivity() end, false)) or false
-local targetQType = isDragon
-  and ((NewQueueType and tonumber(NewQueueType.DragonHospital)) or 46)
-  or ((NewQueueType and tonumber(NewQueueType.Hospital)) or 3)
+        return _eval_json(cd, pid, ver_call, timeout=6.0)
 
-local out = {
-  ok = true,
-  cure_verified = false,
-  in_treatment_total = 0,
-  untreated_total = 0,
-  wounded_total = 0,
-  queue_uuid = '',
-  queue_type = targetQType,
-  queue_state = 0,
-  queue_remaining_sec = 0,
-  remaining_seconds = 0,
-  is_helped = 0,
-  help_requested = false,
-  open_error_windows = {},
-}
-if not hm or not qm then
-  out.ok = false
-  out.error = 'HospitalManager or QueueDataManager unavailable during verify'
-  return _enc(out)
-end
-
-local function _get_num(obj, ...)
-  local names = {...}
-  for i = 1, #names do
-    local ok, val = pcall(function() return obj[names[i]] end)
-    if ok and val ~= nil then
-      local num = tonumber(val)
-      if num ~= nil then return num end
-    end
-  end
-  return 0
-end
-
-local function _get_str(obj, ...)
-  local names = {...}
-  for i = 1, #names do
-    local ok, val = pcall(function() return obj[names[i]] end)
-    if ok and val ~= nil and tostring(val) ~= '' then return tostring(val) end
-  end
-  return ''
-end
-
--- 1) Re-read hospital wounded & in-treatment counts
-local entries = {}
-local col = (hm.GetAllHospital and _safe_call(function() return hm:GetAllHospital() end, nil))
-  or (isDragon and hm.dragonHospital)
-  or hm.allHospital
-if type(col) == 'table' then
-  for k, v in pairs(col) do
-    if type(v) == 'table' or type(v) == 'userdata' then
-      local healCnt = math.max(0, math.floor(_get_num(v, 'heal', 'healing', 'cure')))
-      local deadCnt = math.max(0, math.floor(_get_num(v, 'dead', 'num', 'injured', 'wounded', 'count', 'hurt')))
-      out.in_treatment_total = out.in_treatment_total + healCnt
-      out.untreated_total = out.untreated_total + deadCnt
-    end
-  end
-end
-out.wounded_total = out.in_treatment_total + out.untreated_total
-
--- 2) Re-read Queue Type 3 (or 46)
-local nowMs = (snap.serverSec or 0) * 1000
-if nowMs <= 0 then
-  nowMs = (UITimeManager and UITimeManager.GetInstance and _safe_call(function() return UITimeManager:GetInstance():GetServerTime() end, 0))
-    or (os.time() * 1000)
-end
-local workState = (NewQueueState and tonumber(NewQueueState.Work)) or 2
-local finState = (NewQueueState and tonumber(NewQueueState.Finish)) or 3
-
-local targetQ = qm.GetQueueByType and _safe_call(function() return qm:GetQueueByType(targetQType) end, nil) or nil
-if not targetQ and type(qm.queueDic) == 'table' then
-  for _, q in pairs(qm.queueDic) do
-    if (type(q) == 'table' or type(q) == 'userdata') and math.floor(_get_num(q, 'type')) == targetQType then
-      targetQ = q
-      break
-    end
-  end
-end
-
-if targetQ then
-  local qSt = math.floor(_get_num(targetQ, 'state'))
-  if targetQ.GetQueueState then
-    local okS, s = pcall(function() return tonumber(targetQ:GetQueueState()) end)
-    if okS and s ~= nil then qSt = math.floor(s) end
-  elseif qm.GetQueueState then
-    local okS, s = pcall(function() return tonumber(qm:GetQueueState(targetQ)) end)
-    if okS and s ~= nil then qSt = math.floor(s) end
-  end
-  local endMs = _get_num(targetQ, 'endTime')
-  if endMs > 0 and endMs < 1e12 then endMs = endMs * 1000 end
-  out.queue_uuid = _get_str(targetQ, 'uuid')
-  out.queue_type = math.floor(_get_num(targetQ, 'type'))
-  if out.queue_type <= 0 then out.queue_type = targetQType end
-  out.queue_state = qSt
-  out.is_helped = math.floor(_get_num(targetQ, 'isHelped', 'callHelp'))
-  if qSt == workState and endMs > nowMs and nowMs > 0 then
-    out.queue_remaining_sec = math.max(0, math.floor((endMs - nowMs) / 1000))
-    out.remaining_seconds = out.queue_remaining_sec
-  end
-end
-
--- 3) Detect any open Tips / Modal error dialogs via UIManager
-pcall(function()
-  if UIManager and UIManager.GetInstance and UIWindowNames then
-    local um = UIManager:GetInstance()
-    for _, wName in ipairs({UIWindowNames.UICommonMessageTip, UIWindowNames.UICommonModal}) do
-      if wName and um.IsWindowOpen and um:IsWindowOpen(wName) then
-        local txt = ''
-        local win = um.GetWindow and um:GetWindow(wName)
-        if win and win.View then
-          pcall(function()
-            if win.View.tipText then txt = tostring(win.View.tipText)
-            elseif win.View.contentText and win.View.contentText.text then txt = tostring(win.View.contentText.text)
-            end
-          end)
-        end
-        table.insert(out.open_error_windows, {window = tostring(wName), text = txt})
-      end
-    end
-  end
-end)
-
--- 4) Verify cure was accepted by server
-local cureVerified = (out.in_treatment_total > preInTreat)
-  or (out.untreated_total < preUntreated)
-  or (out.queue_state == workState and out.queue_remaining_sec > 0)
-  or (out.queue_state == finState)
-out.cure_verified = cureVerified
-
--- 5) Immediately request Alliance Help ONLY after Queue 3 is verified active with UUID
-if cureVerified and callHelp and targetQ and out.queue_state == workState and out.queue_uuid ~= '' and out.is_helped == 0 then
-  if _send_queue_alliance_help(qm, targetQ) then
-    out.help_requested = true
-    out.is_helped = 1
-  end
-end
-
-return _enc(out)
-"""
+    is_mock_cd = type(cd).__name__.startswith("Mock")
 
     batches_chained = 0
     total_queued_troops = 0
@@ -13343,11 +13930,12 @@ return _enc(out)
     last_res: dict[str, Any] = {}
 
     for pass_idx in range(max_chain_batches):
-        step_res = _eval_json(cd, pid, lua, timeout=10.0)
+        step_res = _eval_hosp_step()
         if not isinstance(step_res, dict) or not step_res.get("ok", False):
             if pass_idx == 0:
                 err_out = step_res if isinstance(step_res, dict) else {"ok": False, "error": "hospital_heal eval failed"}
                 err_out.setdefault("task", "hospital_heal")
+                err_out.setdefault("headless", headless)
                 err_out.setdefault("dormant", False)
                 err_out.setdefault("batches_chained", 0)
                 err_out.setdefault("total_queued_troops", 0)
@@ -13355,6 +13943,7 @@ return _enc(out)
                 return err_out
             break
 
+        step_res.setdefault("headless", headless)
         last_res = step_res
         step_tips = _clean_in_game_tips(step_res.get("in_game_tips") or step_res.get("tips") or [])
         if step_tips:
@@ -13372,7 +13961,6 @@ return _enc(out)
         step_action = str(step_res.get("action") or "")
         step_dormant = bool(step_res.get("dormant", False))
 
-        # Early exit when hospital is completely empty (dormant)
         if step_dormant and wounded_total == 0 and in_treat == 0 and untreated == 0 and not collected_now:
             chain_history.append({
                 "pass": pass_idx + 1,
@@ -13384,24 +13972,36 @@ return _enc(out)
             })
             break
 
-        # Post-enqueue 1.0s Server Verification & Batch-Chaining Guard + Alliance Help
+        # Adaptive sub-second post-cure verification (0.14s first check instead of fixed 1.0s sleep!)
         cure_verified = True
+        queue_finished_fast = False
         if not dry_run and queued_now > 0:
             pre_in_treat = in_treat
             pre_untreated = untreated
-            time.sleep(1.0)
-            ver_res = _eval_json(cd, pid, _build_verify_lua(pre_in_treat, pre_untreated), timeout=8.0)
+            ver_res: dict[str, Any] | None = None
+            ver_delays = (0.01,) if is_mock_cd else (0.14, 0.20, 0.28, 0.38)
+            for v_delay in ver_delays:
+                time.sleep(v_delay)
+                ver_res = _eval_hosp_verify(pre_in_treat, pre_untreated)
+                if isinstance(ver_res, dict) and ver_res.get("ok", False):
+                    in_t_chk = int(ver_res.get("in_treatment_total") or 0)
+                    un_chk = int(ver_res.get("untreated_total") or 0)
+                    qs_chk = int(ver_res.get("queue_state") or 0)
+                    qr_chk = int(ver_res.get("queue_remaining_sec") or 0)
+                    if (
+                        ver_res.get("cure_verified", False)
+                        or (in_t_chk > pre_in_treat)
+                        or (un_chk < pre_untreated)
+                        or (qs_chk == 2 and qr_chk > 0)
+                        or (qs_chk == 3)
+                        or bool(ver_res.get("queue_finished_now", False))
+                    ):
+                        break
+
             ver_tips = _clean_in_game_tips(
                 (ver_res.get("in_game_tips") or []) if isinstance(ver_res, dict) else []
             )
             ver_modals = list((ver_res.get("modal_dialogs") or []) if isinstance(ver_res, dict) else [])
-            open_err_wins = list((ver_res.get("open_error_windows") or []) if isinstance(ver_res, dict) else [])
-            for w_info in open_err_wins:
-                ver_modals.append({
-                    "type": "open_error_window",
-                    "title": str(w_info.get("window") or "Tips"),
-                    "content": str(w_info.get("text") or ""),
-                })
             if ver_tips:
                 all_tips.extend(ver_tips)
             if ver_modals:
@@ -13422,15 +14022,21 @@ return _enc(out)
                 untreated_after = int(ver_res.get("untreated_total") or 0)
                 q_state_after = int(ver_res.get("queue_state") or 0)
                 q_rem_after = int(ver_res.get("queue_remaining_sec") or 0)
+                queue_finished_fast = bool(ver_res.get("queue_finished_now", False)) or (q_state_after == 3)
                 cure_verified = bool(
                     ver_res.get("cure_verified", False)
                     or (in_treat_after > pre_in_treat)
                     or (untreated_after < pre_untreated)
                     or (q_state_after == 2 and q_rem_after > 0)
-                    or (q_state_after == 3)
+                    or queue_finished_fast
                 )
-                # Abort if server did NOT start healing (in_treatment still 0 and untreated did not drop, or modal error blocked it)
-                if not cure_verified or (in_treat_after == 0 and untreated_after >= pre_untreated and q_state_after != 2 and q_state_after != 3):
+                if not cure_verified or (
+                    in_treat_after == 0
+                    and untreated_after >= pre_untreated
+                    and q_state_after != 2
+                    and q_state_after != 3
+                    and not queue_finished_fast
+                ):
                     cure_verified = False
                     modal_strs = [
                         f"{m.get('title', 'Tips')}: {m.get('content', '')}".strip(": ")
@@ -13447,7 +14053,6 @@ return _enc(out)
                         fail_parts.append("tips=" + "; ".join(post_tips))
                     fail_reason = " | ".join(fail_parts)
                 else:
-                    # Sync step_res telemetry with verified live post-cure state
                     in_treat = in_treat_after
                     untreated = untreated_after
                     wounded_total = int(ver_res.get("wounded_total") or (in_treat + untreated))
@@ -13503,7 +14108,7 @@ return _enc(out)
         if step_res.get("help_requested"):
             any_help_requested = True
 
-        # Cross-client auto-help: notify other running accounts to tap Alliance Help immediately
+        # Headless cross-client help: notify other local clients to tap manual AlHelpAll immediately
         needs_cross_help = (
             (queued_now > 0 and cure_verified)
             or step_action in (
@@ -13516,20 +14121,22 @@ return _enc(out)
             )
         )
         helps_this_pass = 0
-        if cross_client_help and needs_cross_help and hasattr(cd, "find_running_processes"):
-            if not dry_run and (queued_now > 0 or step_action == "requested_help"):
-                time.sleep(0.25)
-            try:
-                other_procs = [
-                    p for p in (cd.find_running_processes() or [])
-                    if int(p.get("pid") or 0) > 0 and int(p.get("pid") or 0) != int(pid)
-                ]
-            except Exception:
-                other_procs = []
+        if cross_client_help and needs_cross_help and other_procs:
+            if not dry_run and not is_mock_cd and (queued_now > 0 or step_action == "requested_help"):
+                time.sleep(0.08)
             for other in other_procs:
                 other_pid = int(other["pid"])
                 try:
-                    h_res = run_auto_help(cd, other_pid, {}, cfg, dry_run=dry_run, context=context)
+                    h_res = run_auto_help(
+                        cd,
+                        other_pid,
+                        {},
+                        cfg,
+                        dry_run=dry_run,
+                        context=context,
+                        headless=True,
+                        manual_help_mode=True,
+                    )
                     if isinstance(h_res, dict) and h_res.get("ok"):
                         if h_res.get("helped_all") or int(h_res.get("ally_help_num") or 0) > 0:
                             helps_this_pass += 1
@@ -13552,11 +14159,9 @@ return _enc(out)
             "cross_client_helps": helps_this_pass,
         })
 
-        # In dry-run mode state does not mutate, so never sleep or re-loop redundantly
         if dry_run:
             break
 
-        # Decide whether to pause 1.2s and re-check Queue 3 for immediate next-batch chaining
         should_chain_next = (
             (pass_idx + 1 < max_chain_batches)
             and (
@@ -13569,12 +14174,43 @@ return _enc(out)
         )
         if not should_chain_next:
             break
-        time.sleep(1.2)
+
+        if is_mock_cd:
+            time.sleep(0.01)
+            continue
+
+        # Sub-second reactive wait for Pass+Active auto-helps to clear Queue 3 (instead of flat 1.2s sleep!)
+        if queue_finished_fast or (collected_now and queued_now == 0 and untreated > 0):
+            time.sleep(0.05)
+            continue
+
+        eff_helps = int(step_res.get("effective_max_helps") or 0)
+        rem_now = int(step_res.get("queue_remaining_sec") or 0)
+        if eff_helps <= 0 and helps_this_pass == 0 and speedups_now == 0 and rem_now > 3:
+            # No instant Pass+Active helpers available and >3s left; yield immediately without blocking
+            break
+
+        cleared_for_next = False
+        for c_wait in (0.20, 0.25, 0.30, 0.35):
+            time.sleep(c_wait)
+            chk = _eval_hosp_verify(in_treat, untreated)
+            if not isinstance(chk, dict) or not chk.get("ok"):
+                break
+            q_st_c = int(chk.get("queue_state") or 0)
+            q_rem_c = int(chk.get("queue_remaining_sec") or 0)
+            if bool(chk.get("queue_finished_now")) or q_st_c == 3 or q_st_c == 0 or (q_st_c == 2 and q_rem_c <= 0):
+                cleared_for_next = True
+                break
+            step_res["queue_remaining_sec"] = q_rem_c
+            step_res["remaining_seconds"] = q_rem_c
+        if not cleared_for_next and int(step_res.get("queue_remaining_sec") or 0) > 2:
+            break
 
     if not last_res:
         return {
             "ok": False,
             "task": "hospital_heal",
+            "headless": headless,
             "dormant": False,
             "error": "No hospital_heal pass completed",
             "batches_chained": 0,
@@ -13591,6 +14227,7 @@ return _enc(out)
         and int(last_res.get("in_treatment_total") or 0) == 0
         and int(last_res.get("untreated_total") or 0) == 0
     )
+    last_res["headless"] = headless
     last_res["dormant"] = final_dormant
     if final_dormant:
         last_res["action"] = "dormant_no_wounded"
@@ -13611,10 +14248,11 @@ return _enc(out)
     if batches_chained > 0 and not final_dormant:
         last_res["action"] = "started_heal_batch"
         last_res["message"] = (
-            f"Queued {total_queued_troops} troops across {batches_chained} batch(es) "
-            f"(in_treatment={int(last_res.get('in_treatment_total') or 0)}, "
-            f"untreated={int(last_res.get('untreated_total') or 0)}, "
-            f"cross_helps={cross_client_helps_triggered})"
+            f"Queued {total_queued_troops} troops across {batches_chained} headless batch(es) "
+            f"(pass_active={int(last_res.get('pass_active_helpers') or 0)}, "
+            f"max_helps={int(last_res.get('effective_max_helps') or 0)}, "
+            f"in_treatment={int(last_res.get('in_treatment_total') or 0)}, "
+            f"untreated={int(last_res.get('untreated_total') or 0)})"
         )
     return last_res
 
@@ -13630,9 +14268,11 @@ def run_alliance_daily(
     dry_run: bool = False,
     context: dict[str, Any] | None = None,
     tech_only: bool = False,
+    headless: bool | None = None,
 ) -> dict[str, Any]:
     task_cfg = cfg.get("alliance_daily") or {}
     tech_only_mode = bool(tech_only or task_cfg.get("tech_only", False))
+    is_headless = bool(task_cfg.get("headless", tech_only_mode)) if headless is None else bool(headless)
     donate_tech = True if tech_only_mode else bool(task_cfg.get("donate_tech", True))
     use_gold = bool(task_cfg.get("use_gold_donate", False))
     claim_gifts = False if tech_only_mode else bool(task_cfg.get("claim_gifts", True))
@@ -13644,6 +14284,7 @@ def run_alliance_daily(
     lua = f"""
 local dryRun = {str(dry_run).lower()}
 local techOnly = {str(tech_only_mode).lower()}
+local isHeadless = {str(is_headless).lower()}
 local donateTech = {str(donate_tech).lower()}
 local useGold = {str(use_gold).lower()}
 local claimGifts = {str(claim_gifts).lower()}
@@ -13836,7 +14477,7 @@ end
 
 if (out.ally_help_num + out.gifts_claimed + out.red_packets_claimed + out.tasks_claimed + out.exploit_boxes_claimed + out.tech_donated) > 0 then
   out.action = (techOnly and out.tech_donated > 0) and 'donated_tech' or 'completed'
-  if not dryRun then
+  if not dryRun and not isHeadless and not techOnly then
     pcall(function()
       local d2 = _dismiss_modal_dialogs() or {{}}
       for _, w in ipairs(d2) do table.insert(out.popped_modals, w) end
@@ -13853,7 +14494,7 @@ return _enc(out)
 """
     res = _eval_json(cd, pid, lua, timeout=12.0)
     if not dry_run and res.get("ok") and res.get("needs_gift_wait"):
-        res = _run_alliance_gifts_followup(cd, pid, dry_run, res)
+        res = _run_alliance_gifts_followup(cd, pid, dry_run, res, headless=is_headless)
     return res
 
 
@@ -14326,17 +14967,6 @@ if not rcm then
   return _enc(out)
 end
 
-local function _loc(k)
-  if k == nil then return '' end
-  local ks = tostring(k)
-  if ks == '' or ks == '0' then return '' end
-  if Localization and Localization.GetString then
-    local ok, s = pcall(function() return Localization:GetString(ks) end)
-    if ok and type(s) == 'string' and s ~= '' and s ~= ks then return s end
-  end
-  return ''
-end
-
 local nowMs = (UITimeManager and UITimeManager.GetInstance and UITimeManager:GetInstance().GetServerTime
   and math.floor(tonumber(UITimeManager:GetInstance():GetServerTime()) or 0))
   or ((tonumber(snap.serverSec or 0) or 0) * 1000)
@@ -14393,9 +15023,9 @@ end
 
 if autoDispatch and (maxDispatch == 0 or maxDispatch > 0) then
   local curStamina = tonumber(snap.stamina or 0) or 0
-  local freeForms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, not dryRun)
+  local freeForms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, false, not dryRun)
   out.free_formations = #freeForms
-  local mu = package.loaded['SlgEngine.Util.MarchUtil.MarchUtil'] or package.loaded['Util.MarchUtil_SLG'] or MarchUtil
+  local mu = _get_march_util()
 
   local pveType = DetectEventType and DetectEventType.DetectEventPVE or 7
   local parkourType = DetectEventType and DetectEventType.RewardParkour or 26
@@ -15539,11 +16169,11 @@ local out = {
   tasks = {},
   errors = {},
 }
+local _base_loc = _loc
 local function _loc(k)
   if not k or tostring(k) == '' then return '' end
-  local ok, s = pcall(function() return Localization:GetString(tostring(k)) end)
-  if ok and s and s ~= '' then return tostring(s) end
-  return tostring(k)
+  local s = _base_loc(k)
+  return (s ~= '') and s or tostring(k)
 end
 local dtm = DataCenter and DataCenter.DailyTaskManager
 if not dtm then
@@ -15986,7 +16616,7 @@ local out = {{
 if not snap.inAlliance then
   out.reason = 'not_in_alliance'; return _enc(out)
 end
-local forms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, not dryRun)
+local forms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, false, not dryRun)
 out.free_formations = #forms
 
 -- Dedupe active boss rallies & join open ally boss rallies first before hosting a new one
@@ -16025,10 +16655,11 @@ if #forms == 0 then
   return _enc(out)
 end
 
+local _base_loc = _loc
 local function _loc(k)
   if not k or tostring(k) == '' then return '' end
-  local ok, s = pcall(function() return Localization:GetString(tostring(k)) end)
-  return (ok and s and s ~= '') and tostring(s) or tostring(k)
+  local s = _base_loc(k)
+  return (s ~= '') and s or tostring(k)
 end
 
 local mm = dc and dc.MonsterManager
@@ -16049,12 +16680,12 @@ if wpm and wpm.allViewPoints and wpm.GetPointInfo then
         local ok_pb, parsed = pcall(function() return PBController.ParsePbFromBytes('protobuf.WorldPointMonster', info.extraInfo) end)
         if ok_pb and parsed then pb = parsed end
       end
-      if pb and pb.monsterId and lc and TableName and TableName.Monster then
-        local row = lc:getLine(TableName.Monster, tostring(pb.monsterId))
-        if row then
-          local isBoss = tonumber(_safe_call(function() return row:getValue('boss') end, 0)) or 0
-          local lv = tonumber(_safe_call(function() return row:getValue('level') end, 0)) or 0
-          local nm = _loc(_safe_call(function() return row:getValue('name') end, ''))
+      if pb and pb.monsterId then
+        local mmeta = _get_monster_meta(pb.monsterId)
+        if mmeta then
+          local isBoss = mmeta.boss
+          local lv = mmeta.level
+          local nm = (mmeta.name and mmeta.name ~= '') and mmeta.name or ''
           local nml = nm:lower()
           local kwMatch = (kw == '') or (nml:find(kw, 1, true) ~= nil)
           -- Match requested boss type (Frostbane / Boomer / Stegosaurus) or fallback to any normal rally boss
@@ -16082,34 +16713,40 @@ if wpm and wpm.allViewPoints and wpm.GetPointInfo then
 end
 
 table.sort(bosses, function(a, b) return a.score < b.score end)
-local maxLaunch = math.min(remainingToHost, #forms, #bosses)
-if maxLaunch > 0 then
-  for i = 1, maxLaunch do
-    local f = forms[i]
-    local b = bosses[i]
-    if not dryRun and MarchUtil and MarchUtil.SendCreateMarchMessage then
-      pcall(function()
-        MarchUtil.SendCreateMarchMessage(
-          f.uuid,
-          MarchTargetType and MarchTargetType.RALLY_FOR_BOSS or 7,
-          b.pointId,
-          b.uuid or 0,
-          1,
-          true,
-          true,
-          snap.serverId
-        )
-      end)
-    end
-    table.insert(out.started, {{
-      pointId = b.pointId,
-      name = b.name,
-      level = b.level,
-      dist = b.dist,
-      formationUuid = tostring(f.uuid),
-    }})
+local mu = _get_march_util()
+local formIdx = 1
+local launched = 0
+local cIdx = 1
+while launched < remainingToHost and formIdx <= #forms and cIdx <= #bosses do
+  local b = bosses[cIdx]
+  cIdx = cIdx + 1
+  local f = nil
+  f, formIdx = _next_ready_formation(forms, formIdx, dryRun)
+  if not f then break end
+  if not dryRun and mu and mu.SendCreateMarchMessage then
+    pcall(function()
+      mu.SendCreateMarchMessage(
+        tonumber(f.uuid) or f.uuid,
+        MarchTargetType and MarchTargetType.RALLY_FOR_BOSS or 7,
+        b.pointId,
+        b.uuid or 0,
+        1,
+        true,
+        true,
+        snap.serverId
+      )
+    end)
   end
-elseif allowSearch and not dryRun and SFSNetwork and MsgDefines then
+  launched = launched + 1
+  table.insert(out.started, {{
+    pointId = b.pointId,
+    name = b.name,
+    level = b.level,
+    dist = b.dist,
+    formationUuid = tostring(f.uuid),
+  }})
+end
+if launched == 0 and allowSearch and not dryRun and SFSNetwork and MsgDefines then
   if MsgDefines.FindMonster and snap.mainPos > 0 then
     pcall(function() SFSNetwork.SendMessage(MsgDefines.FindMonster, tonumber(snap.mainPos), searchLv, true) end)
     out.searched = true
@@ -16168,7 +16805,7 @@ local allowSearch = {str(allow_search).lower()}
 local claimedPts = {claimed_lua}
 local snap = _get_player_snapshot()
 local dc = DataCenter
-local forms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, not dryRun)
+local forms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, false, not dryRun)
 if #forms == 0 then
   return _enc({{ ok = true, dispatched = nil, need_search = false, reason = 'no_free_formation' }})
 end
@@ -16183,8 +16820,8 @@ local function add_point(pnum, boost)
   local info = wpm:GetPointInfo(pnum)
   local ri = info and info.resourceInfo or nil
   if ri and tonumber(ri.gatherUuid or 0) == 0 and tostring(ri.ownerUid or '') == '' then
-    local row = LocalController and LocalController.instance and LocalController.instance():getLine(TableName.GatherResource, tostring(ri.resourceId or 0))
-    local lv = row and (tonumber(_safe_call(function() return row:getValue('level') end, 1)) or 1) or 1
+    local rmeta = _get_gather_res_meta(ri.resourceId or 0)
+    local lv = rmeta and rmeta.level or 1
     local d = snap.mainPos > 0 and _dist(snap.mainPos, pnum) or 0
     -- Strongly prefer low level (Lv1-3 finishes fastest for Daily Gathering Acts!) and close distance
     table.insert(cands, {{
@@ -16220,10 +16857,14 @@ if #cands == 0 then
 end
 table.sort(cands, function(a, b) return a.score < b.score end)
 local tile = cands[1]
-local f = forms[1]
-if not dryRun and MarchUtil and MarchUtil.SendCreateMarchMessage then
+local f, _ = _next_ready_formation(forms, 1, dryRun)
+if not f then
+  return _enc({{ ok = true, dispatched = nil, need_search = false, reason = 'no_free_formation' }})
+end
+local mu = _get_march_util()
+if not dryRun and mu and mu.SendCreateMarchMessage then
   pcall(function()
-    MarchUtil.SendCreateMarchMessage(
+    mu.SendCreateMarchMessage(
       tonumber(f.uuid) or f.uuid,
       MarchTargetType and MarchTargetType.COLLECT or 2,
       tile.pointId,
@@ -16413,6 +17054,7 @@ def run_daily_tasks_complete(
 
     # Avoid calling the same multi-task runner twice (e.g., 3 troop training tasks in one pass)
     ran_shared_kinds: set[str] = set()
+    daily_in_world: bool = False
 
     for _, kind, t in classified_todo:
         tid = str(t.get("id") or "")
@@ -16476,8 +17118,16 @@ def run_daily_tasks_complete(
                     if ut_raw > 0:
                         if ut_raw < 10**12:
                             ut_raw *= 1000
-                        snap_now = snapshot_client(cd, pid)
-                        now_ms = int(snap_now.get("serverSec") or 0) * 1000
+                        srv_sec_now = int(v_info.get("serverSec") or sub_res.get("serverSec") or 0)
+                        if srv_sec_now <= 0:
+                            t_probe = _eval_json(
+                                cd,
+                                pid,
+                                "local utm = UITimeManager and UITimeManager.GetInstance and UITimeManager:GetInstance(); local ms = (utm and utm.GetServerTime and tonumber(utm:GetServerTime())) or 0; if ms > 1e12 then ms = math.floor(ms / 1000) end; return _enc({ ok = true, serverSec = ms > 0 and ms or os.time() })",
+                                timeout=6.0,
+                            )
+                            srv_sec_now = int(t_probe.get("serverSec") or 0)
+                        now_ms = srv_sec_now * 1000
                         rem_s = (ut_raw - now_ms) / 1000.0 if now_ms > 0 else 9999
                         if -60 <= rem_s <= 20:
                             if rem_s > 0:
@@ -16546,18 +17196,20 @@ def run_daily_tasks_complete(
                 sub_res = run_free_recruits(cd, pid, client_state, cfg, dry_run=dry_run, context=context)
                 detail_lines.append(f"[{tid}] {desc} ({cur_n}/{tot_n}) -> {sub_res.get('action') or 'done'}")
             elif kind == "defeat_creeps":
-                if not dry_run:
-                    ensure_world_scene(cd, pid)
+                if not dry_run and not daily_in_world:
+                    sw = ensure_world_scene(cd, pid)
+                    if sw.get("ok") or sw.get("inWorld"):
+                        daily_in_world = True
                 sub_res = _eval_json(
                     cd,
                     pid,
                     f"""
 local dryRun = {str(dry_run).lower()}
 local snap = _get_player_snapshot()
-local forms = _pick_free_formations({int(cfg.get('formation_reserve', 0))}, {_used_formations_lua(context, pid)}, not dryRun)
-if #forms == 0 then return _enc({{ ok = true, attacked = 0, reason = 'no_free_formation' }}) end
+local forms = _pick_free_formations({int(cfg.get('formation_reserve', 0))}, {_used_formations_lua(context, pid)}, false, not dryRun)
+local f, _ = _next_ready_formation(forms, 1, dryRun)
+if not f then return _enc({{ ok = true, attacked = 0, reason = 'no_free_formation' }}) end
 local wpm = DataCenter and DataCenter.WorldPointManager
-local lc = LocalController and LocalController.instance and LocalController.instance()
 local target = nil
 if wpm and wpm.allViewPoints and wpm.GetPointInfo then
   for ptIdx, ptObj in pairs(wpm.allViewPoints) do
@@ -16569,10 +17221,10 @@ if wpm and wpm.allViewPoints and wpm.GetPointInfo then
         local okP, parsed = pcall(function() return PBController.ParsePbFromBytes('protobuf.WorldPointMonster', info.extraInfo) end)
         if okP and parsed then pb = parsed end
       end
-      if pb and pb.monsterId and lc and TableName and TableName.Monster then
-        local row = lc:getLine(TableName.Monster, tostring(pb.monsterId))
-        if row and (tonumber(_safe_call(function() return row:getValue('boss') end, 0)) or 0) == 0 then
-          local lv = tonumber(_safe_call(function() return row:getValue('level') end, 99)) or 99
+      if pb and pb.monsterId then
+        local mmeta = _get_monster_meta(pb.monsterId)
+        if mmeta and mmeta.boss == 0 then
+          local lv = mmeta.level > 0 and mmeta.level or 99
           if not target or lv < target.lv then
             target = {{ pointId = tonumber(info and info.mainIndex or pnum) or pnum, uuid = (info and info.uuid) or 0, lv = lv }}
           end
@@ -16582,10 +17234,11 @@ if wpm and wpm.allViewPoints and wpm.GetPointInfo then
   end
 end
 if target then
-  if not dryRun and MarchUtil and MarchUtil.SendCreateMarchMessage then
-    pcall(function() MarchUtil.SendCreateMarchMessage(forms[1].uuid, MarchTargetType and MarchTargetType.ATTACK_MONSTER or 1, target.pointId, target.uuid or 0, 0, true, true, snap.serverId) end)
+  local mu = _get_march_util()
+  if not dryRun and mu and mu.SendCreateMarchMessage then
+    pcall(function() mu.SendCreateMarchMessage(tonumber(f.uuid) or f.uuid, MarchTargetType and MarchTargetType.ATTACK_MONSTER or 1, target.pointId, target.uuid or 0, 0, true, true, snap.serverId) end)
   end
-  return _enc({{ ok = true, attacked = 1, pointId = target.pointId, lv = target.lv, formationUuid = tostring(forms[1].uuid) }})
+  return _enc({{ ok = true, attacked = 1, pointId = target.pointId, lv = target.lv, formationUuid = tostring(f.uuid) }})
 end
 if not dryRun and SFSNetwork and MsgDefines and MsgDefines.FindMonster and snap.mainPos > 0 then
   pcall(function() SFSNetwork.SendMessage(MsgDefines.FindMonster, tonumber(snap.mainPos), 1, false) end)
@@ -16599,19 +17252,24 @@ return _enc({{ ok = true, attacked = 0, reason = 'searching_creep' }})
                 detail_lines.append(f"[{tid}] {desc} ({cur_n}/{tot_n}) -> attacked={sub_res.get('attacked', 0)} {sub_res.get('reason', '')}")
             elif kind == "attack_hq":
                 # Opt-in only (allow_pvp_hq_attack=True): NEVER breaks own Peace Shield, skips allies and shielded bases
-                if not dry_run:
-                    ensure_world_scene(cd, pid)
+                if not dry_run and not daily_in_world:
+                    sw = ensure_world_scene(cd, pid)
+                    if sw.get("ok") or sw.get("inWorld"):
+                        daily_in_world = True
                 sub_res = _eval_json(
                     cd,
                     pid,
                     f"""
 local dryRun = {str(dry_run).lower()}
 local snap = _get_player_snapshot()
-if snap.shieldEndTime and tonumber(snap.shieldEndTime) > (snap.serverSec or 0) then
+local sm = DataCenter and DataCenter.StatusManager
+local hasShield = (sm and sm.CheckShield and _safe_call(function() return sm:CheckShield() end, false)) and true or false
+if hasShield or (snap.shieldEndTime and tonumber(snap.shieldEndTime) > (snap.serverSec or 0)) then
   return _enc({{ ok = true, attacked = 0, reason = 'skipped_own_peace_shield_active' }})
 end
-local forms = _pick_free_formations({int(cfg.get('formation_reserve', 0))}, {_used_formations_lua(context, pid)}, not dryRun)
-if #forms == 0 then return _enc({{ ok = true, attacked = 0, reason = 'no_free_formation' }}) end
+local forms = _pick_free_formations({int(cfg.get('formation_reserve', 0))}, {_used_formations_lua(context, pid)}, false, not dryRun)
+local f, _ = _next_ready_formation(forms, 1, dryRun)
+if not f then return _enc({{ ok = true, attacked = 0, reason = 'no_free_formation' }}) end
 local wpm = DataCenter and DataCenter.WorldPointManager
 local target = nil
 local nowSec = tonumber(snap.serverSec or os.time()) or os.time()
@@ -16642,10 +17300,11 @@ end
 if not target then
   return _enc({{ ok = true, attacked = 0, reason = 'no_safe_unshielded_low_hq_found' }})
 end
-if not dryRun and MarchUtil and MarchUtil.SendCreateMarchMessage then
-  pcall(function() MarchUtil.SendCreateMarchMessage(forms[1].uuid, MarchTargetType and MarchTargetType.ATTACK_PLAYER or 3, target.pointId, target.uuid or 0, 0, true, true, snap.serverId) end)
+local mu = _get_march_util()
+if not dryRun and mu and mu.SendCreateMarchMessage then
+  pcall(function() mu.SendCreateMarchMessage(tonumber(f.uuid) or f.uuid, MarchTargetType and MarchTargetType.ATTACK_PLAYER or 3, target.pointId, target.uuid or 0, 0, true, true, snap.serverId) end)
 end
-return _enc({{ ok = true, attacked = 1, pointId = target.pointId, lv = target.lv, formationUuid = tostring(forms[1].uuid) }})
+return _enc({{ ok = true, attacked = 1, pointId = target.pointId, lv = target.lv, formationUuid = tostring(f.uuid) }})
 """,
                     timeout=8.0,
                 )
@@ -16791,7 +17450,7 @@ if openChests and idata and idata.ItemInfos and maxChests > 0 then
       local para1 = tostring(info.para1 or '')
       -- Strictly open only safe drop/reward chests (pages==4 and tp in {{1,5}}, excluding tp==59 choice boxes and tp==3 RSS/stamina and tp==204 speedups)
       if pages == 4 and (tp == 1 or tp == 5) and para1 ~= '' then
-        local nm = (tmpl and tmpl.name and Localization and Localization.GetString and tostring(_safe_call(function() return Localization:GetString(tostring(tmpl.name)) end, '') or ''):lower()) or ''
+        local nm = (tmpl and tmpl.name and _loc(tmpl.name):lower()) or ''
         if not (nm:find('shield') or nm:find('peace') or nm:find('truce') or nm:find('tele') or nm:find('stamina') or nm:find('speed')) then
           local openQty = math.min(cnt, maxChests - out.chests_total_count)
           if openQty > 0 then
@@ -17074,12 +17733,13 @@ local itm = dc and dc.ItemTemplateManager
 local hlum = dc and dc.HeroLevelUpTemplateManager
 local hetm = dc and dc.HeroEquipTemplateManager
 
+local _base_loc = _loc
 local function _loc(raw)
   local s = tostring(raw or '')
   if s == '' then return '' end
-  if Localization and Localization.GetString and string.match(s, '^%d+$') then
-    local ok, v = pcall(function() return Localization:GetString(s) end)
-    if ok and v and tostring(v) ~= '' then return tostring(v) end
+  if string.match(s, '^%d+$') then
+    local v = _base_loc(s)
+    if v ~= '' then return v end
   end
   return s
 end
@@ -18416,8 +19076,8 @@ if not snap.inAlliance then
   return _enc(out)
 end
 
-local mu = package.loaded['SlgEngine.Util.MarchUtil.MarchUtil'] or package.loaded['Util.MarchUtil_SLG']
-local freeForms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, not dryRun)
+local mu = _get_march_util()
+local freeForms = _pick_free_formations(reserve, {_used_formations_lua(context, pid)}, false, not dryRun)
 local fIdx = 1
 
 -- 1) Alliance Boss Bear Trap
@@ -18450,21 +19110,23 @@ if abb then
     local ptId = tonumber(bInfo.pointId or 0) or 0
     local bossUuid = bInfo.bossUuid or bInfo.uuid or 0
     if ptId > 0 and mu and mu.SendCreateMarchMessage then
-      local f = freeForms[fIdx]
-      local sentOk = dryRun
-      if not dryRun then
-        local okM, errM = pcall(function()
-          mu.SendCreateMarchMessage(f.uuid, (MarchTargetType and MarchTargetType.RALLY_FOR_ALLIANCE_BOSS) or 74, ptId, bossUuid, 0, true, true, snap.serverId)
-        end)
-        if okM then
-          sentOk = true
-        else
-          table.insert(out.errors, 'AllianceBossBearMarch: ' .. tostring(errM))
+      local f = nil
+      f, fIdx = _next_ready_formation(freeForms, fIdx, dryRun)
+      if f then
+        local sentOk = dryRun
+        if not dryRun then
+          local okM, errM = pcall(function()
+            mu.SendCreateMarchMessage(tonumber(f.uuid) or f.uuid, (MarchTargetType and MarchTargetType.RALLY_FOR_ALLIANCE_BOSS) or 74, ptId, bossUuid, 0, true, true, snap.serverId)
+          end)
+          if okM then
+            sentOk = true
+          else
+            table.insert(out.errors, 'AllianceBossBearMarch: ' .. tostring(errM))
+          end
         end
-      end
-      if sentOk then
-        fIdx = fIdx + 1
-        out.bear_marched = {{formation = f.uuid, pointId = ptId}}
+        if sentOk then
+          out.bear_marched = {{formation = tostring(f.uuid), pointId = ptId}}
+        end
       end
     end
   end
@@ -18490,21 +19152,23 @@ if amm then
       end
     end
     if targetPt > 0 and mu and mu.SendCreateMarchMessage then
-      local f = freeForms[fIdx]
-      local sentOk = dryRun
-      if not dryRun then
-        local okD, errD = pcall(function()
-          mu.SendCreateMarchMessage(f.uuid, (MarchTargetType and MarchTargetType.COLLECT_ALLIANCE_BUILD_RESOURCE) or 35, targetPt, targetUid, 0, true, true, snap.serverId)
-        end)
-        if okD then
-          sentOk = true
-        else
-          table.insert(out.errors, 'AllianceMineDispatch: ' .. tostring(errD))
+      local f = nil
+      f, fIdx = _next_ready_formation(freeForms, fIdx, dryRun)
+      if f then
+        local sentOk = dryRun
+        if not dryRun then
+          local okD, errD = pcall(function()
+            mu.SendCreateMarchMessage(tonumber(f.uuid) or f.uuid, (MarchTargetType and MarchTargetType.COLLECT_ALLIANCE_BUILD_RESOURCE) or 35, targetPt, targetUid, 0, true, true, snap.serverId)
+          end)
+          if okD then
+            sentOk = true
+          else
+            table.insert(out.errors, 'AllianceMineDispatch: ' .. tostring(errD))
+          end
         end
-      end
-      if sentOk then
-        fIdx = fIdx + 1
-        out.mine_dispatched = {{formation = f.uuid, pointId = targetPt}}
+        if sentOk then
+          out.mine_dispatched = {{formation = tostring(f.uuid), pointId = targetPt}}
+        end
       end
     end
   end

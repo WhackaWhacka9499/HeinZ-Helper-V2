@@ -6,7 +6,7 @@ ROOT_DIR = os.path.abspath(os.path.join(SPECPATH, '..'))
 
 def _collect_clean_tree(src_dir, dst_prefix):
     entries = []
-    skip_exts = {'.pyc', '.pyo', '.log', '.xlsx', '.csv'}
+    skip_exts = {'.pyc', '.pyo', '.log', '.xlsx', '.csv', '.sig', '.sqlite', '.tmp'}
     skip_names = {'detected_environment.json', 'bot status.json', 'bot config.json', 'client profiles.json'}
     for dirpath, dirnames, filenames in os.walk(src_dir):
         dirnames[:] = [d for d in dirnames if d != '__pycache__']

@@ -4707,7 +4707,7 @@
         "write(2)"
       ],
       "fields_count": 2,
-      "fields_sample": "current_level=1 | log_dir=C:/Users/Alexander Jarvis/AppData/LocalLow/ReadyGo",
+      "fields_sample": "current_level=1 | log_dir=%USERPROFILE%/AppData/LocalLow/ReadyGo",
       "msgs": [],
       "events": [],
       "uis": [],
@@ -40551,7 +40551,7 @@
     },
     {
       "name": "frida-agent.dll",
-      "path": "G:\\Users\\Alexander Jarvis\\Temp\\frida-050b7695313eeea81cd239ac1ae2538d\\x86_64\\frida-agent.dll",
+      "path": "%TEMP%\\frida-050b7695313eeea81cd239ac1ae2538d\\x86_64\\frida-agent.dll",
       "is_game_or_unity": true,
       "rss_kb": 23292
     },

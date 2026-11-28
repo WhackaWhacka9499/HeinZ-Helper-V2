@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import os
 import sys
 import time
@@ -23,6 +24,13 @@ _LOG_DIR_READY = False
 _CLIENT_DISCOVERY_MOD = None
 _LIVE_TRANSLATOR_MOD = None
 _SYNC_FARM_CLIENTS_MOD = None
+_TRANSLATOR_PROBE_INTERVAL_SEC = 30.0
+_DEFAULT_TRANSLATOR_CFG: dict = {
+    "enabled": True,
+    "target_lang": "auto",
+    "auto_translate_chat": True,
+}
+_TRANSLATOR_CFG_CACHE: dict = {}
 
 
 def _load_sync_farm_clients():
@@ -170,6 +178,7 @@ def sync_translator_hook(cd, pid, tr_mod, port, cfg):
 
 
 def attempt_patch(pid, cd=None):
+    cache_dir = ""
     try:
         env_data_dir = os.environ.get("HEINZ_DATA_DIR", "").strip()
         cache_dir = (
@@ -190,7 +199,13 @@ def attempt_patch(pid, cd=None):
         disc = cd if cd is not None else _load_client_discovery()
         if not disc._xlua_loaded(pid):
             return False, "BOOTING_WAIT"
-        payload = MASTER_LUA_CODE.replace("__FORCE_FULL_LOAD_FLAG__", "false")
+        base_lua = MASTER_LUA_CODE.replace("__FORCE_FULL_LOAD_FLAG__", "false")
+        norm_cache = str(cache_dir or "").replace("\\", "/").rstrip("/")
+        payload = (
+            f"_G._MasterCacheDirOverride = {json.dumps(norm_cache)}\n" + base_lua
+            if norm_cache
+            else base_lua
+        )
         ok, res = disc.frida_eval_lua(pid, payload, timeout=10.0, retries=1)
         if not ok:
             return False, res
@@ -530,6 +545,226 @@ def _acquire_daemon_pid_lock(lock_path: str | None = None) -> str | None:
     return None
 
 
+def _normalize_translator_cfg(raw: dict | None) -> dict:
+    cfg = dict(_DEFAULT_TRANSLATOR_CFG)
+    if isinstance(raw, dict):
+        if "enabled" in raw:
+            cfg["enabled"] = bool(raw["enabled"])
+        if "auto_translate_chat" in raw:
+            cfg["auto_translate_chat"] = bool(raw["auto_translate_chat"])
+        if "target_lang" in raw:
+            tl = str(raw["target_lang"] or "auto").strip() or "auto"
+            cfg["target_lang"] = tl
+    return cfg
+
+
+def _load_translator_config_cached(
+    tr_mod=None,
+    cache_state: dict | None = None,
+    config_path: str | os.PathLike | None = None,
+) -> dict:
+    """Load translator config keyed by (path, st_mtime_ns, st_size) to avoid per-tick disk I/O."""
+    cache = cache_state if cache_state is not None else _TRANSLATOR_CFG_CACHE
+    cfg_path = config_path
+    if cfg_path is None and tr_mod is not None and hasattr(tr_mod, "get_config_path"):
+        try:
+            cfg_path = tr_mod.get_config_path()
+        except Exception:
+            cfg_path = None
+
+    if cfg_path is None:
+        if tr_mod is not None and hasattr(tr_mod, "load_translator_config"):
+            try:
+                return _normalize_translator_cfg(tr_mod.load_translator_config())
+            except Exception:
+                return dict(_DEFAULT_TRANSLATOR_CFG)
+        return dict(_DEFAULT_TRANSLATOR_CFG)
+
+    path_str = str(cfg_path)
+    try:
+        st = os.stat(path_str)
+        sig = (path_str, int(st.st_mtime_ns), int(st.st_size))
+    except OSError:
+        if config_path is None and tr_mod is not None and not hasattr(tr_mod, "get_config_path") and hasattr(tr_mod, "load_translator_config"):
+            try:
+                return _normalize_translator_cfg(tr_mod.load_translator_config())
+            except Exception:
+                return dict(_DEFAULT_TRANSLATOR_CFG)
+        sig = (path_str, None)
+        if cache.get("sig") == sig and isinstance(cache.get("cfg"), dict):
+            return dict(cache["cfg"])
+        defaults = dict(_DEFAULT_TRANSLATOR_CFG)
+        cache["sig"] = sig
+        cache["cfg"] = dict(defaults)
+        return defaults
+
+    if cache.get("sig") == sig and isinstance(cache.get("cfg"), dict):
+        return dict(cache["cfg"])
+
+    raw: dict = {}
+    try:
+        with open(path_str, "r", encoding="utf-8") as fh:
+            loaded = json.load(fh)
+        if isinstance(loaded, dict):
+            raw = loaded
+    except (OSError, ValueError, TypeError):
+        raw = {}
+
+    cfg = _normalize_translator_cfg(raw)
+    cache["sig"] = sig
+    cache["cfg"] = dict(cfg)
+    return dict(cfg)
+
+
+def _prune_dead_pid_state(
+    current_pids: set[int],
+    patched_pids: dict,
+    patch_next_retry_at: dict,
+    preload_state: dict,
+    translator_hook_sig: dict,
+    translator_retry_after: dict,
+) -> None:
+    """Prune exited PIDs from all daemon state dictionaries (patched and unpatched)."""
+    dead_patched = set(patched_pids.keys()) - current_pids
+    for dp in dead_patched:
+        info = patched_pids.pop(dp, {})
+        preload_state.pop(dp, None)
+        translator_hook_sig.pop(dp, None)
+        translator_retry_after.pop(dp, None)
+        patch_next_retry_at.pop(dp, None)
+        log(f"[-] {info.get('exe_name', 'Client')} (PID {dp}) terminated. Resetting monitor state.")
+
+    for state_map in (patch_next_retry_at, preload_state, translator_hook_sig, translator_retry_after):
+        for dp in [k for k in state_map.keys() if k not in current_pids]:
+            state_map.pop(dp, None)
+
+
+def _process_pending_client_patches(
+    cd,
+    current_map: dict,
+    patched_pids: dict,
+    patch_next_retry_at: dict,
+    preload_state: dict,
+    once: bool = False,
+    now_mono: float | None = None,
+    patch_main_fn=None,
+    patch_farm_fn=None,
+) -> bool:
+    """Non-blocking per-PID patch pass using per-PID next-retry backoff instead of time.sleep."""
+    main_patcher = patch_main_fn if patch_main_fn is not None else attempt_patch
+    farm_patcher = patch_farm_fn if patch_farm_fn is not None else attempt_farm_eco_patch
+    now = time.monotonic() if now_mono is None else float(now_mono)
+    has_pending = False
+
+    for pid, pinfo in current_map.items():
+        if pid in patched_pids:
+            continue
+        has_pending = True
+        if now < patch_next_retry_at.get(pid, 0.0):
+            continue
+        if not cd._xlua_loaded(pid):
+            patch_next_retry_at[pid] = now + 1.0
+            continue
+        role = pinfo.get("role", "farm")
+        exe_name = pinfo.get("exe_name", "Client")
+        label = pinfo.get("label", exe_name)
+        if role == "main":
+            ok, detail = main_patcher(pid, cd=cd)
+        else:
+            ok, detail = farm_patcher(cd, pid)
+        if ok and detail != "BOOTING_WAIT":
+            patch_next_retry_at.pop(pid, None)
+            mode_tag = "Master Overhaul v8.0" if role == "main" else "Farm Smart Engine (120/30/15 FPS)"
+            log(f"[+] {mode_tag} attached to {label} ({exe_name}, PID {pid})")
+            log(f"    Mode: {detail}")
+            patched_pids[pid] = pinfo
+            if role == "main" and not once:
+                preload_state[pid] = {"done": False, "attempts": 0, "next_at": now + 25.0}
+        else:
+            cooldown = 2.0 if detail == "BOOTING_WAIT" else 3.0
+            patch_next_retry_at[pid] = now + cooldown
+
+    return has_pending
+
+
+def _sync_translator_tick(
+    cd,
+    tr_mod,
+    current_pids: set[int],
+    patched_pids: dict,
+    translator_hook_sig: dict,
+    translator_retry_after: dict,
+    tr_state: dict,
+    cfg_cache: dict,
+    now_mono: float | None = None,
+    probe_interval_sec: float = _TRANSLATOR_PROBE_INTERVAL_SEC,
+) -> None:
+    """Throttled translator health probe + config-cached hook sync."""
+    if tr_mod is None:
+        return
+    try:
+        now = time.monotonic() if now_mono is None else float(now_mono)
+        tr_cfg = _load_translator_config_cached(tr_mod, cache_state=cfg_cache)
+        tr_enabled = bool(tr_cfg.get("enabled", True))
+        last_probe = float(tr_state.get("last_probe_at", 0.0) or 0.0)
+        prev_enabled = bool(tr_state.get("prev_enabled", True))
+        cur_port = int(tr_state.get("port", 0) or 0)
+
+        need_probe = (
+            last_probe <= 0.0
+            or (now - last_probe) >= probe_interval_sec
+            or (tr_enabled and not prev_enabled)
+            or (tr_enabled and cur_port <= 0 and (now - last_probe) >= 5.0)
+        )
+        tr_state["prev_enabled"] = tr_enabled
+
+        if need_probe:
+            tr_state["last_probe_at"] = now
+            tr_info = tr_mod.ensure_server_running()
+            if tr_info and tr_info.get("running"):
+                cur_port = int(tr_info.get("port") or cur_port or 18765)
+                tr_state["port"] = cur_port
+                if not tr_info.get("external", False):
+                    tr_state["started_here"] = True
+            else:
+                cur_port = 0
+                tr_state["port"] = 0
+
+        if cur_port > 0 and patched_pids:
+            hook_ver = int(getattr(tr_mod, "TRANSLATOR_HOOK_VERSION", 1) or 1)
+            tr_sig = (
+                hook_ver,
+                cur_port,
+                tr_enabled,
+                str(tr_cfg.get("target_lang") or "auto"),
+                bool(tr_cfg.get("auto_translate_chat", True)),
+            )
+            for pid, pinfo in list(patched_pids.items()):
+                if pid not in current_pids:
+                    continue
+                prev_sig = translator_hook_sig.get(pid)
+                if prev_sig == tr_sig:
+                    continue
+                if not tr_enabled and prev_sig is None:
+                    continue
+                if now < translator_retry_after.get(pid, 0.0):
+                    continue
+                ok_tr, res_tr = sync_translator_hook(cd, pid, tr_mod, cur_port, tr_cfg)
+                res_str = str(res_tr or "").strip()
+                if ok_tr and (
+                    res_str.startswith("TRANSLATOR_HOOK_ENABLED")
+                    or res_str == "TRANSLATOR_HOOK_DISABLED"
+                ):
+                    translator_hook_sig[pid] = tr_sig
+                    translator_retry_after.pop(pid, None)
+                    lbl = pinfo.get("label", pinfo.get("exe_name", "Client"))
+                    log(f"[+] Live Translator hook synced on {lbl} (PID {pid}): {res_str}")
+                else:
+                    translator_retry_after[pid] = now + 5.0
+    except Exception:
+        tr_state["port"] = 0
+
+
 def main():
     once = "--once" in sys.argv
     parent_pid = _parse_parent_pid()
@@ -569,9 +804,17 @@ def main():
     launcher_guard_interval_sec = 300.0
 
     patched_pids = {}
+    patch_next_retry_at = {}
     preload_state = {}
     translator_hook_sig = {}
     translator_retry_after = {}
+    tr_state = {
+        "port": translator_port,
+        "started_here": translator_started_here,
+        "last_probe_at": time.monotonic() if translator_port > 0 else 0.0,
+        "prev_enabled": True,
+    }
+    tr_cfg_cache = {}
     idle_since = time.monotonic()
 
     try:
@@ -585,75 +828,35 @@ def main():
                 current_map = {p["pid"]: p for p in procs}
                 current_pids = set(current_map.keys())
 
-                dead_pids = set(patched_pids.keys()) - current_pids
-                for dp in dead_pids:
-                    info = patched_pids.pop(dp, {})
-                    preload_state.pop(dp, None)
-                    translator_hook_sig.pop(dp, None)
-                    translator_retry_after.pop(dp, None)
-                    log(f"[-] {info.get('exe_name', 'Client')} (PID {dp}) terminated. Resetting monitor state.")
+                _prune_dead_pid_state(
+                    current_pids,
+                    patched_pids,
+                    patch_next_retry_at,
+                    preload_state,
+                    translator_hook_sig,
+                    translator_retry_after,
+                )
 
-                has_pending = False
-                for pid, pinfo in current_map.items():
-                    if pid not in patched_pids:
-                        has_pending = True
-                        if not cd._xlua_loaded(pid):
-                            continue
-                        role = pinfo.get("role", "farm")
-                        exe_name = pinfo.get("exe_name", "Client")
-                        label = pinfo.get("label", exe_name)
-                        time.sleep(0.5)
-                        if role == "main":
-                            ok, detail = attempt_patch(pid, cd=cd)
-                        else:
-                            ok, detail = attempt_farm_eco_patch(cd, pid)
-                        if ok and detail != "BOOTING_WAIT":
-                            mode_tag = "Master Overhaul v8.0" if role == "main" else "Farm Smart Engine (120/30/15 FPS)"
-                            log(f"[+] {mode_tag} attached to {label} ({exe_name}, PID {pid})")
-                            log(f"    Mode: {detail}")
-                            patched_pids[pid] = pinfo
-                            if role == "main" and not once:
-                                preload_state[pid] = {"done": False, "attempts": 0, "next_at": time.monotonic() + 25.0}
-                        else:
-                            time.sleep(0.5)
+                has_pending = _process_pending_client_patches(
+                    cd,
+                    current_map,
+                    patched_pids,
+                    patch_next_retry_at,
+                    preload_state,
+                    once=once,
+                )
 
-                if tr_mod is not None:
-                    try:
-                        tr_info = tr_mod.ensure_server_running()
-                        if tr_info and tr_info.get("running"):
-                            translator_port = int(tr_info.get("port") or translator_port or 18765)
-                            if not tr_info.get("external", False):
-                                translator_started_here = True
-                        if translator_port > 0 and patched_pids:
-                            tr_cfg = tr_mod.load_translator_config()
-                            tr_enabled = bool(tr_cfg.get("enabled", True))
-                            tr_sig = (
-                                translator_port,
-                                tr_enabled,
-                                str(tr_cfg.get("target_lang") or "auto"),
-                                bool(tr_cfg.get("auto_translate_chat", True)),
-                            )
-                            now_tr = time.monotonic()
-                            for pid, pinfo in list(patched_pids.items()):
-                                if pid not in current_pids:
-                                    continue
-                                prev_sig = translator_hook_sig.get(pid)
-                                if prev_sig == tr_sig:
-                                    continue
-                                if not tr_enabled and prev_sig is None:
-                                    continue
-                                if now_tr < translator_retry_after.get(pid, 0.0):
-                                    continue
-                                ok_tr, res_tr = sync_translator_hook(cd, pid, tr_mod, translator_port, tr_cfg)
-                                if ok_tr and res_tr != "BOOTING_WAIT":
-                                    translator_hook_sig[pid] = tr_sig
-                                    translator_retry_after.pop(pid, None)
-                                    lbl = pinfo.get("label", pinfo.get("exe_name", "Client"))
-                                    log(f"[+] Live Translator hook synced on {lbl} (PID {pid}): {res_tr}")
-                                else:
-                                    translator_retry_after[pid] = now_tr + 5.0
-                    except Exception:
-                        pass
+                _sync_translator_tick(
+                    cd,
+                    tr_mod,
+                    current_pids,
+                    patched_pids,
+                    translator_hook_sig,
+                    translator_retry_after,
+                    tr_state,
+                    tr_cfg_cache,
+                )
+                translator_started_here = bool(tr_state.get("started_here", translator_started_here))
 
                 if not once and preload_state:
                     now_mono = time.monotonic()

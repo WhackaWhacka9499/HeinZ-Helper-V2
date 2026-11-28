@@ -1473,7 +1473,7 @@
 | `ChatColorAlliance1` | 4 | `a=1`, `b=0.91372549019608`, `g=0.69803921568627`, `r=0.23137254901961` |
 | `ChatColorNormal` | 4 | `a=1`, `b=0.88235294117647`, `g=0.90980392156863`, `r=0.92941176470588` |
 | `ChatColorNormal1` | 4 | `a=1`, `b=0.72549019607843`, `g=0.77254901960784`, `r=0.80392156862745` |
-| `ChatEmojiNames` | 138 | `1=😀`, `10=🙃`, `100=👾`, `101=🤖`, `102=😺`, `103=😸`, `104=😹`, `105=😻` *(+130 more)* |
+| `ChatEmojiNames` | 138 | `1=:emoji_1:`, `10=:emoji_10:`, `100=:emoji_100:`, `101=:emoji_101:`, `102=:emoji_102:`, `103=:emoji_103:`, `104=:emoji_104:`, `105=:emoji_105:` *(+130 more)* |
 | `ChatEventEnum` | 91 | `CHAT_ADD_MEMBER_CHANGE=100053`, `CHAT_AUTO_TRA=100204`, `CHAT_BAN_COMMAND=100034`, `CHAT_BLOCK_COMMAND=100001`, `CHAT_CHECK_UI_MAIN_RED_POINT=100021`, `CHAT... |
 | `ChatGroupId` | 19 | `alliance=1`, `alliance_adv=11`, `country=0`, `custom=6`, `custom_crossbattle_=4`, `custom_eden_camp_=2`, `custom_migrate=-2`, `custom_season=-1` *(+11 more)* |
 | `ChatGroupType` | 22 | `GROUP_ALLIANCE=alliance`, `GROUP_AL_AUTO_INVITE=alAutoInvite`, `GROUP_COUNTRY=country`, `GROUP_CROSS_SERVER=custom_crossbattle_`, `GROUP_CUSTOM=custom`, `GR... |

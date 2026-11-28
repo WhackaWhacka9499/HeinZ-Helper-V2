@@ -4,7 +4,7 @@
  * rather than writing only to the container-bound active spreadsheet.
  */
 
-const SECRET_SYNC_TOKEN = "LASTZ_STATE694_MIGRATION_SECURE_KEY";
+const SECRET_SYNC_TOKEN = PropertiesService.getScriptProperties().getProperty("SECRET_SYNC_TOKEN") || "REPLACE_WITH_YOUR_SECRET";
 
 function doPost(e) {
   try {
@@ -13,7 +13,7 @@ function doPost(e) {
     }
 
     const payload = JSON.parse(e.postData.contents);
-    if (payload.token !== SECRET_SYNC_TOKEN) {
+    if (!SECRET_SYNC_TOKEN || SECRET_SYNC_TOKEN === "REPLACE_WITH_YOUR_SECRET" || payload.token !== SECRET_SYNC_TOKEN) {
       return jsonResponse({ status: "error", message: "Unauthorized: Invalid secret token" }, 403);
     }
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import ctypes
+from ctypes import wintypes
 import importlib.util
 import inspect
 import json
@@ -76,7 +77,27 @@ _FORBIDDEN_VAULT_KEY_FRAGMENTS: tuple[str, ...] = (
     "raw_token",
     "session_token",
     "auth_token",
+    "access_token",
+    "bearer",
+    "pin",
+    "security_pin",
+    "game_pin",
+    "api_key",
+    "deepl_api_key",
+    "gemini_api_key",
 )
+
+_NON_SECRET_BOOL_KEYS: frozenset[str] = frozenset(
+    {
+        "auto_enter_pin",
+        "has_security_pin",
+        "has_deepl_key",
+        "has_gemini_key",
+        "has_token",
+    }
+)
+
+CRYPTPROTECT_UI_FORBIDDEN = 0x1
 
 _DAEMON_SCRIPT_MARKERS: tuple[str, ...] = (
     "lastz auto engine daemon.py",
@@ -91,8 +112,9 @@ _EMAIL_PATTERN = re.compile(
 )
 _PROFILE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 
-_VAULT_IO_LOCK = threading.Lock()
-_MOD_CACHE_LOCK = threading.Lock()
+_VAULT_IO_LOCK = threading.RLock()
+_DPAPI_IO_LOCK = threading.RLock()
+_MOD_CACHE_LOCK = threading.RLock()
 _LOADED_MODULES: dict[str, Any] = {}
 
 
@@ -113,6 +135,11 @@ def resolve_vault_path() -> Path:
     return _resolve_data_dir() / "json cache" / "bound accounts.json"
 
 
+def resolve_dpapi_vault_path() -> Path:
+    """Resolve `<HEINZ_DATA_DIR>/json cache/local dpapi vault.json` dynamically."""
+    return _resolve_data_dir() / "json cache" / "local dpapi vault.json"
+
+
 def _load_tool_module(cache_key: str, filename: str) -> Any | None:
     target = TOOLS_DIR / filename
     if not target.is_file():
@@ -121,20 +148,22 @@ def _load_tool_module(cache_key: str, filename: str) -> Any | None:
         cached = _LOADED_MODULES.get(cache_key)
         if cached is not None:
             return cached
-    try:
-        spec = importlib.util.spec_from_file_location(cache_key, str(target))
-        if spec is None or spec.loader is None:
-            return None
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        with _MOD_CACHE_LOCK:
+        try:
+            spec = importlib.util.spec_from_file_location(cache_key, str(target))
+            if spec is None or spec.loader is None:
+                return None
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
             _LOADED_MODULES[cache_key] = mod
-        return mod
-    except Exception:
-        return None
+            return mod
+        except Exception:
+            return None
 
 
 def _load_client_discovery() -> Any | None:
+    existing = sys.modules.get("heinz_client_discovery_singleton")
+    if existing is not None:
+        return existing
     return _load_tool_module("heinz_vault_client_discovery", "client discovery.py")
 
 
@@ -365,15 +394,69 @@ def _normalize_window_style(style: str | None, strict: bool = False) -> str:
     return "borderless"
 
 
+_CAMEL_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
+
+
+def _is_forbidden_secret_key(key: Any, val: Any = None) -> bool:
+    """Return True when a dict key represents a secret, PIN, token, or API key."""
+    raw = str(key or "").strip()
+    if not raw:
+        return False
+    kl = raw.lower()
+    if kl in _NON_SECRET_BOOL_KEYS and isinstance(val, bool):
+        return False
+    norm_snake = _CAMEL_BOUNDARY_RE.sub(r"\1_\2", raw).lower().replace("-", "_")
+    for frag in _FORBIDDEN_VAULT_KEY_FRAGMENTS:
+        if frag == "pin":
+            if (
+                norm_snake == "pin"
+                or norm_snake.startswith("pin_")
+                or norm_snake.endswith("_pin")
+                or "_pin_" in norm_snake
+            ):
+                return True
+        elif frag in kl or frag in norm_snake:
+            return True
+    return False
+
+
 def _sanitize_account_record(rec: dict[str, Any]) -> dict[str, Any]:
     """Strip any unexpected secret/token keys before writing to disk."""
     clean: dict[str, Any] = {}
     for k, v in rec.items():
-        kl = str(k).lower()
-        if any(frag in kl for frag in _FORBIDDEN_VAULT_KEY_FRAGMENTS):
+        if _is_forbidden_secret_key(k, v):
             continue
         clean[k] = v
     return clean
+
+
+def strip_local_secrets_for_sync(payload: Any) -> Any:
+    """Return a deep copy of `payload` with all local secrets, PINs, tokens, and API keys stripped."""
+    if isinstance(payload, dict):
+        out: dict[Any, Any] = {}
+        for k, v in payload.items():
+            if _is_forbidden_secret_key(k, v):
+                continue
+            out[k] = strip_local_secrets_for_sync(v)
+        return out
+    if isinstance(payload, list):
+        return [strip_local_secrets_for_sync(item) for item in payload]
+    if isinstance(payload, tuple):
+        return [strip_local_secrets_for_sync(item) for item in payload]
+    return payload
+
+
+def _backup_corrupt_vault(path: Path) -> None:
+    try:
+        ts = int(time.time())
+        for seq in range(100):
+            suffix = f".corrupt.{ts}.json" if seq == 0 else f".corrupt.{ts}.{seq}.json"
+            bak = path.with_name(f"{path.stem}{suffix}")
+            if not bak.exists():
+                os.replace(path, bak)
+                return
+    except OSError:
+        pass
 
 
 def load_vault() -> dict[str, Any]:
@@ -381,21 +464,39 @@ def load_vault() -> dict[str, Any]:
     path = resolve_vault_path()
     with _VAULT_IO_LOCK:
         if path.is_file():
-            try:
-                raw = json.loads(path.read_text(encoding="utf-8"))
-                if isinstance(raw, dict):
-                    accounts = [
-                        dict(item)
-                        for item in (raw.get("accounts") or [])
-                        if isinstance(item, dict)
-                    ]
-                    return {
-                        "schema_version": int(raw.get("schema_version") or 1),
-                        "updated_at": int(raw.get("updated_at") or 0),
-                        "accounts": accounts,
-                    }
-            except Exception:
-                pass
+            raw_text: str | None = None
+            for attempt in range(4):
+                try:
+                    raw_text = path.read_text(encoding="utf-8")
+                    break
+                except FileNotFoundError:
+                    raw_text = None
+                    break
+                except PermissionError:
+                    if attempt < 3:
+                        time.sleep(0.03)
+                        continue
+                    raise
+                except OSError:
+                    raw_text = None
+                    break
+            if raw_text is not None:
+                try:
+                    raw = json.loads(raw_text)
+                    if isinstance(raw, dict):
+                        accounts = [
+                            dict(item)
+                            for item in (raw.get("accounts") or [])
+                            if isinstance(item, dict)
+                        ]
+                        return {
+                            "schema_version": int(raw.get("schema_version") or 1),
+                            "updated_at": int(raw.get("updated_at") or 0),
+                            "accounts": accounts,
+                        }
+                    _backup_corrupt_vault(path)
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    _backup_corrupt_vault(path)
     return {
         "schema_version": 1,
         "updated_at": 0,
@@ -445,6 +546,357 @@ def save_vault(data: dict[str, Any]) -> None:
                     tmp.unlink(missing_ok=True)
             except OSError:
                 pass
+
+
+# ------------------------------------------------------------------
+# Windows DPAPI Local Secret Store (Current-User Encrypted)
+# ------------------------------------------------------------------
+
+
+class _DATA_BLOB(ctypes.Structure):
+    _fields_ = [
+        ("cbData", wintypes.DWORD),
+        ("pbData", ctypes.POINTER(ctypes.c_ubyte)),
+    ]
+
+
+def _get_dpapi_libs() -> tuple[Any, Any]:
+    if os.name != "nt":
+        raise RuntimeError("Windows DPAPI is only available on Windows")
+    windll = getattr(ctypes, "windll", None)
+    if windll is None:
+        raise RuntimeError("ctypes.windll is unavailable on this platform")
+    crypt32 = windll.crypt32
+    kernel32 = windll.kernel32
+    try:
+        crypt32.CryptProtectData.argtypes = [
+            ctypes.POINTER(_DATA_BLOB),
+            wintypes.LPCWSTR,
+            ctypes.POINTER(_DATA_BLOB),
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(_DATA_BLOB),
+        ]
+        crypt32.CryptProtectData.restype = wintypes.BOOL
+        crypt32.CryptUnprotectData.argtypes = [
+            ctypes.POINTER(_DATA_BLOB),
+            ctypes.POINTER(wintypes.LPWSTR),
+            ctypes.POINTER(_DATA_BLOB),
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(_DATA_BLOB),
+        ]
+        crypt32.CryptUnprotectData.restype = wintypes.BOOL
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
+    except Exception:
+        pass
+    return crypt32, kernel32
+
+
+def dpapi_protect_text(plaintext: str) -> str:
+    """Encrypt `plaintext` with Windows DPAPI (current-user scope, no UI) and return base64."""
+    if plaintext is None:
+        raise ValueError("plaintext must be a string")
+    text = str(plaintext)
+    if text == "":
+        return ""
+    crypt32, kernel32 = _get_dpapi_libs()
+    raw = text.encode("utf-8")
+    buf = (ctypes.c_ubyte * len(raw)).from_buffer_copy(raw)
+    in_blob = _DATA_BLOB(len(raw), ctypes.cast(buf, ctypes.POINTER(ctypes.c_ubyte)))
+    out_blob = _DATA_BLOB()
+    ok = crypt32.CryptProtectData(
+        ctypes.byref(in_blob),
+        "HeinZ Local Vault",
+        None,
+        None,
+        None,
+        CRYPTPROTECT_UI_FORBIDDEN,
+        ctypes.byref(out_blob),
+    )
+    try:
+        if not ok:
+            raise RuntimeError(f"CryptProtectData failed (error={ctypes.GetLastError()})")
+        if not out_blob.pbData or int(out_blob.cbData) <= 0:
+            raise RuntimeError("CryptProtectData returned empty buffer")
+        protected = ctypes.string_at(out_blob.pbData, int(out_blob.cbData))
+        return base64.b64encode(protected).decode("ascii")
+    finally:
+        if getattr(out_blob, "pbData", None):
+            try:
+                kernel32.LocalFree(ctypes.cast(out_blob.pbData, ctypes.c_void_p))
+            except Exception:
+                pass
+
+
+def dpapi_unprotect_text(b64_blob: str) -> str:
+    """Decrypt a base64-encoded Windows DPAPI blob for the current Windows user."""
+    text = str(b64_blob or "").strip()
+    if not text:
+        return ""
+    crypt32, kernel32 = _get_dpapi_libs()
+    try:
+        raw = base64.b64decode(text.encode("ascii"), validate=True)
+    except Exception as exc:
+        raise ValueError(f"Invalid DPAPI base64 blob: {exc}") from exc
+    if not raw:
+        raise ValueError("Empty DPAPI blob")
+    buf = (ctypes.c_ubyte * len(raw)).from_buffer_copy(raw)
+    in_blob = _DATA_BLOB(len(raw), ctypes.cast(buf, ctypes.POINTER(ctypes.c_ubyte)))
+    out_blob = _DATA_BLOB()
+    ok = crypt32.CryptUnprotectData(
+        ctypes.byref(in_blob),
+        None,
+        None,
+        None,
+        None,
+        CRYPTPROTECT_UI_FORBIDDEN,
+        ctypes.byref(out_blob),
+    )
+    try:
+        if not ok:
+            raise RuntimeError(f"CryptUnprotectData failed (error={ctypes.GetLastError()})")
+        if not out_blob.pbData or int(out_blob.cbData) < 0:
+            raise RuntimeError("CryptUnprotectData returned invalid buffer")
+        if int(out_blob.cbData) == 0:
+            return ""
+        plain_bytes = ctypes.string_at(out_blob.pbData, int(out_blob.cbData))
+        return plain_bytes.decode("utf-8")
+    finally:
+        if getattr(out_blob, "pbData", None):
+            try:
+                kernel32.LocalFree(ctypes.cast(out_blob.pbData, ctypes.c_void_p))
+            except Exception:
+                pass
+
+
+def _load_dpapi_vault() -> dict[str, Any]:
+    path = resolve_dpapi_vault_path()
+    with _DPAPI_IO_LOCK:
+        if path.is_file():
+            raw_text: str | None = None
+            for attempt in range(4):
+                try:
+                    raw_text = path.read_text(encoding="utf-8")
+                    break
+                except FileNotFoundError:
+                    raw_text = None
+                    break
+                except PermissionError:
+                    if attempt < 3:
+                        time.sleep(0.03)
+                        continue
+                    raise
+                except OSError:
+                    raw_text = None
+                    break
+            if raw_text is not None:
+                try:
+                    raw = json.loads(raw_text)
+                    if isinstance(raw, dict):
+                        secrets_in = raw.get("secrets")
+                        secrets_clean: dict[str, dict[str, str]] = {}
+                        if isinstance(secrets_in, dict):
+                            for ns, entries in secrets_in.items():
+                                if isinstance(entries, dict):
+                                    ns_clean = str(ns).strip().lower()
+                                    if not ns_clean:
+                                        continue
+                                    bucket: dict[str, str] = {}
+                                    for ek, ev in entries.items():
+                                        ek_clean = str(ek).strip().lower()
+                                        if ek_clean and isinstance(ev, str) and ev.strip():
+                                            bucket[ek_clean] = ev.strip()
+                                    if bucket:
+                                        secrets_clean[ns_clean] = bucket
+                        return {
+                            "schema_version": int(raw.get("schema_version") or 1),
+                            "updated_at": int(raw.get("updated_at") or 0),
+                            "scope": "current_user_dpapi",
+                            "secrets": secrets_clean,
+                        }
+                    _backup_corrupt_vault(path)
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    _backup_corrupt_vault(path)
+    return {
+        "schema_version": 1,
+        "updated_at": 0,
+        "scope": "current_user_dpapi",
+        "secrets": {},
+    }
+
+
+def _save_dpapi_vault(data: dict[str, Any]) -> None:
+    path = resolve_dpapi_vault_path()
+    payload = {
+        "schema_version": int(data.get("schema_version") or 1),
+        "updated_at": int(time.time()),
+        "scope": "current_user_dpapi",
+        "secrets": data.get("secrets") if isinstance(data.get("secrets"), dict) else {},
+    }
+    with _DPAPI_IO_LOCK:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Keep temp filename underscore-free as well.
+        tmp = path.with_name(
+            f"{path.name}.{os.getpid()}.{threading.get_ident()}.{time.time_ns()}.tmp"
+        )
+        try:
+            with tmp.open("w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2, ensure_ascii=False)
+                fh.flush()
+                try:
+                    os.fsync(fh.fileno())
+                except OSError:
+                    pass
+            for attempt in range(5):
+                try:
+                    os.replace(tmp, path)
+                    break
+                except (PermissionError, OSError):
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.05)
+        finally:
+            try:
+                if tmp.exists():
+                    tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def set_dpapi_secret(namespace: str, key: str, value: str) -> bool:
+    """Encrypt and store a secret under `(namespace, key)` in the local DPAPI vault."""
+    ns = str(namespace or "").strip().lower()
+    k = str(key or "").strip().lower()
+    if not ns or not k:
+        raise ValueError("namespace and key must be non-empty")
+    val_str = str(value or "")
+    if val_str == "":
+        delete_dpapi_secret(ns, k)
+        return True
+    blob = dpapi_protect_text(val_str)
+    with _DPAPI_IO_LOCK:
+        vault = _load_dpapi_vault()
+        secrets = dict(vault.get("secrets") or {})
+        bucket = dict(secrets.get(ns) or {})
+        bucket[k] = blob
+        secrets[ns] = bucket
+        vault["secrets"] = secrets
+        _save_dpapi_vault(vault)
+    return True
+
+
+def get_dpapi_secret(namespace: str, key: str) -> str | None:
+    """Retrieve and decrypt a secret from the local DPAPI vault, or None if missing/invalid."""
+    ns = str(namespace or "").strip().lower()
+    k = str(key or "").strip().lower()
+    if not ns or not k:
+        return None
+    with _DPAPI_IO_LOCK:
+        vault = _load_dpapi_vault()
+        blob = ((vault.get("secrets") or {}).get(ns) or {}).get(k)
+    if not blob:
+        return None
+    try:
+        return dpapi_unprotect_text(blob)
+    except Exception:
+        return None
+
+
+def has_dpapi_secret(namespace: str, key: str) -> bool:
+    """Check whether a non-empty DPAPI-encrypted secret exists without decrypting it."""
+    ns = str(namespace or "").strip().lower()
+    k = str(key or "").strip().lower()
+    if not ns or not k:
+        return False
+    with _DPAPI_IO_LOCK:
+        vault = _load_dpapi_vault()
+        blob = ((vault.get("secrets") or {}).get(ns) or {}).get(k)
+    return bool(isinstance(blob, str) and blob.strip())
+
+
+def delete_dpapi_secret(namespace: str, key: str) -> bool:
+    """Delete a secret from the local DPAPI vault; returns True if an entry was removed."""
+    ns = str(namespace or "").strip().lower()
+    k = str(key or "").strip().lower()
+    if not ns or not k:
+        return False
+    with _DPAPI_IO_LOCK:
+        vault = _load_dpapi_vault()
+        secrets = dict(vault.get("secrets") or {})
+        bucket = dict(secrets.get(ns) or {})
+        if k not in bucket:
+            return False
+        bucket.pop(k, None)
+        if bucket:
+            secrets[ns] = bucket
+        else:
+            secrets.pop(ns, None)
+        vault["secrets"] = secrets
+        _save_dpapi_vault(vault)
+    return True
+
+
+def set_account_security_pin(account_id: str, pin: str) -> dict[str, Any]:
+    """Encrypt and store a Game Security PIN locally for `account_id` (never logged or returned)."""
+    aid = str(account_id or "").strip().lower()
+    if not aid:
+        return {"ok": False, "error": "account_id is required", "has_security_pin": False}
+    clean_pin = str(pin or "").strip()
+    if not clean_pin:
+        return clear_account_security_pin(aid)
+    set_dpapi_secret("account_pin", aid, clean_pin)
+    return {"ok": True, "account_id": aid, "has_security_pin": True}
+
+
+def clear_account_security_pin(account_id: str) -> dict[str, Any]:
+    """Delete the local DPAPI-encrypted Game Security PIN for `account_id`."""
+    aid = str(account_id or "").strip().lower()
+    if not aid:
+        return {"ok": False, "error": "account_id is required", "cleared": False, "has_security_pin": False}
+    removed = delete_dpapi_secret("account_pin", aid)
+    return {"ok": True, "account_id": aid, "cleared": bool(removed), "has_security_pin": False}
+
+
+def has_account_security_pin(account_id: str) -> bool:
+    """Return True if a DPAPI-protected Game Security PIN is stored for `account_id`."""
+    aid = str(account_id or "").strip().lower()
+    if not aid:
+        return False
+    return has_dpapi_secret("account_pin", aid)
+
+
+def get_account_security_pin_for_launch(account_id: str) -> str | None:
+    """Internal-only helper returning decrypted Game Security PIN for Enhanced-mode launch."""
+    aid = str(account_id or "").strip().lower()
+    if not aid:
+        return None
+    val = get_dpapi_secret("account_pin", aid)
+    return val if val else None
+
+
+def set_communityz_bearer_token(token: str) -> dict[str, Any]:
+    """Encrypt and store the CommunityZ desktop Bearer token locally via Windows DPAPI."""
+    clean_tok = str(token or "").strip()
+    if not clean_tok:
+        return clear_communityz_bearer_token()
+    set_dpapi_secret("communityz", "bearer_token", clean_tok)
+    return {"ok": True, "has_token": True}
+
+
+def get_communityz_bearer_token() -> str | None:
+    """Retrieve and decrypt the local CommunityZ desktop Bearer token, or None."""
+    val = get_dpapi_secret("communityz", "bearer_token")
+    return val if val else None
+
+
+def clear_communityz_bearer_token() -> dict[str, Any]:
+    """Remove the local CommunityZ desktop Bearer token from DPAPI storage."""
+    removed = delete_dpapi_secret("communityz", "bearer_token")
+    return {"ok": True, "cleared": bool(removed), "has_token": False}
 
 
 # ------------------------------------------------------------------
@@ -558,6 +1010,8 @@ def _enrich_account(
         "last_mode": str(acc.get("last_mode") or "").strip().lower(),
         "last_launched_at": int(acc.get("last_launched_at") or 0),
         "slot_ready": slot_ready,
+        "has_security_pin": has_account_security_pin(aid),
+        "auto_enter_pin": bool(acc.get("auto_enter_pin", False)),
     }
 
 
@@ -566,92 +1020,93 @@ def sync_discovered_accounts(save: bool = True) -> list[dict[str, Any]]:
 
     Preserves any user-set `email`, `label`, and `window_style` on existing vault entries.
     """
-    vault = load_vault()
-    accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
-    by_prof = {
-        str(a.get("unity_profile") or "").strip().lower(): idx
-        for idx, a in enumerate(accounts)
-        if str(a.get("unity_profile") or "").strip()
-    }
-    by_id = {
-        str(a.get("id") or "").strip().lower(): idx
-        for idx, a in enumerate(accounts)
-        if str(a.get("id") or "").strip()
-    }
-
     cd = _load_client_discovery()
     if cd is None or not hasattr(cd, "discover_clients"):
-        return accounts
+        return list(load_vault().get("accounts") or [])
 
     try:
         discovered = cd.discover_clients(save_cache=False) or []
     except Exception:
-        return accounts
+        return list(load_vault().get("accounts") or [])
 
-    changed = False
-    now_ts = int(time.time())
-    for client in discovered:
-        if not isinstance(client, dict):
-            continue
-        prof = str(client.get("unity_profile") or "").strip()
-        if not prof:
-            continue
-        cid = str(client.get("id") or prof.lower()).strip().lower()
-        game_dir = str(client.get("game_dir") or "").strip()
-        exe_path = str(client.get("exe_path") or "").strip()
-        exe_name = str(client.get("exe_name") or (Path(exe_path).name if exe_path else "")).strip()
-        disc_label = str(client.get("label") or prof).strip()
+    with _VAULT_IO_LOCK:
+        vault = load_vault()
+        accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
+        by_prof = {
+            str(a.get("unity_profile") or "").strip().lower(): idx
+            for idx, a in enumerate(accounts)
+            if str(a.get("unity_profile") or "").strip()
+        }
+        by_id = {
+            str(a.get("id") or "").strip().lower(): idx
+            for idx, a in enumerate(accounts)
+            if str(a.get("id") or "").strip()
+        }
 
-        existing_idx = by_prof.get(prof.lower())
-        if existing_idx is None:
-            existing_idx = by_id.get(cid)
+        changed = False
+        now_ts = int(time.time())
+        for client in discovered:
+            if not isinstance(client, dict):
+                continue
+            prof = str(client.get("unity_profile") or "").strip()
+            if not prof:
+                continue
+            cid = str(client.get("id") or prof.lower()).strip().lower()
+            game_dir = str(client.get("game_dir") or "").strip()
+            exe_path = str(client.get("exe_path") or "").strip()
+            exe_name = str(client.get("exe_name") or (Path(exe_path).name if exe_path else "")).strip()
+            disc_label = str(client.get("label") or prof).strip()
 
-        if existing_idx is not None:
-            existing = accounts[existing_idx]
-            # Preserve user-set email, label, and window_style unconditionally.
-            if not existing.get("game_dir") and game_dir:
-                existing["game_dir"] = game_dir
-                changed = True
-            if not existing.get("exe_path") and exe_path:
-                existing["exe_path"] = exe_path
-                changed = True
-            if not existing.get("exe_name") and exe_name:
-                existing["exe_name"] = exe_name
-                changed = True
-            if existing.get("source") == "imported":
-                if game_dir and existing.get("game_dir") != game_dir and Path(game_dir).exists():
+            existing_idx = by_prof.get(prof.lower())
+            if existing_idx is None:
+                existing_idx = by_id.get(cid)
+
+            if existing_idx is not None:
+                existing = accounts[existing_idx]
+                # Preserve user-set email, label, and window_style unconditionally.
+                if not existing.get("game_dir") and game_dir:
                     existing["game_dir"] = game_dir
                     changed = True
-                if exe_path and existing.get("exe_path") != exe_path and Path(exe_path).is_file():
+                if not existing.get("exe_path") and exe_path:
                     existing["exe_path"] = exe_path
                     changed = True
-                if exe_name and not existing.get("exe_name"):
+                if not existing.get("exe_name") and exe_name:
                     existing["exe_name"] = exe_name
                     changed = True
-        else:
-            entry = {
-                "id": cid,
-                "email": "",
-                "label": disc_label,
-                "unity_profile": prof,
-                "exe_name": exe_name,
-                "game_dir": game_dir,
-                "exe_path": exe_path,
-                "window_style": _normalize_window_style(client.get("window_style") or "borderless"),
-                "source": "imported",
-                "created_at": now_ts,
-                "last_mode": "",
-                "last_launched_at": 0,
-            }
-            accounts.append(entry)
-            by_prof[prof.lower()] = len(accounts) - 1
-            by_id[cid] = len(accounts) - 1
-            changed = True
+                if existing.get("source") == "imported":
+                    if game_dir and existing.get("game_dir") != game_dir and Path(game_dir).exists():
+                        existing["game_dir"] = game_dir
+                        changed = True
+                    if exe_path and existing.get("exe_path") != exe_path and Path(exe_path).is_file():
+                        existing["exe_path"] = exe_path
+                        changed = True
+                    if exe_name and not existing.get("exe_name"):
+                        existing["exe_name"] = exe_name
+                        changed = True
+            else:
+                entry = {
+                    "id": cid,
+                    "email": "",
+                    "label": disc_label,
+                    "unity_profile": prof,
+                    "exe_name": exe_name,
+                    "game_dir": game_dir,
+                    "exe_path": exe_path,
+                    "window_style": _normalize_window_style(client.get("window_style") or "borderless"),
+                    "source": "imported",
+                    "created_at": now_ts,
+                    "last_mode": "",
+                    "last_launched_at": 0,
+                }
+                accounts.append(entry)
+                by_prof[prof.lower()] = len(accounts) - 1
+                by_id[cid] = len(accounts) - 1
+                changed = True
 
-    if save and changed:
-        vault["accounts"] = accounts
-        save_vault(vault)
-    return accounts
+        if save and changed:
+            vault["accounts"] = accounts
+            save_vault(vault)
+        return accounts
 
 
 def list_bound_accounts(
@@ -777,6 +1232,8 @@ def bind_new_account(
     engine_root: Path | None = None,
     skip_registry_clear: bool = False,
     reg_reader: Callable[[str], dict[str, Any] | None] | None = None,
+    security_pin: str = "",
+    auto_enter_pin: bool = False,
 ) -> dict[str, Any]:
     """Bind a new Last Z account email to a fresh isolated `HzXXZ` profile slot."""
     valid, norm_or_err = validate_email(email)
@@ -789,47 +1246,53 @@ def bind_new_account(
     except ValueError as exc:
         return {"ok": False, "error": str(exc), "message": str(exc)}
 
-    vault = load_vault()
-    accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
+    with _VAULT_IO_LOCK:
+        vault = load_vault()
+        accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
 
-    for existing in accounts:
-        if str(existing.get("email") or "").strip().lower() == norm_email:
-            err = f"Email '{norm_email}' is already bound to account '{existing.get('label') or existing.get('id')}'"
-            return {"ok": False, "error": err, "message": err}
+        for existing in accounts:
+            if str(existing.get("email") or "").strip().lower() == norm_email:
+                err = f"Email '{norm_email}' is already bound to account '{existing.get('label') or existing.get('id')}'"
+                return {"ok": False, "error": err, "message": err}
 
-    try:
-        unity_profile, exe_name = allocate_next_profile(accounts)
-    except RuntimeError as exc:
-        return {"ok": False, "error": str(exc), "message": str(exc)}
+        try:
+            unity_profile, exe_name = allocate_next_profile(accounts)
+        except RuntimeError as exc:
+            return {"ok": False, "error": str(exc), "message": str(exc)}
 
-    if not skip_registry_clear:
-        clear_profile_session_token(unity_profile)
+        if not skip_registry_clear:
+            clear_profile_session_token(unity_profile)
 
-    slot_info = _invoke_ensure_account_slot(
-        unity_profile,
-        exe_name,
-        engine_root=engine_root,
-        source_game_dir=source_game_dir,
-    )
+        slot_info = _invoke_ensure_account_slot(
+            unity_profile,
+            exe_name,
+            engine_root=engine_root,
+            source_game_dir=source_game_dir,
+        )
 
-    clean_label = str(label or "").strip() or norm_email.split("@", 1)[0]
-    entry = {
-        "id": unity_profile.lower(),
-        "email": norm_email,
-        "label": clean_label,
-        "unity_profile": unity_profile,
-        "exe_name": exe_name,
-        "game_dir": slot_info["game_dir"],
-        "exe_path": slot_info["exe_path"],
-        "window_style": eff_style,
-        "source": "bound",
-        "created_at": int(time.time()),
-        "last_mode": "",
-        "last_launched_at": 0,
-    }
-    accounts.append(entry)
-    vault["accounts"] = accounts
-    save_vault(vault)
+        clean_label = str(label or "").strip() or norm_email.split("@", 1)[0]
+        entry = {
+            "id": unity_profile.lower(),
+            "email": norm_email,
+            "label": clean_label,
+            "unity_profile": unity_profile,
+            "exe_name": exe_name,
+            "game_dir": slot_info["game_dir"],
+            "exe_path": slot_info["exe_path"],
+            "window_style": eff_style,
+            "source": "bound",
+            "created_at": int(time.time()),
+            "last_mode": "",
+            "last_launched_at": 0,
+            "auto_enter_pin": bool(auto_enter_pin),
+        }
+        accounts.append(entry)
+        vault["accounts"] = accounts
+        save_vault(vault)
+
+        clean_pin = str(security_pin or "").strip()
+        if clean_pin:
+            set_account_security_pin(entry["id"], clean_pin)
 
     # Freshly bound profiles start unverified unless a mock reg_reader explicitly reports otherwise.
     effective_reader = reg_reader
@@ -864,45 +1327,60 @@ def update_account(
     label: str | None = None,
     window_style: str | None = None,
     reg_reader: Callable[[str], dict[str, Any] | None] | None = None,
+    security_pin: str | None = None,
+    clear_pin: bool = False,
+    auto_enter_pin: bool | None = None,
 ) -> dict[str, Any]:
-    """Atomically update email, label, and/or window_style for an existing vault account."""
-    vault = load_vault()
-    accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
-    idx = _find_account_index(accounts, account_id)
-    if idx is None:
-        err = f"Account '{account_id}' not found in vault"
-        return {"ok": False, "error": err, "message": err}
-
-    target = dict(accounts[idx])
-
-    if email is not None:
-        valid, norm_or_err = validate_email(email)
-        if not valid:
-            return {"ok": False, "error": norm_or_err, "message": norm_or_err}
-        for other_idx, other in enumerate(accounts):
-            if other_idx == idx:
-                continue
-            if str(other.get("email") or "").strip().lower() == norm_or_err:
-                err = f"Email '{norm_or_err}' is already bound to account '{other.get('label') or other.get('id')}'"
-                return {"ok": False, "error": err, "message": err}
-        target["email"] = norm_or_err
-
-    if label is not None:
-        clean_label = str(label).strip()
-        if not clean_label:
-            err = "Account label cannot be empty"
+    """Atomically update email, label, window_style, and/or local DPAPI PIN settings for an existing vault account."""
+    with _VAULT_IO_LOCK:
+        vault = load_vault()
+        accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
+        idx = _find_account_index(accounts, account_id)
+        if idx is None:
+            err = f"Account '{account_id}' not found in vault"
             return {"ok": False, "error": err, "message": err}
-        target["label"] = clean_label
 
-    if window_style is not None:
-        try:
-            target["window_style"] = _normalize_window_style(window_style, strict=True)
-        except ValueError as exc:
-            return {"ok": False, "error": str(exc), "message": str(exc)}
+        target = dict(accounts[idx])
 
-    accounts[idx] = target
-    vault["accounts"] = accounts
-    save_vault(vault)
+        if email is not None:
+            valid, norm_or_err = validate_email(email)
+            if not valid:
+                return {"ok": False, "error": norm_or_err, "message": norm_or_err}
+            for other_idx, other in enumerate(accounts):
+                if other_idx == idx:
+                    continue
+                if str(other.get("email") or "").strip().lower() == norm_or_err:
+                    err = f"Email '{norm_or_err}' is already bound to account '{other.get('label') or other.get('id')}'"
+                    return {"ok": False, "error": err, "message": err}
+            target["email"] = norm_or_err
+
+        if label is not None:
+            clean_label = str(label).strip()
+            if not clean_label:
+                err = "Account label cannot be empty"
+                return {"ok": False, "error": err, "message": err}
+            target["label"] = clean_label
+
+        if window_style is not None:
+            try:
+                target["window_style"] = _normalize_window_style(window_style, strict=True)
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc), "message": str(exc)}
+
+        if auto_enter_pin is not None:
+            target["auto_enter_pin"] = bool(auto_enter_pin)
+
+        accounts[idx] = target
+        vault["accounts"] = accounts
+        save_vault(vault)
+
+        aid = str(target.get("id") or target.get("unity_profile") or account_id).strip().lower()
+        if bool(clear_pin):
+            clear_account_security_pin(aid)
+        elif security_pin is not None:
+            clean_pin = str(security_pin).strip()
+            if clean_pin:
+                set_account_security_pin(aid, clean_pin)
 
     enriched = _enrich_account(target, reg_reader=reg_reader, running_pids=_find_running_game_pids([target]))
     return {
@@ -914,16 +1392,20 @@ def update_account(
 
 def unbind_account(account_id: str, clear_session: bool = False) -> dict[str, Any]:
     """Remove an account from the vault and optionally clear its isolated Unity session token."""
-    vault = load_vault()
-    accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
-    idx = _find_account_index(accounts, account_id)
-    if idx is None:
-        err = f"Account '{account_id}' not found in vault"
-        return {"ok": False, "error": err, "message": err}
+    with _VAULT_IO_LOCK:
+        vault = load_vault()
+        accounts: list[dict[str, Any]] = list(vault.get("accounts") or [])
+        idx = _find_account_index(accounts, account_id)
+        if idx is None:
+            err = f"Account '{account_id}' not found in vault"
+            return {"ok": False, "error": err, "message": err}
 
-    removed = accounts.pop(idx)
-    vault["accounts"] = accounts
-    save_vault(vault)
+        removed = accounts.pop(idx)
+        vault["accounts"] = accounts
+        save_vault(vault)
+
+    removed_id = str(removed.get("id") or removed.get("unity_profile") or account_id).strip().lower()
+    clear_account_security_pin(removed_id)
 
     clear_res: dict[str, Any] | None = None
     if clear_session:
@@ -996,7 +1478,7 @@ def stop_background_heinz_daemons() -> dict[str, Any]:
     targets: list[tuple[Any, int, str, str]] = []
 
     try:
-        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+        for proc in psutil.process_iter(["pid", "name"]):
             try:
                 pid = int(proc.info.get("pid") or 0)
                 if pid <= 0 or pid == my_pid:
@@ -1008,8 +1490,10 @@ def stop_background_heinz_daemons() -> dict[str, Any]:
                 if not ("python" in pname_low or pname_low in ("py.exe", "heinz.exe")):
                     continue
 
-                cmdline_raw = proc.info.get("cmdline") or []
-                cmdline_str = " ".join(str(part) for part in cmdline_raw).lower()
+                cmdline_raw = proc.info.get("cmdline")
+                if cmdline_raw is None and hasattr(proc, "cmdline"):
+                    cmdline_raw = proc.cmdline()
+                cmdline_str = " ".join(str(part) for part in (cmdline_raw or [])).lower()
                 if not cmdline_str:
                     continue
                 # Never interrupt test runners invoking unit tests.
@@ -1208,6 +1692,134 @@ def _prepare_runtime_prefs(unity_profile: str, exe_path: Path, mode: str) -> Non
     _repair_window_and_gpu_direct(unity_profile, exe_path)
 
 
+def _escape_lua_string(val: str) -> str:
+    return (
+        str(val or "")
+        .replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\0", "")
+    )
+
+
+def _build_auto_pin_lua(pin: str) -> str:
+    """Build a transient in-memory Lua snippet that submits the local Game Security PIN.
+
+    Never writes the PIN to disk or logs it.
+    """
+    esc_pin = _escape_lua_string(pin)
+    return (
+        f'local pin = "{esc_pin}"\n'
+        'if not pin or #pin == 0 then return "NO_PIN" end\n'
+        'local ok_res = "WAITING"\n'
+        'local ok_call, res = pcall(function()\n'
+        '  local p = LuaEntry and LuaEntry.Player\n'
+        '  if p and (p.uid or (p.GetUid and p:GetUid())) then return "DONE" end\n'
+        '  local mgr = UIManager and ((UIManager.GetInstance and UIManager:GetInstance()) or UIManager)\n'
+        '  local function get_win(name)\n'
+        '    if not mgr then return nil end\n'
+        '    local w = nil\n'
+        '    if mgr.GetWindow then local s, r = pcall(function() return mgr:GetWindow(name) end); if s then w = r end end\n'
+        '    if not w and mgr.windows then w = mgr.windows[name] end\n'
+        '    return w\n'
+        '  end\n'
+        '  local function is_active(w)\n'
+        '    if not w then return false end\n'
+        '    if w.gameObject ~= nil then\n'
+        '      local s, a = pcall(function() return w.gameObject.activeInHierarchy end)\n'
+        '      if s then return a == true end\n'
+        '    end\n'
+        '    return true\n'
+        '  end\n'
+        '  local function get_view(w)\n'
+        '    if not w then return nil end\n'
+        '    return w.view or w.View or w.ctrl or w.Ctrl or w\n'
+        '  end\n'
+        '  local wPin = get_win("UIPinInput")\n'
+        '  if is_active(wPin) then\n'
+        '    local v = get_view(wPin)\n'
+        '    if v and v.OnNumberBtnClick then\n'
+        '      for i = 1, #pin do\n'
+        '        local ch = string.sub(pin, i, i)\n'
+        '        v:OnNumberBtnClick(tonumber(ch) or ch)\n'
+        '      end\n'
+        '      if v.OnComplete then v:OnComplete() end\n'
+        '      return "SUBMITTED_UIPIN"\n'
+        '    end\n'
+        '  end\n'
+        '  local wCode = get_win("UIPINCodeInput")\n'
+        '  if is_active(wCode) then\n'
+        '    local v = get_view(wCode)\n'
+        '    if v and v.OnBtnSubmitClick then\n'
+        '      pcall(function()\n'
+        '        local fld = v.inputField or v.m_input or v.pinInput\n'
+        '        if fld then fld.text = pin end\n'
+        '      end)\n'
+        '      v:OnBtnSubmitClick()\n'
+        '      return "SUBMITTED_UIPINCODE"\n'
+        '    end\n'
+        '  end\n'
+        '  local in_pin_state = false\n'
+        '  if Loading and Loading.AppStartupLoading and Loading.AppStartupLoading.GetInstance then\n'
+        '    local s, app = pcall(function() return Loading.AppStartupLoading:GetInstance() end)\n'
+        '    if s and app then\n'
+        '      local s2, st_name = pcall(function() return app.GetStateName and tostring(app:GetStateName() or "") or "" end)\n'
+        '      if s2 and st_name and string.find(st_name, "PINIdentify", 1, true) then\n'
+        '        in_pin_state = true\n'
+        '      end\n'
+        '    end\n'
+        '  end\n'
+        '  if (in_pin_state or is_active(wPin) or is_active(wCode)) and SFSNetwork and SFSNetwork.SendMessage and MsgDefines and MsgDefines.UserPasswordCheck then\n'
+        '    SFSNetwork.SendMessage(MsgDefines.UserPasswordCheck, pin)\n'
+        '    return "SUBMITTED_NET"\n'
+        '  end\n'
+        '  return "WAITING"\n'
+        'end)\n'
+        'if ok_call and res then ok_res = tostring(res) end\n'
+        'return ok_res\n'
+    )
+
+
+def _run_enhanced_auto_pin_worker(pid: int, pin: str, timeout_sec: float = 60.0) -> str:
+    """Wait for Enhanced-mode xlua readiness and submit the transient in-memory PIN Lua hook."""
+    if not pin or int(pid or 0) <= 0:
+        return "SKIPPED"
+    cd = _load_client_discovery()
+    if cd is None or not hasattr(cd, "_xlua_loaded") or not hasattr(cd, "frida_eval_lua"):
+        return "NO_CLIENT_DISCOVERY"
+    lua_code = _build_auto_pin_lua(pin)
+    deadline = time.monotonic() + max(5.0, float(timeout_sec))
+    while time.monotonic() < deadline:
+        try:
+            if not psutil.pid_exists(int(pid)):
+                return "PID_EXITED"
+        except Exception:
+            pass
+        try:
+            if cd._xlua_loaded(int(pid), min_uptime_sec=2.0):
+                ok, res = cd.frida_eval_lua(int(pid), lua_code, timeout=3.0, retries=0)
+                res_str = str(res or "")
+                if ok and res_str in ("DONE", "SUBMITTED_UIPIN", "SUBMITTED_UIPINCODE", "SUBMITTED_NET"):
+                    return res_str
+        except Exception:
+            pass
+        time.sleep(0.5)
+    return "TIMEOUT"
+
+
+def _schedule_enhanced_auto_pin(pid: int, pin: str) -> None:
+    """Spawn a daemon thread for Enhanced-mode transient auto-PIN entry."""
+    if not pin or int(pid or 0) <= 0:
+        return
+    threading.Thread(
+        target=_run_enhanced_auto_pin_worker,
+        args=(int(pid), pin),
+        daemon=True,
+        name=f"AutoPin_{int(pid)}",
+    ).start()
+
+
 def launch_bound_account(
     account_id: str,
     mode: str = "vanilla",
@@ -1274,6 +1886,29 @@ def launch_bound_account(
     session = inspect_profile_session(prof, reg_reader=reg_reader)
     needs_email_code = bool(session["needs_email_code"])
 
+    acc_id_norm = str(acc.get("id") or prof.lower()).lower()
+    if not dry_run:
+        running_map = _find_running_game_pids([acc])
+        existing_pid = int(running_map.get(acc_id_norm) or 0)
+        if existing_pid > 0:
+            return {
+                "ok": True,
+                "already_running": True,
+                "mode": eff_mode,
+                "should_exit_heinz": False,
+                "account_id": acc_id_norm,
+                "label": str(acc.get("label") or prof),
+                "email": str(acc.get("email") or ""),
+                "unity_profile": prof,
+                "exe_path": str(exe_path),
+                "args": [],
+                "pid": existing_pid,
+                "needs_email_code": needs_email_code,
+                "window_style": eff_style,
+                "daemons_stopped": 0,
+                "message": f"Account '{acc.get('label') or prof}' ({prof}) is already running (PID {existing_pid}).",
+            }
+
     # Skip real HKCU edits during dry-run or when a mock reg_reader is active.
     if not dry_run and reg_reader is None:
         try:
@@ -1320,11 +1955,25 @@ def launch_bound_account(
             proc = spawner(args, creationflags=base_flags, **popen_kwargs)
         pid = int(getattr(proc, "pid", 0) or 0)
 
-        acc["last_launched_at"] = int(time.time())
-        acc["last_mode"] = eff_mode
-        accounts[idx] = acc
-        vault["accounts"] = accounts
-        save_vault(vault)
+        launch_ts = int(time.time())
+        with _VAULT_IO_LOCK:
+            fresh_vault = load_vault()
+            fresh_accounts: list[dict[str, Any]] = list(fresh_vault.get("accounts") or [])
+            fresh_idx = _find_account_index(fresh_accounts, str(acc.get("id") or account_id))
+            if fresh_idx is not None:
+                fresh_acc = dict(fresh_accounts[fresh_idx])
+                fresh_acc["last_launched_at"] = launch_ts
+                fresh_acc["last_mode"] = eff_mode
+                fresh_accounts[fresh_idx] = fresh_acc
+                fresh_vault["accounts"] = fresh_accounts
+                save_vault(fresh_vault)
+
+    auto_pin_scheduled = False
+    if eff_mode == "enhanced" and not dry_run and pid > 0 and bool(acc.get("auto_enter_pin")):
+        pin_for_launch = get_account_security_pin_for_launch(acc_id_norm)
+        if pin_for_launch:
+            _schedule_enhanced_auto_pin(pid, pin_for_launch)
+            auto_pin_scheduled = True
 
     mode_desc = "Pure Vanilla (zero-attach)" if eff_mode == "vanilla" else "Enhanced"
     verify_note = " First-time email verification code required." if needs_email_code else ""
@@ -1348,6 +1997,9 @@ def launch_bound_account(
         "needs_email_code": needs_email_code,
         "window_style": eff_style,
         "daemons_stopped": stopped_count,
+        "has_security_pin": has_account_security_pin(acc_id_norm),
+        "auto_enter_pin": bool(acc.get("auto_enter_pin", False)),
+        "auto_pin_scheduled": auto_pin_scheduled,
         "message": msg,
     }
 
