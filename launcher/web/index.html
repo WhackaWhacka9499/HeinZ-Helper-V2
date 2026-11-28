@@ -4783,7 +4783,7 @@
                 </div>
                 <div>
                   <div class="card-title" data-i18n="perf.translator_title">Smart In-Game Auto-Translator</div>
-                  <div class="card-desc" data-i18n="perf.translator_desc">Replaces Last Z's slow built-in translator directly inside World, Alliance, Private Chat &amp; Mail with a zero-setup 4-tier translation cascade, local 0ms cache, and Last Z slang/coord protection.</div>
+                  <div class="card-desc" data-i18n="perf.translator_desc">Live in-place chat overlay across World, Cross-State, Alliance &amp; Private Chat using a zero-setup free local Google Translate cascade, 0ms SQLite cache, and Last Z slang/coord protection (no expanded duplicate bubbles, no manual buttons, no API key needed).</div>
                 </div>
               </div>
               <span id="tr-status-pill" class="map-season-pill is-cache"><span class="map-season-dot"></span><span id="tr-status-text">Checking...</span></span>
@@ -4830,17 +4830,6 @@
               <button type="button" id="tr-rehook-btn" class="btn btn-amber-soft btn-sm" onclick="rehookTranslator()">Re-Hook Translator</button>
             </div>
             <div id="tr-last-preview" class="tr-test-out" style="font-size:11.5px; color:var(--muted);">Last Translated Chat: None yet</div>
-
-            <details style="margin-top:8px;">
-              <summary style="cursor:pointer; font-size:11.5px; color:var(--muted);" data-i18n="perf.translator_api_keys">Optional API Keys (DeepL / Gemini - not required, free cascade works automatically)</summary>
-              <div class="tr-card-grid" style="margin-top:8px;">
-                <input id="tr-deepl-key" type="password" class="clean-input" placeholder="Optional DeepL API Key (leave blank for free cascade)" autocomplete="off" />
-                <input id="tr-gemini-key" type="password" class="clean-input" placeholder="Optional Gemini API Key (leave blank for free cascade)" autocomplete="off" />
-              </div>
-              <div class="btn-row" style="margin-top:8px;">
-                <button type="button" id="tr-save-btn" class="btn btn-green btn-sm" onclick="saveTranslatorSettings(true)" data-i18n="perf.translator_save">Save &amp; Apply to Live Game</button>
-              </div>
-            </details>
           </div>
 
           <div class="card-grid-2">

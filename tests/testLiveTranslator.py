@@ -1046,6 +1046,213 @@ class TestLuaHookGeneratorAndBehavior(unittest.TestCase):
         self.assertTrue(lua.eval('_G.LuaEntry.DataConfig:CheckSwitch("custom_switch")'))
         self.assertEqual(lua.eval("_G.newCheckCalls"), 2)
 
+    def test_state_swap_prototype_persistence_and_in_place_overlay(self) -> None:
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.execute(
+            r"""
+            _G.TranslateUrlList = { "https://translate-lm.omnilojoapps.com/client.php" }
+            _G._broadcasts = {}
+            _G._mainHudRefreshes = 0
+
+            package.loaded["rapidjson"] = {
+                decode = function(s)
+                    local code = tonumber(s:match('"code"%s*:%s*(%d+)'))
+                    local ol = s:match('"originalLang"%s*:%s*"([^"]*)"') or ""
+                    local tl = s:match('"targetLang"%s*:%s*"([^"]*)"') or ""
+                    local tm = s:match('"translateMsg"%s*:%s*"([^"]*)"') or ""
+                    return { code = code, originalLang = ol, targetLang = tl, translateMsg = tm }
+                end
+            }
+
+            _G.EventManager = {
+                GetInstance = function()
+                    return {
+                        Broadcast = function(self, ev, param)
+                            _G._broadcasts[#_G._broadcasts + 1] = { ev = ev, roomId = param and param.roomId, seqId = param and param.seqId }
+                        end
+                    }
+                end
+            }
+            _G.ChatInterface = {
+                getEventEnum = function() return { CHAT_UPDATE_ROOM_MSG = "CHAT_UPDATE_ROOM_MSG" } end,
+                refreshMainUILastChat = function() _G._mainHudRefreshes = _G._mainHudRefreshes + 1 end,
+            }
+
+            local ChatMessageBase = {}
+            ChatMessageBase.__index = ChatMessageBase
+            function ChatMessageBase:getChatMessageType() return 0 end
+            function ChatMessageBase:isMyChat() return self._mine == true end
+            function ChatMessageBase:isShowTranslateBtn() return self.post == 0 end
+            function ChatMessageBase:CanShowTranslate() return not self:isMyChat() end
+            function ChatMessageBase:getTranslationMsg() return self.translateMsg or "" end
+            function ChatMessageBase:getTranslationMsgEx() return self.translateMsgEx or "" end
+            function ChatMessageBase:getTranslationMsgGoogle() return self.translateMsgGoogle or "" end
+            function ChatMessageBase:IsTranslating() return (self.isTranslating or 0) ~= 0 end
+            function ChatMessageBase:IsTranslatingEx() return false end
+            function ChatMessageBase:IsTranslatingGoogle() return false end
+            function ChatMessageBase:setIsTranslating(v) self.isTranslating = v end
+            function ChatMessageBase:SetTranslateMsgState(v) self.translateMsgState = v end
+            function _G._newChatMsg(fields)
+                return setmetatable(fields, ChatMessageBase)
+            end
+
+            local TranslateManagerBase = {}
+            TranslateManagerBase.__index = TranslateManagerBase
+            function TranslateManagerBase:GetLangString() return "en" end
+            function TranslateManagerBase:onTranslateCallback(chatData, ok, resp)
+                chatData.translateMsg = "LEGACY_SHOULD_NOT_RUN"
+            end
+            function TranslateManagerBase:DoTranslate(msg)
+                msg.isTranslating = 1
+                local resp
+                if msg.msg:find("700 do not attack", 1, true) then
+                    resp = '{"code":0,"originalLang":"en","targetLang":"en","translateMsg":"700 do not attack tanks"}'
+                else
+                    resp = '{"code":0,"originalLang":"ru","targetLang":"en","translateMsg":"Guys thank you for the fight"}'
+                end
+                self:onTranslateCallback(msg, true, resp)
+            end
+
+            local ChatRoomDataBase = {}
+            ChatRoomDataBase.__index = ChatRoomDataBase
+            function ChatRoomDataBase:__addChatData(chatData)
+                self.msgs[#self.msgs + 1] = chatData
+                return true
+            end
+            function ChatRoomDataBase:__addChatDatas(arr)
+                for i = 1, #arr do self:__addChatData(arr[i]) end
+            end
+
+            local ChatRoomManagerBase = {}
+            ChatRoomManagerBase.__index = ChatRoomManagerBase
+            function ChatRoomManagerBase:AddChat(chatData, inDB)
+                local r = self.roomDatas[chatData.roomId]
+                if r then r:__addChatData(chatData) end
+                return true
+            end
+
+            local ChatManager2Base = {}
+            ChatManager2Base.__index = ChatManager2Base
+            function ChatManager2Base:OnHandleMessage(cmd, payload)
+                return "OK"
+            end
+
+            package.loaded["SlgEngine.Chat.Model.ChatMessageBase"] = ChatMessageBase
+            package.loaded["SlgEngine.Chat.Controller.TranslateManagerBase"] = TranslateManagerBase
+            package.loaded["SlgEngine.Chat.Model.ChatRoomDataBase"] = ChatRoomDataBase
+            package.loaded["SlgEngine.Chat.Controller.ChatRoomManagerBase"] = ChatRoomManagerBase
+            package.loaded["SlgEngine.Chat.ChatManager2Base"] = ChatManager2Base
+
+            function _G._spawnChatManagerInstance(stateRoomId)
+                local roomObj = setmetatable({ roomId = stateRoomId, msgs = {} }, ChatRoomDataBase)
+                local rmInst = setmetatable({ roomDatas = { [stateRoomId] = roomObj } }, ChatRoomManagerBase)
+                local tmInst = setmetatable({}, TranslateManagerBase)
+                local cmInst = setmetatable({ Room = rmInst, Translate = tmInst }, ChatManager2Base)
+                _G.ChatManager2 = {
+                    GetInstance = function() return cmInst end,
+                    Instance = cmInst,
+                }
+                return cmInst, rmInst, tmInst, roomObj
+            end
+
+            _G._spawnChatManagerInstance("country_702")
+            """
+        )
+
+        hook_lua = TR_MOD.build_translator_lua_hook(18765, enabled=True, target_lang="en", auto_translate_chat=True)
+        diag_lua = TR_MOD.build_translator_diag_lua()
+        self.assertEqual(lua.execute(hook_lua), "TRANSLATOR_HOOK_ENABLED:18765:en")
+        self.assertTrue(json.loads(lua.execute(diag_lua))["hooked"])
+
+        # Simulate state swap 702 -> 700: destroy old ChatManager2/Room/Translate instances and spawn brand-new ones
+        lua.execute(
+            r"""
+            local cm700, rm700, tm700, room700 = _G._spawnChatManagerInstance("country_700")
+            -- 1. English message on state 700 -> must NOT duplicate or change msg, translateMsg stays ""
+            _G._msgEn = _G._newChatMsg({
+                roomId = "country_700", seqId = "s700_en", post = 0, type = 0,
+                msg = "700 do not attack tanks", msgMask = "700 do not attack tanks", translateMsg = ""
+            })
+            rm700:AddChat(_G._msgEn, false)
+
+            -- 2. Russian message on state 700 -> replaced IN-PLACE in msg & msgMask, translateMsg stays "", no button
+            _G._msgRu = _G._newChatMsg({
+                roomId = "country_700", seqId = "s700_ru", post = 0, type = 0,
+                msg = "Ребят всем спасибо бой был что надо", msgMask = "Ребят всем спасибо бой был что надо", translateMsg = ""
+            })
+            rm700:AddChat(_G._msgRu, false)
+
+            -- 3. Pre-expanded message loaded from DB -> promoted in-place and duplicate translateMsg collapsed
+            _G._msgPre = _G._newChatMsg({
+                roomId = "country_700", seqId = "s700_pre", post = 0, type = 0,
+                msg = "Я победу посвящаю", msgMask = "Я победу посвящаю", translateMsg = "I dedicate the victory"
+            })
+            rm700:AddChat(_G._msgPre, false)
+            """
+        )
+
+        # Hook remained 100% active across state swap without re-running build_translator_lua_hook!
+        diag_after_swap = json.loads(lua.execute(diag_lua))
+        self.assertTrue(diag_after_swap["hooked"])
+
+        # English message untouched, zero duplicate box
+        self.assertEqual(lua.eval("_G._msgEn.msg"), "700 do not attack tanks")
+        self.assertEqual(lua.eval("_G._msgEn.translateMsg"), "")
+        self.assertEqual(lua.eval("_G._msgEn:getTranslationMsg()"), "")
+        self.assertFalse(lua.eval("_G._msgEn:isShowTranslateBtn()"))
+
+        # Russian message replaced in-place (both msg and msgMask), zero expanded translateMsg box, zero button
+        self.assertEqual(lua.eval("_G._msgRu.msg"), "Guys thank you for the fight")
+        self.assertEqual(lua.eval("_G._msgRu.msgMask"), "Guys thank you for the fight")
+        self.assertEqual(lua.eval("_G._msgRu.translateMsg"), "")
+        self.assertEqual(lua.eval("_G._msgRu:getTranslationMsg()"), "")
+        self.assertFalse(lua.eval("_G._msgRu:isShowTranslateBtn()"))
+        self.assertFalse(lua.eval("_G._msgRu:CanShowTranslate()"))
+        self.assertGreaterEqual(lua.eval("#_G._broadcasts"), 1)
+        self.assertGreaterEqual(lua.eval("_G._mainHudRefreshes"), 1)
+
+        # Pre-expanded DB message collapsed into single-box in-place English
+        self.assertEqual(lua.eval("_G._msgPre.msg"), "I dedicate the victory")
+        self.assertEqual(lua.eval("_G._msgPre.msgMask"), "I dedicate the victory")
+        self.assertEqual(lua.eval("_G._msgPre.translateMsg"), "")
+
+        # Disabling translator restores original foreign message text cleanly
+        hook_off = TR_MOD.build_translator_lua_hook(18765, enabled=False, target_lang="en", auto_translate_chat=False)
+        self.assertEqual(lua.execute(hook_off), "TRANSLATOR_HOOK_DISABLED")
+        self.assertEqual(lua.eval("_G._msgRu.msg"), "Ребят всем спасибо бой был что надо")
+        self.assertTrue(lua.eval("_G._msgRu:isShowTranslateBtn()"))
+
+    def test_same_language_english_skipped_from_recent_preview(self) -> None:
+        td = tempfile.TemporaryDirectory()
+        try:
+            cache = TR_MOD.TranslationCache(db_path=Path(td.name) / "same_lang.sqlite")
+            stats = TR_MOD.TranslatorStats()
+            cfg = {"enabled": True, "auto_translate_chat": True, "target_lang": "en"}
+            try:
+                with mock.patch.object(
+                    TR_MOD,
+                    "_provider_google_gtx",
+                    return_value=("700 do not attack tanks going for diamonds. Take the L with honor", "en"),
+                ):
+                    res_en = TR_MOD.translate_text(
+                        "700 do not attack tanks going for diamonds. Take the L with honour",
+                        target_lang="en",
+                        config=cfg,
+                        cache=cache,
+                        stats=stats,
+                    )
+                # Preserves exact original English spelling ("honour") and keeps recent preview clean
+                self.assertEqual(
+                    res_en["translateMsg"],
+                    "700 do not attack tanks going for diamonds. Take the L with honour",
+                )
+                self.assertEqual(res_en["originalLang"], "en")
+                self.assertEqual(len(stats.snapshot()["recent"]), 0)
+            finally:
+                cache.close()
+        finally:
+            td.cleanup()
+
 
 class TestDaemonWiringAndGuardrails(unittest.TestCase):
     """Verify daemon translator integration, Hub RPCs, DOM contracts, and repo guardrails."""

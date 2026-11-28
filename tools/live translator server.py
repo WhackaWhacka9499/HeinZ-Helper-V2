@@ -44,7 +44,7 @@ PROVIDER_TIMEOUT = 4.0
 MAX_SQLITE_ROWS = 25000
 MAX_MEMORY_ENTRIES = 2000
 RECENT_HISTORY_LIMIT = 15
-TRANSLATOR_HOOK_VERSION = 2
+TRANSLATOR_HOOK_VERSION = 5
 CRYPTPROTECT_UI_FORBIDDEN = 0x1
 LASTZ_UPSTREAM_URL = "https://translate-lm.omnilojoapps.com/client.php"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) HeinZTranslator/1.0"
@@ -470,7 +470,7 @@ def normalize_lang_code(code: str | None, default: str = "en") -> str:
 def normalize_source_lang(code: str | None) -> str:
     """Normalize an optional source language code, returning '' for auto-detect."""
     raw = str(code or "").strip()
-    if not raw or raw.lower() == "auto":
+    if not raw or raw.lower() in ("auto", "nil", "null", "none", "unknown", "0", "und"):
         return ""
     return normalize_lang_code(raw, default="")
 
@@ -788,6 +788,7 @@ class TranslatorStats:
         provider: str,
         cached: bool,
         elapsed_ms: float,
+        same_lang: bool = False,
     ) -> None:
         with self._lock:
             self.total_requests += 1
@@ -796,18 +797,19 @@ class TranslatorStats:
             self.total_ms += max(0.0, float(elapsed_ms))
             key = "cache" if cached else (provider or "unknown")
             self.provider_counts[key] = self.provider_counts.get(key, 0) + 1
-            self.recent.appendleft(
-                {
-                    "src": src[:200],
-                    "dst": dst[:200],
-                    "originalLang": original_lang,
-                    "targetLang": target_lang,
-                    "provider": key,
-                    "cached": bool(cached),
-                    "ms": round(float(elapsed_ms), 2),
-                    "ts": round(time.time(), 3),
-                }
-            )
+            if not same_lang and provider not in ("skip", "passthrough"):
+                self.recent.appendleft(
+                    {
+                        "src": src[:200],
+                        "dst": dst[:200],
+                        "originalLang": original_lang,
+                        "targetLang": target_lang,
+                        "provider": key,
+                        "cached": bool(cached),
+                        "ms": round(float(elapsed_ms), 2),
+                        "ts": round(time.time(), 3),
+                    }
+                )
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -1261,6 +1263,17 @@ def _provider_lastz_upstream(
     return translated, detected
 
 
+def _is_same_language(detected_lang: str, target_lang: str, src_text: str, dst_text: str) -> bool:
+    """Return True when source text is already in target_lang or translated text is unchanged."""
+    det = normalize_lang_code(detected_lang, default="") if detected_lang and detected_lang.lower() != "auto" else ""
+    tgt = normalize_lang_code(target_lang, default="en")
+    if det and tgt and det.lower() == tgt.lower():
+        return True
+    norm_src = re.sub(r"\s+", " ", src_text or "").strip().casefold()
+    norm_dst = re.sub(r"\s+", " ", dst_text or "").strip().casefold()
+    return bool(norm_src == norm_dst)
+
+
 def translate_text(
     text: str,
     target_lang: str = "en",
@@ -1292,6 +1305,7 @@ def translate_text(
             provider="skip",
             cached=False,
             elapsed_ms=elapsed_ms,
+            same_lang=True,
         )
         return {
             "code": 0,
@@ -1307,6 +1321,7 @@ def translate_text(
     cached_hit = active_cache.get(tl, src_text)
     if cached_hit is not None:
         elapsed_ms = (time.perf_counter() - started) * 1000.0
+        cached_same = _is_same_language(cached_hit["originalLang"], tl, src_text, cached_hit["translateMsg"])
         active_stats.record(
             src=src_text,
             dst=cached_hit["translateMsg"],
@@ -1315,6 +1330,7 @@ def translate_text(
             provider=cached_hit["provider"],
             cached=True,
             elapsed_ms=elapsed_ms,
+            same_lang=cached_same,
         )
         return {
             "code": 0,
@@ -1367,6 +1383,9 @@ def translate_text(
         final_text = restore_game_tokens(raw_translated, tokens)
         if not final_text:
             continue
+        is_same = _is_same_language(detected, tl, src_text, final_text)
+        if is_same and not sl:
+            final_text = src_text
         active_cache.put(tl, src_text, detected, final_text, prov_name)
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         active_stats.record(
@@ -1377,6 +1396,7 @@ def translate_text(
             provider=prov_name,
             cached=False,
             elapsed_ms=elapsed_ms,
+            same_lang=is_same,
         )
         return {
             "code": 0,
@@ -1399,6 +1419,7 @@ def translate_text(
         provider="passthrough",
         cached=False,
         elapsed_ms=elapsed_ms,
+        same_lang=True,
     )
     return {
         "code": 0,
@@ -1426,7 +1447,7 @@ def build_translator_lua_hook(
     target_lang: str = "en",
     auto_translate_chat: bool = True,
 ) -> str:
-    """Build idempotent Lua payload that redirects _G.TranslateUrlList and wires auto-translate."""
+    """Build idempotent Lua payload that redirects _G.TranslateUrlList and wires state-swap-proof in-place auto-translate."""
     safe_port = int(port)
     safe_enabled = "true" if enabled else "false"
     safe_auto = "true" if (enabled and auto_translate_chat) else "false"
@@ -1458,82 +1479,59 @@ if type(_G.__HEINZ_ORIG_TR_FUNCS__) ~= "table" then
 end
 local _hzOrigs = _G.__HEINZ_ORIG_TR_FUNCS__
 
-local function _hzRestoreSlot(slotName)
-    local rec = _hzOrigs[slotName]
-    if type(rec) == "table" and type(rec.tbl) == "table" and rec.orig ~= nil then
-        if rec.tbl[rec.key] == rec.wrapper then
-            rec.tbl[rec.key] = rec.orig
+local function _hzGetLoadedTable(modName)
+    local loaded = package and package.loaded and package.loaded[modName]
+    if type(loaded) == "table" then
+        return loaded
+    end
+    return nil
+end
+
+local function _hzResolveBaseClassVtbl(clsOrMod, allowRequire)
+    local cls = clsOrMod
+    if type(clsOrMod) == "string" then
+        cls = _hzGetLoadedTable(clsOrMod) or _G[clsOrMod]
+        if type(cls) ~= "table" and allowRequire and type(require) == "function" and _hzGetLoadedTable("SlgEngine.Chat.Model.ChatMessageBase") ~= nil then
+            local okR, reqCls = pcall(require, clsOrMod)
+            if okR and type(reqCls) == "table" then
+                cls = reqCls
+            end
         end
     end
-    _hzOrigs[slotName] = nil
-end
-
-local function _hzRestoreAutoSlots()
-    _hzRestoreSlot("dataConfigCheckSwitch")
-    _hzRestoreSlot("globalDataConfigCheckSwitch")
-    _hzRestoreSlot("chatUtilsCheckSwitch")
-    _hzRestoreSlot("monthCardActive")
-    _hzRestoreSlot("monthCardAvail")
-    _hzRestoreSlot("chatInterfaceAotuTra")
-    _hzRestoreSlot("cmOnHandleMessage")
-    _hzRestoreSlot("rmAddChat")
-end
-
-local function _hzRestoreAllSlots()
-    _hzRestoreAutoSlots()
-    _hzRestoreSlot("tmGetLangString")
-end
-
-_G.__HEINZ_TRANSLATOR_CFG__ = {{
-    enabled = _hzEnabled,
-    target = _hzTarget,
-    auto = _hzAuto,
-    port = _hzPort,
-    ver = _hzHookVer,
-}}
-
-if not _hzEnabled then
-    if type(_G.__HEINZ_ORIG_TRANSLATE_URLS__) == "table" then
-        local _restore = {{}}
-        for _i, _u in ipairs(_G.__HEINZ_ORIG_TRANSLATE_URLS__) do
-            _restore[_i] = _u
+    if type(cls) ~= "table" then
+        return nil
+    end
+    if type(debug) == "table" and type(debug.getupvalue) == "function" then
+        local mt = getmetatable(cls)
+        if type(mt) == "table" then
+            for _, mv in pairs(mt) do
+                if type(mv) == "function" then
+                    for u = 1, 8 do
+                        local un, uv = debug.getupvalue(mv, u)
+                        if not un then break end
+                        if type(uv) == "table" and type(uv[cls]) == "table" then
+                            return uv[cls]
+                        end
+                    end
+                end
+            end
         end
-        _G.TranslateUrlList = _restore
     end
-    _hzRestoreAllSlots()
-    return "TRANSLATOR_HOOK_DISABLED"
+    if rawget(cls, "__index") == cls then
+        return cls
+    end
+    return nil
 end
 
-_G.TranslateUrlList = {{ _hzEndpoint, _hzEndpoint }}
-
-if not _hzAuto then
-    _hzRestoreAutoSlots()
-end
-
-if type(_G.__HEINZ_AUTO_TR_SEEN__) ~= "table" then
-    _G.__HEINZ_AUTO_TR_SEEN__ = {{}}
-    _G.__HEINZ_AUTO_TR_SEEN_COUNT__ = 0
-end
-
-local function _hzNowSec()
-    if os and type(os.time) == "function" then
-        return math.floor(os.time())
+local function _hzGetInstanceVtbl(inst)
+    if type(inst) ~= "table" then
+        return nil
     end
-    return 0
-end
-
-local function _hzAllowRateLimit()
-    local sec = _hzNowSec()
-    if _G.__HEINZ_AUTO_TR_SEC__ ~= sec then
-        _G.__HEINZ_AUTO_TR_SEC__ = sec
-        _G.__HEINZ_AUTO_TR_CNT__ = 0
+    local mt = getmetatable(inst)
+    if type(mt) == "table" and type(mt.__index) == "table" then
+        return mt.__index
     end
-    local cnt = _G.__HEINZ_AUTO_TR_CNT__ or 0
-    if cnt >= 3 then
-        return false
-    end
-    _G.__HEINZ_AUTO_TR_CNT__ = cnt + 1
-    return true
+    return nil
 end
 
 local function _hzResolveChatManager()
@@ -1590,12 +1588,320 @@ local function _hzResolveTranslateManager(cm)
     return nil
 end
 
+local function _hzIterRooms(rm, fn)
+    if type(rm) ~= "table" then return end
+    local maps = {{ rm.roomDatas, rm.rooms, rm.roomDic, rm.m_rooms, rm.roomMap }}
+    local visited = {{}}
+    for _mi = 1, 5 do
+        local mp = maps[_mi]
+        if type(mp) == "table" and not visited[mp] then
+            visited[mp] = true
+            for _, room in pairs(mp) do
+                if type(room) == "table" then
+                    fn(room)
+                end
+            end
+        end
+    end
+    if type(rm.GetRoomDatas) == "function" then
+        local okR, mp2 = pcall(rm.GetRoomDatas, rm)
+        if okR and type(mp2) == "table" and not visited[mp2] then
+            visited[mp2] = true
+            for _, room in pairs(mp2) do
+                if type(room) == "table" then
+                    fn(room)
+                end
+            end
+        end
+    end
+end
+
+local function _hzRestoreReplacedMessages()
+    local cmCur = _hzResolveChatManager()
+    local rmCur = (type(cmCur) == "table") and (cmCur.Room or cmCur.RoomManager) or nil
+    if type(rmCur) ~= "table" then return end
+    _hzIterRooms(rmCur, function(room)
+        local lst = room.msgs or room.messages or room.msgList or room.m_msgList
+        if type(lst) == "table" then
+            for _i = 1, #lst do
+                local m = lst[_i]
+                if type(m) == "table" and m._hzOrigMsg ~= nil then
+                    m.msg = m._hzOrigMsg
+                    m.msgMask = m._hzOrigMask
+                    m._hzOrigMsg = nil
+                    m._hzOrigMask = nil
+                    m._hzTranslatedDone = nil
+                    m._hzInFlight = nil
+                end
+            end
+        end
+    end)
+end
+
+local function _hzRefreshAllVisibleChatUI()
+    pcall(function()
+        local uiMgr = _G.UIManager and ((_G.UIManager.GetInstance and _G.UIManager:GetInstance()) or _G.UIManager)
+        if type(uiMgr) == "table" and type(uiMgr.GetWindow) == "function" then
+            local win = uiMgr:GetWindow("UIChatNew")
+            local view = win and (win.view or win.View)
+            local mainView = view and (view._chatMainView or view.chatMainView or view.m_chatMainView)
+            if type(mainView) == "table" and type(mainView.RefreshScrollView) == "function" then
+                mainView:RefreshScrollView()
+            end
+        end
+    end)
+    pcall(function()
+        if type(_G.ChatInterface) == "table" and type(_G.ChatInterface.refreshMainUILastChat) == "function" then
+            _G.ChatInterface.refreshMainUILastChat()
+        end
+    end)
+end
+
+local function _hzRestoreSlot(slotName)
+    local rec = _hzOrigs[slotName]
+    if type(rec) == "table" and type(rec.tbl) == "table" and rec.orig ~= nil then
+        if rawget(rec.tbl, rec.key) == rec.wrapper then
+            if rec.wasRaw == false then
+                rawset(rec.tbl, rec.key, nil)
+            else
+                rawset(rec.tbl, rec.key, rec.orig)
+            end
+        end
+    end
+    _hzOrigs[slotName] = nil
+end
+
+local _HZ_AUTO_SLOTS = {{
+    "dataConfigCheckSwitch",
+    "globalDataConfigCheckSwitch",
+    "chatUtilsCheckSwitch",
+    "monthCardActive",
+    "monthCardAvail",
+    "chatInterfaceAotuTra",
+    "cmOnHandleMessage",
+    "rmAddChat",
+    "protoCmOnHandleMessage",
+    "protoRmAddChat",
+    "protoRmOnReqLatest",
+    "protoRmOnDbLatest",
+    "protoRdAddChatData",
+    "protoRdAddChatDatas",
+    "protoTmOnCallback",
+    "protoMsgShowBtn",
+    "protoMsgCanShowTr",
+    "protoMsgGetTr",
+    "protoMsgGetTrEx",
+    "protoMsgGetTrGoogle",
+    "protoMsgIsTr",
+    "protoMsgIsTrEx",
+    "protoMsgIsTrGoogle",
+    "vtblChatItemUpdate",
+    "vtblChatItemShowBtn",
+    "vtblChatItemRefreshTr",
+}}
+
+local function _hzRestoreAutoSlots()
+    for _i = 1, #_HZ_AUTO_SLOTS do
+        _hzRestoreSlot(_HZ_AUTO_SLOTS[_i])
+    end
+end
+
+local function _hzRestoreAllSlots()
+    _hzRestoreAutoSlots()
+    _hzRestoreSlot("tmGetLangString")
+    _hzRestoreSlot("protoTmGetLangString")
+end
+
+_G.__HEINZ_TRANSLATOR_CFG__ = {{
+    enabled = _hzEnabled,
+    target = _hzTarget,
+    auto = _hzAuto,
+    port = _hzPort,
+    ver = _hzHookVer,
+}}
+
+if not _hzEnabled then
+    if type(_G.__HEINZ_ORIG_TRANSLATE_URLS__) == "table" then
+        local _restore = {{}}
+        for _i, _u in ipairs(_G.__HEINZ_ORIG_TRANSLATE_URLS__) do
+            _restore[_i] = _u
+        end
+        _G.TranslateUrlList = _restore
+    end
+    _hzRestoreAllSlots()
+    _hzRestoreReplacedMessages()
+    _hzRefreshAllVisibleChatUI()
+    return "TRANSLATOR_HOOK_DISABLED"
+end
+
+_G.TranslateUrlList = {{ _hzEndpoint, _hzEndpoint }}
+
+if not _hzAuto then
+    _hzRestoreAutoSlots()
+    _hzRestoreReplacedMessages()
+    _hzRefreshAllVisibleChatUI()
+end
+
+if type(_G.__HEINZ_AUTO_TR_SEEN__) ~= "table" then
+    _G.__HEINZ_AUTO_TR_SEEN__ = {{}}
+    _G.__HEINZ_AUTO_TR_SEEN_COUNT__ = 0
+end
+
+local cm = _hzResolveChatManager()
+local tm = _hzResolveTranslateManager(cm)
+local rm = (type(cm) == "table") and (cm.Room or cm.RoomManager) or nil
+
+local _protoCmBase = _hzGetInstanceVtbl(cm) or _hzResolveBaseClassVtbl("Slg.Chat_SLG.ChatManager2", false) or _hzGetLoadedTable("SlgEngine.Chat.ChatManager2Base")
+local _protoRmBase = _hzGetInstanceVtbl(rm) or _hzResolveBaseClassVtbl("Slg.Chat_SLG.Controller.ChatRoomManager", false) or _hzGetLoadedTable("SlgEngine.Chat.Controller.ChatRoomManagerBase")
+local _protoTmBase = _hzGetInstanceVtbl(tm) or _hzResolveBaseClassVtbl("Slg.Chat_SLG.Controller.TranslateManager", false) or _hzGetLoadedTable("SlgEngine.Chat.Controller.TranslateManagerBase")
+
+local _sampleRoomObj = nil
+if type(rm) == "table" then
+    _hzIterRooms(rm, function(rObj)
+        if _sampleRoomObj == nil then _sampleRoomObj = rObj end
+    end)
+end
+local _protoRdBase = _hzGetInstanceVtbl(_sampleRoomObj) or _hzResolveBaseClassVtbl("Slg.Chat_SLG.Model.ChatRoomData", false) or _hzGetLoadedTable("SlgEngine.Chat.Model.ChatRoomDataBase")
+
+local _sampleMsgObj = nil
+if type(_sampleRoomObj) == "table" and type(_sampleRoomObj.msgs) == "table" and type(_sampleRoomObj.msgs[1]) == "table" then
+    _sampleMsgObj = _sampleRoomObj.msgs[1]
+elseif type(rm) == "table" and type(rm.CreateChatMessage) == "function" then
+    local _okSm, _sm = pcall(rm.CreateChatMessage, rm)
+    if _okSm and type(_sm) == "table" then _sampleMsgObj = _sm end
+end
+local _protoMsgBase = _hzGetInstanceVtbl(_sampleMsgObj) or _hzResolveBaseClassVtbl(_G.ChatMessage, false) or _hzGetLoadedTable("SlgEngine.Chat.Model.ChatMessageBase")
+local _hasEngineProtos = (
+    _hzGetLoadedTable("SlgEngine.Chat.Model.ChatMessageBase") ~= nil
+    or _hzGetLoadedTable("SlgEngine.Chat.Controller.TranslateManagerBase") ~= nil
+    or (_protoMsgBase ~= nil and _protoTmBase ~= nil)
+)
+
+local function _hzNowSec()
+    if type(_G._testOsTime) == "number" then
+        return math.floor(_G._testOsTime)
+    end
+    if os and type(os.time) == "function" then
+        return math.floor(os.time())
+    end
+    return 0
+end
+
+local function _hzAllowRateLimit()
+    local sec = _hzNowSec()
+    if _G.__HEINZ_AUTO_TR_SEC__ ~= sec then
+        _G.__HEINZ_AUTO_TR_SEC__ = sec
+        _G.__HEINZ_AUTO_TR_CNT__ = 0
+    end
+    local cap = _hasEngineProtos and 40 or 3
+    local cnt = _G.__HEINZ_AUTO_TR_CNT__ or 0
+    if cnt >= cap then
+        return false
+    end
+    _G.__HEINZ_AUTO_TR_CNT__ = cnt + 1
+    return true
+end
+
+local function _hzNormStr(s)
+    if type(s) ~= "string" then return "" end
+    return (s:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")):lower()
+end
+
+local function _hzNormLang(code)
+    if type(code) ~= "string" then return "" end
+    local c = code:gsub("_", "-"):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    if c == "" or c == "auto" then return "" end
+    if c:find("^zh") then
+        if c:find("tw") or c:find("hk") or c:find("hant") or c:find("cht") then
+            return "zh-tw"
+        end
+        return "zh-cn"
+    end
+    return c:match("^([a-z]+)") or c
+end
+
+local function _hzTextHasTranslatableContent(text)
+    if type(text) ~= "string" or text == "" then
+        return false
+    end
+    local stripped = text
+        :gsub("<e:%d+/>", " ")
+        :gsub("</?color[^>]*>", " ")
+        :gsub("<#[0-9A-Fa-f]+>", " ")
+        :gsub("</?[A-Za-z][^>]*>", " ")
+        :gsub("%(%s*%d+%s*[,:]%s*%d+%s*%)", " ")
+    if stripped:find("[%a]") then
+        return true
+    end
+    for i = 1, #stripped do
+        if stripped:byte(i) >= 128 then
+            return true
+        end
+    end
+    return false
+end
+
+local function _hzApplyInPlaceText(msg, newText)
+    if type(msg) ~= "table" or type(newText) ~= "string" or newText == "" then
+        return false
+    end
+    if msg._hzOrigMsg == nil then
+        msg._hzOrigMsg = msg.msg
+        msg._hzOrigMask = msg.msgMask
+    end
+    local finalMsg = newText
+    if msg.isAt and type(msg.GetAtMsg) == "function" then
+        local okAt, atStr = pcall(msg.GetAtMsg, msg, newText)
+        if okAt and type(atStr) == "string" and atStr ~= "" then
+            finalMsg = atStr
+            msg.atMsgStr = atStr
+        end
+    end
+    msg.msg = finalMsg
+    msg.msgMask = finalMsg
+    if (msg.post == nil or msg.post == 0) and msg.attachmentMsg ~= nil then
+        msg.attachmentMsg = nil
+    end
+    msg.translateMsg = ""
+    msg.translateMsgEx = ""
+    msg.translateMsgGoogle = ""
+    msg.translateMsgState = 0
+    if type(msg.SetTranslateMsgState) == "function" then
+        pcall(msg.SetTranslateMsgState, msg, 0)
+    end
+    msg._hzTranslatedDone = true
+    msg._hzInFlight = false
+    return true
+end
+
+local function _hzBroadcastMsgUpdated(msg)
+    if type(msg) ~= "table" then return end
+    pcall(function()
+        local evMgr = _G.EventManager and _G.EventManager.GetInstance and _G.EventManager:GetInstance()
+        local evEnum = _G.ChatInterface and _G.ChatInterface.getEventEnum and _G.ChatInterface.getEventEnum()
+        if evMgr and evEnum and evEnum.CHAT_UPDATE_ROOM_MSG then
+            evMgr:Broadcast(evEnum.CHAT_UPDATE_ROOM_MSG, {{ roomId = msg.roomId, seqId = msg.seqId }})
+        end
+    end)
+    pcall(function()
+        if type(_G.ChatInterface) == "table" and type(_G.ChatInterface.refreshMainUILastChat) == "function" then
+            _G.ChatInterface.refreshMainUILastChat()
+        end
+    end)
+end
+
 local function _hzTryAutoTranslateMsg(tm, msg)
-    if type(msg) ~= "table" or not tm or type(tm.DoTranslate) ~= "function" then
+    if type(msg) ~= "table" then
         return false
     end
     local cfg = _G.__HEINZ_TRANSLATOR_CFG__
     if not cfg or not cfg.enabled or not cfg.auto then
+        return false
+    end
+    if msg._hzTranslatedDone or msg._hzInFlight then
+        return false
+    end
+    if msg.post ~= nil and msg.post ~= 0 then
         return false
     end
     local mtype = msg.type
@@ -1606,60 +1912,103 @@ local function _hzTryAutoTranslateMsg(tm, msg)
     if mtype ~= 0 then
         return false
     end
+    if type(msg.isMyChat) == "function" then
+        local okMine, isMine = pcall(msg.isMyChat, msg)
+        if okMine and isMine == true then
+            msg._hzTranslatedDone = true
+            return false
+        end
+    end
     local text = msg.msg
     if type(text) ~= "string" or text == "" then
         return false
     end
-    local trMsg = msg.translateMsg
-    if (trMsg == nil or trMsg == "") and type(msg.getTranslationMsg) == "function" then
+    if _hasEngineProtos and not _hzTextHasTranslatableContent(text) then
+        msg._hzTranslatedDone = true
+        return false
+    end
+
+    local trMsg = rawget(msg, "translateMsg")
+    if (trMsg == nil or trMsg == "") and not _hasEngineProtos and type(msg.getTranslationMsg) == "function" then
         local okTr, resTr = pcall(msg.getTranslationMsg, msg)
         if okTr then trMsg = resTr end
     end
     if type(trMsg) == "string" and trMsg ~= "" then
+        if _hasEngineProtos then
+            if _hzNormStr(trMsg) ~= _hzNormStr(text) then
+                _hzApplyInPlaceText(msg, trMsg)
+            else
+                msg.translateMsg = ""
+                msg.translateMsgState = 0
+                msg._hzTranslatedDone = true
+            end
+        end
         return false
     end
-    local isTr = msg.isTranslating
+
+    local isTr = rawget(msg, "isTranslating")
     if isTr ~= nil and isTr ~= 0 and isTr ~= false then
         return false
     end
-    local seqId = msg.seqId
-    if seqId == nil and type(msg.getSeqId) == "function" then
-        local okS, resS = pcall(msg.getSeqId, msg)
-        if okS then seqId = resS end
+
+    if not tm then
+        local cmCur = _hzResolveChatManager()
+        tm = _hzResolveTranslateManager(cmCur)
     end
-    if seqId == nil then
-        seqId = text
+    if not tm or type(tm.DoTranslate) ~= "function" then
+        return false
+    end
+
+    local seqKey = msg.seqId
+    if seqKey == nil and type(msg.getSeqId) == "function" then
+        local okS, resS = pcall(msg.getSeqId, msg)
+        if okS then seqKey = resS end
+    end
+    if seqKey ~= nil and _hasEngineProtos and msg.roomId ~= nil then
+        seqKey = tostring(msg.roomId) .. ":" .. tostring(seqKey)
+    end
+    if seqKey == nil then
+        seqKey = text
     end
     local seen = _G.__HEINZ_AUTO_TR_SEEN__
-    if seen[seqId] then
+    if seen[seqKey] then
         return false
     end
     if not _hzAllowRateLimit() then
         return false
     end
-    if (_G.__HEINZ_AUTO_TR_SEEN_COUNT__ or 0) > 2000 then
+    if (_G.__HEINZ_AUTO_TR_SEEN_COUNT__ or 0) > 4000 then
         seen = {{}}
         _G.__HEINZ_AUTO_TR_SEEN__ = seen
         _G.__HEINZ_AUTO_TR_SEEN_COUNT__ = 0
     end
-    seen[seqId] = true
+    seen[seqKey] = true
     _G.__HEINZ_AUTO_TR_SEEN_COUNT__ = (_G.__HEINZ_AUTO_TR_SEEN_COUNT__ or 0) + 1
+    if _hasEngineProtos then
+        msg._hzSeqKey = seqKey
+        msg._hzInFlight = true
+        if msg._hzOrigMsg == nil then
+            msg._hzOrigMsg = text
+            msg._hzOrigMask = msg.msgMask
+        end
+    end
     pcall(tm.DoTranslate, tm, msg)
     return true
 end
 
-local function _hzScanCandidate(tm, obj)
+local function _hzScanCandidate(tm, obj, maxTail)
     if type(obj) ~= "table" then return end
     if obj.msg ~= nil and (obj.type ~= nil or type(obj.getChatMessageType) == "function") then
         _hzTryAutoTranslateMsg(tm, obj)
         return
     end
+    local tailN = maxTail or (_hasEngineProtos and 15 or 3)
     local lists = {{ obj.msgs, obj.messages, obj.msgList, obj.m_msgList }}
     for _li = 1, 4 do
         local lst = lists[_li]
         if type(lst) == "table" then
             local n = #lst
-            local startIdx = n > 3 and (n - 2) or 1
+            local startIdx = n > tailN and (n - tailN + 1) or 1
             for _i = startIdx, n do
                 _hzTryAutoTranslateMsg(tm, lst[_i])
             end
@@ -1667,28 +2016,64 @@ local function _hzScanCandidate(tm, obj)
     end
 end
 
-local function _hzScanRoomContainer(tm, rm)
+local function _hzScanRoomContainer(tm, rm, maxTail)
     if type(rm) ~= "table" then return end
-    local rooms = rm.rooms or rm.roomDic or rm.m_rooms or rm.roomMap
-    if type(rooms) == "table" then
-        for _, room in pairs(rooms) do
-            _hzScanCandidate(tm, room)
-        end
-    else
-        _hzScanCandidate(tm, rm)
+    local foundMap = false
+    _hzIterRooms(rm, function(room)
+        foundMap = true
+        _hzScanCandidate(tm, room, maxTail)
+    end)
+    if not foundMap then
+        _hzScanCandidate(tm, rm, maxTail)
     end
+end
+
+local function _hzScanActiveRoomsOnly(tm, rm, maxTail)
+    if type(rm) ~= "table" then return end
+    local activeRoomId = nil
+    pcall(function()
+        local uiMgr = _G.UIManager and ((_G.UIManager.GetInstance and _G.UIManager:GetInstance()) or _G.UIManager)
+        if type(uiMgr) == "table" and type(uiMgr.GetWindow) == "function" then
+            local win = uiMgr:GetWindow("UIChatNew")
+            local isVis = win and (win.isShow == true or (win.gameObject and win.gameObject.activeInHierarchy == true))
+            local ctrl = isVis and (win.ctrl or win.Ctrl or (win.view and win.view._chatViewController)) or nil
+            if type(ctrl) == "table" and type(ctrl.GetCurrentRoomId) == "function" then
+                activeRoomId = ctrl:GetCurrentRoomId()
+            end
+        end
+    end)
+    if activeRoomId ~= nil and tostring(activeRoomId) ~= "" and type(rm.GetRoomData) == "function" then
+        local okR, activeRoom = pcall(rm.GetRoomData, rm, activeRoomId)
+        if okR and type(activeRoom) == "table" then
+            _hzScanCandidate(tm, activeRoom, maxTail or 8)
+            return
+        end
+    end
+    _hzIterRooms(rm, function(room)
+        local rid = tostring(room.roomId or "")
+        local isPriority = (
+            rid:find("^country_") ~= nil
+            or rid:find("^cross") ~= nil
+            or rid:find("^svs") ~= nil
+            or rid:find("^alliance") ~= nil
+            or rid:find("^season") ~= nil
+        )
+        if isPriority then
+            _hzScanCandidate(tm, room, 2)
+        end
+    end)
 end
 
 local function _hzPostHandleMessage(cmSelf, a1, a2, a3)
     local cfg = _G.__HEINZ_TRANSLATOR_CFG__
     if not cfg or not cfg.enabled or not cfg.auto then return end
-    local tm = _hzResolveTranslateManager(cmSelf)
+    local tm = _hzResolveTranslateManager(cmSelf or _hzResolveChatManager())
     if not tm or type(tm.DoTranslate) ~= "function" then return end
-    _hzScanCandidate(tm, a1)
-    _hzScanCandidate(tm, a2)
-    _hzScanCandidate(tm, a3)
-    if type(cmSelf) == "table" then
-        _hzScanRoomContainer(tm, cmSelf.Room or cmSelf.RoomManager)
+    _hzScanCandidate(tm, a1, 5)
+    _hzScanCandidate(tm, a2, 5)
+    _hzScanCandidate(tm, a3, 5)
+    if not _hasEngineProtos and type(cmSelf) == "table" then
+        _hzScanRoomContainer(tm, cmSelf.Room or cmSelf.RoomManager, 3)
     end
 end
 
@@ -1698,68 +2083,95 @@ local function _hzPostAddChat(rmSelf, a1, a2, a3)
     local cmCur = _hzResolveChatManager()
     local tm = _hzResolveTranslateManager(cmCur)
     if not tm or type(tm.DoTranslate) ~= "function" then return end
-    _hzScanCandidate(tm, a1)
-    _hzScanCandidate(tm, a2)
-    _hzScanCandidate(tm, a3)
-    _hzScanRoomContainer(tm, rmSelf)
+    _hzScanCandidate(tm, a1, 5)
+    _hzScanCandidate(tm, a2, 5)
+    _hzScanCandidate(tm, a3, 5)
+    if not _hasEngineProtos then
+        _hzScanRoomContainer(tm, rmSelf, 3)
+    end
+end
+
+local function _hzWrapSlot(tbl, key, slotName, makeWrapper, requireRaw)
+    if type(tbl) ~= "table" then
+        return false
+    end
+    local rawFn = rawget(tbl, key)
+    local curFn = requireRaw and rawFn or tbl[key]
+    if type(curFn) ~= "function" then
+        return false
+    end
+    local rec = _hzOrigs[slotName]
+    if type(rec) == "table" and rec.tbl == tbl and curFn == rec.wrapper then
+        return true
+    end
+    local wasRaw = (rawFn ~= nil)
+    if type(rec) == "table" and rec.tbl == tbl and rawFn == rec.wrapper then
+        wasRaw = rec.wasRaw
+    end
+    local origFn = curFn
+    local wrapped = makeWrapper(origFn)
+    _hzOrigs[slotName] = {{ tbl = tbl, key = key, orig = origFn, wrapper = wrapped, wasRaw = wasRaw }}
+    rawset(tbl, key, wrapped)
+    return true
 end
 
 local function _hzWrapCheckSwitch(tbl, slotName)
-    if type(tbl) ~= "table" or type(tbl.CheckSwitch) ~= "function" then
-        return false
-    end
-    local rec = _hzOrigs[slotName]
-    if type(rec) == "table" and rec.tbl == tbl and tbl.CheckSwitch == rec.wrapper then
-        return true
-    end
-    local origFn = tbl.CheckSwitch
-    local function _wrapped(a1, a2, ...)
-        local cfg = _G.__HEINZ_TRANSLATOR_CFG__
-        local isMethod = (type(a1) == "table")
-        local key = isMethod and a2 or a1
-        if cfg and cfg.enabled and cfg.auto and key == "screen_translation" then
-            return true
-        end
-        if isMethod then
-            if select("#", ...) > 0 then
+    return _hzWrapSlot(tbl, "CheckSwitch", slotName, function(origFn)
+        return function(a1, a2, ...)
+            local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+            local isMethod = (type(a1) == "table")
+            local key = isMethod and a2 or a1
+            if cfg and cfg.enabled and cfg.auto and key == "screen_translation" then
+                return true
+            end
+            if isMethod then
+                if select("#", ...) > 0 then
+                    return origFn(a1, a2, ...)
+                end
+                return origFn(a1, a2)
+            end
+            if select("#", ...) > 0 or a2 ~= nil then
                 return origFn(a1, a2, ...)
             end
-            return origFn(a1, a2)
+            return origFn(a1)
         end
-        if select("#", ...) > 0 or a2 ~= nil then
-            return origFn(a1, a2, ...)
-        end
-        return origFn(a1)
-    end
-    _hzOrigs[slotName] = {{ tbl = tbl, key = "CheckSwitch", orig = origFn, wrapper = _wrapped }}
-    tbl.CheckSwitch = _wrapped
-    return true
+    end, false)
 end
 
 local function _hzWrapAutoGate(tbl, fieldName, slotName)
-    if type(tbl) ~= "table" or type(tbl[fieldName]) ~= "function" then
-        return false
-    end
-    local rec = _hzOrigs[slotName]
-    if type(rec) == "table" and rec.tbl == tbl and tbl[fieldName] == rec.wrapper then
-        return true
-    end
-    local origFn = tbl[fieldName]
-    local function _wrapped(...)
-        local cfg = _G.__HEINZ_TRANSLATOR_CFG__
-        if cfg and cfg.enabled and cfg.auto then
-            return true
+    return _hzWrapSlot(tbl, fieldName, slotName, function(origFn)
+        return function(...)
+            local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+            if cfg and cfg.enabled and cfg.auto then
+                return true
+            end
+            return origFn(...)
         end
-        return origFn(...)
-    end
-    _hzOrigs[slotName] = {{ tbl = tbl, key = fieldName, orig = origFn, wrapper = _wrapped }}
-    tbl[fieldName] = _wrapped
-    return true
+    end, false)
 end
 
-local cm = _hzResolveChatManager()
-local tm = _hzResolveTranslateManager(cm)
-local rm = (type(cm) == "table") and (cm.Room or cm.RoomManager) or nil
+local function _hzPack(...)
+    return {{ n = select("#", ...), ... }}
+end
+local _hzUnpack = table.unpack or unpack
+
+local function _hzDecodeJsonObj(rawStr)
+    if type(rawStr) ~= "string" or rawStr == "" then
+        return nil
+    end
+    local loaded = package and package.loaded and package.loaded.rapidjson
+    if not loaded and type(require) == "function" then
+        local okR, modR = pcall(require, "rapidjson")
+        if okR then loaded = modR end
+    end
+    if type(loaded) == "table" and type(loaded.decode) == "function" then
+        local okD, obj = pcall(loaded.decode, rawStr)
+        if okD and type(obj) == "table" then
+            return obj
+        end
+    end
+    return nil
+end
 
 if _hzAuto then
     local dcCfg = (type(_G.LuaEntry) == "table") and _G.LuaEntry.DataConfig or nil
@@ -1775,71 +2187,271 @@ if _hzAuto then
     _hzWrapAutoGate(_G.ChatInterface, "GetAotuTra", "chatInterfaceAotuTra")
 end
 
-local _hzHookedGetLang = false
-if type(tm) == "table" and type(tm.GetLangString) == "function" then
-    local rec = _hzOrigs["tmGetLangString"]
-    if type(rec) == "table" and rec.tbl == tm and tm.GetLangString == rec.wrapper then
-        _hzHookedGetLang = true
-    else
-        local _origGetLang = tm.GetLangString
-        local function _wrappedGetLang(self, ...)
-            local cfg = _G.__HEINZ_TRANSLATOR_CFG__
-            if cfg and cfg.enabled and type(cfg.target) == "string" and cfg.target ~= "" and cfg.target ~= "auto" then
-                return cfg.target
-            end
-            return _origGetLang(self, ...)
+local function _hzMakeGetLangWrapper(origFn)
+    return function(self, ...)
+        local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+        if cfg and cfg.enabled and type(cfg.target) == "string" and cfg.target ~= "" and cfg.target ~= "auto" then
+            return cfg.target
         end
-        _hzOrigs["tmGetLangString"] = {{ tbl = tm, key = "GetLangString", orig = _origGetLang, wrapper = _wrappedGetLang }}
-        tm.GetLangString = _wrappedGetLang
+        return origFn(self, ...)
+    end
+end
+
+local _hzHookedGetLang = false
+if _protoTmBase ~= nil then
+    if _hzWrapSlot(_protoTmBase, "GetLangString", "protoTmGetLangString", _hzMakeGetLangWrapper, false) then
+        _hzHookedGetLang = true
+    end
+end
+if type(tm) == "table" and (_protoTmBase == nil or rawget(tm, "GetLangString") ~= nil) then
+    if _hzWrapSlot(tm, "GetLangString", "tmGetLangString", _hzMakeGetLangWrapper, _protoTmBase ~= nil) then
         _hzHookedGetLang = true
     end
 end
 
-local function _hzPack(...)
-    return {{ n = select("#", ...), ... }}
+local function _hzMakeOnHandleWrapper(origFn)
+    return function(self, ...)
+        local _res = _hzPack(origFn(self, ...))
+        local a1, a2, a3 = ...
+        pcall(_hzPostHandleMessage, self, a1, a2, a3)
+        return _hzUnpack(_res, 1, _res.n)
+    end
 end
-local _hzUnpack = table.unpack or unpack
+
+local function _hzMakeAddChatWrapper(origFn)
+    return function(self, ...)
+        local _res = _hzPack(origFn(self, ...))
+        local a1, a2, a3 = ...
+        pcall(_hzPostAddChat, self, a1, a2, a3)
+        return _hzUnpack(_res, 1, _res.n)
+    end
+end
 
 local _hzHookedOnHandle = false
-if _hzAuto and type(cm) == "table" and type(cm.OnHandleMessage) == "function" then
-    local rec = _hzOrigs["cmOnHandleMessage"]
-    if type(rec) == "table" and rec.tbl == cm and cm.OnHandleMessage == rec.wrapper then
-        _hzHookedOnHandle = true
-    else
-        local _origOnHandle = cm.OnHandleMessage
-        local function _wrappedOnHandle(self, ...)
-            local _res = _hzPack(_origOnHandle(self, ...))
-            local a1, a2, a3 = ...
-            pcall(_hzPostHandleMessage, self, a1, a2, a3)
-            return _hzUnpack(_res, 1, _res.n)
-        end
-        _hzOrigs["cmOnHandleMessage"] = {{ tbl = cm, key = "OnHandleMessage", orig = _origOnHandle, wrapper = _wrappedOnHandle }}
-        cm.OnHandleMessage = _wrappedOnHandle
-        _hzHookedOnHandle = true
-    end
-end
-
 local _hzHookedAddChat = false
-if _hzAuto and type(rm) == "table" and type(rm.AddChat) == "function" then
-    local rec = _hzOrigs["rmAddChat"]
-    if type(rec) == "table" and rec.tbl == rm and rm.AddChat == rec.wrapper then
-        _hzHookedAddChat = true
-    else
-        local _origAddChat = rm.AddChat
-        local function _wrappedAddChat(self, ...)
-            local _res = _hzPack(_origAddChat(self, ...))
-            local a1, a2, a3 = ...
-            pcall(_hzPostAddChat, self, a1, a2, a3)
-            return _hzUnpack(_res, 1, _res.n)
+local _hzHookedProtos = false
+
+if _hzAuto then
+    if _protoCmBase ~= nil then
+        if _hzWrapSlot(_protoCmBase, "OnHandleMessage", "protoCmOnHandleMessage", _hzMakeOnHandleWrapper, false) then
+            _hzHookedOnHandle = true
+            _hzHookedProtos = true
         end
-        _hzOrigs["rmAddChat"] = {{ tbl = rm, key = "AddChat", orig = _origAddChat, wrapper = _wrappedAddChat }}
-        rm.AddChat = _wrappedAddChat
-        _hzHookedAddChat = true
+    end
+    if type(cm) == "table" and (_protoCmBase == nil or rawget(cm, "OnHandleMessage") ~= nil) then
+        if _hzWrapSlot(cm, "OnHandleMessage", "cmOnHandleMessage", _hzMakeOnHandleWrapper, _protoCmBase ~= nil) then
+            _hzHookedOnHandle = true
+        end
+    end
+
+    if _protoRmBase ~= nil then
+        if _hzWrapSlot(_protoRmBase, "AddChat", "protoRmAddChat", _hzMakeAddChatWrapper, false) then
+            _hzHookedAddChat = true
+            _hzHookedProtos = true
+        end
+        _hzWrapSlot(_protoRmBase, "onRequestLatestMsg", "protoRmOnReqLatest", function(origFn)
+            return function(self, serverData, ...)
+                local _res = _hzPack(origFn(self, serverData, ...))
+                pcall(function()
+                    local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                    if cfg and cfg.enabled and cfg.auto then
+                        local tmCur = _hzResolveTranslateManager(_hzResolveChatManager())
+                        _hzScanActiveRoomsOnly(tmCur, self, 8)
+                    end
+                end)
+                return _hzUnpack(_res, 1, _res.n)
+            end
+        end, false)
+        _hzWrapSlot(_protoRmBase, "onDBLatestChat", "protoRmOnDbLatest", function(origFn)
+            return function(self, roomId, results, ...)
+                local _res = _hzPack(origFn(self, roomId, results, ...))
+                pcall(function()
+                    local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                    if cfg and cfg.enabled and cfg.auto and type(self.GetRoomData) == "function" then
+                        local okR, room = pcall(self.GetRoomData, self, roomId)
+                        if okR and type(room) == "table" then
+                            local tmCur = _hzResolveTranslateManager(_hzResolveChatManager())
+                            _hzScanCandidate(tmCur, room, 15)
+                        end
+                    end
+                end)
+                return _hzUnpack(_res, 1, _res.n)
+            end
+        end, false)
+    end
+    if type(rm) == "table" and (_protoRmBase == nil or rawget(rm, "AddChat") ~= nil) then
+        if _hzWrapSlot(rm, "AddChat", "rmAddChat", _hzMakeAddChatWrapper, _protoRmBase ~= nil) then
+            _hzHookedAddChat = true
+        end
+    end
+
+    if _protoRdBase ~= nil then
+        _hzWrapSlot(_protoRdBase, "__addChatData", "protoRdAddChatData", function(origFn)
+            return function(self, chatData, ...)
+                local _res = _hzPack(origFn(self, chatData, ...))
+                pcall(function()
+                    local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                    if cfg and cfg.enabled and cfg.auto then
+                        _hzTryAutoTranslateMsg(nil, chatData)
+                    end
+                end)
+                return _hzUnpack(_res, 1, _res.n)
+            end
+        end, false)
+        _hzWrapSlot(_protoRdBase, "__addChatDatas", "protoRdAddChatDatas", function(origFn)
+            return function(self, arr, ...)
+                local _res = _hzPack(origFn(self, arr, ...))
+                pcall(function()
+                    local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                    if cfg and cfg.enabled and cfg.auto then
+                        _hzScanCandidate(nil, self, 15)
+                    end
+                end)
+                return _hzUnpack(_res, 1, _res.n)
+            end
+        end, false)
+    end
+
+    -- In-place Google-Lens overlay: intercept TranslateManager:onTranslateCallback on its runtime vtbl
+    -- so foreign text replaces msg/msgMask directly inside the bubble without duplicate boxes or English-to-English repeats.
+    if _protoTmBase ~= nil then
+        _hzWrapSlot(_protoTmBase, "onTranslateCallback", "protoTmOnCallback", function(origFn)
+            return function(self, chatData, ok, responseString, ...)
+                local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                if not (cfg and cfg.enabled and cfg.auto and type(chatData) == "table") then
+                    return origFn(self, chatData, ok, responseString, ...)
+                end
+                chatData._hzInFlight = false
+                if type(chatData.setIsTranslating) == "function" then
+                    pcall(chatData.setIsTranslating, chatData, 0)
+                else
+                    chatData.isTranslating = 0
+                end
+                local data = ok and _hzDecodeJsonObj(responseString) or nil
+                if type(data) ~= "table" or tonumber(data.code) ~= 0 then
+                    if chatData._hzSeqKey ~= nil and type(_G.__HEINZ_AUTO_TR_SEEN__) == "table" then
+                        _G.__HEINZ_AUTO_TR_SEEN__[chatData._hzSeqKey] = nil
+                    end
+                    chatData.translateMsg = ""
+                    return
+                end
+                local trText = tostring(data.translateMsg or "")
+                local origMsg = tostring(chatData._hzOrigMsg or chatData.msg or "")
+                local origLang = _hzNormLang(data.originalLang)
+                local tgtLang = _hzNormLang(data.targetLang)
+                local isSame = (
+                    trText == ""
+                    or (origLang ~= "" and tgtLang ~= "" and origLang == tgtLang)
+                    or (_hzNormStr(trText) == _hzNormStr(origMsg))
+                )
+                chatData._hzTranslatedDone = true
+                if isSame then
+                    chatData.translateMsg = ""
+                    chatData.translateMsgState = 0
+                    return
+                end
+                if _hzApplyInPlaceText(chatData, trText) then
+                    _hzBroadcastMsgUpdated(chatData)
+                end
+            end
+        end, false)
+    end
+
+    -- Hide manual translate buttons & duplicate translation panel on ChatMessage runtime vtbl
+    if _protoMsgBase ~= nil then
+        local function _hzFalseWhenAuto(origFn)
+            return function(self, ...)
+                local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                if cfg and cfg.enabled and cfg.auto then
+                    return false
+                end
+                return origFn(self, ...)
+            end
+        end
+        local function _hzEmptyWhenAuto(origFn)
+            return function(self, ...)
+                local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                if cfg and cfg.enabled and cfg.auto then
+                    return ""
+                end
+                return origFn(self, ...)
+            end
+        end
+        _hzWrapSlot(_protoMsgBase, "isShowTranslateBtn", "protoMsgShowBtn", _hzFalseWhenAuto, false)
+        _hzWrapSlot(_protoMsgBase, "CanShowTranslate", "protoMsgCanShowTr", _hzFalseWhenAuto, false)
+        _hzWrapSlot(_protoMsgBase, "getTranslationMsg", "protoMsgGetTr", _hzEmptyWhenAuto, false)
+        _hzWrapSlot(_protoMsgBase, "getTranslationMsgEx", "protoMsgGetTrEx", _hzEmptyWhenAuto, false)
+        _hzWrapSlot(_protoMsgBase, "getTranslationMsgGoogle", "protoMsgGetTrGoogle", _hzEmptyWhenAuto, false)
+        _hzWrapSlot(_protoMsgBase, "IsTranslating", "protoMsgIsTr", _hzFalseWhenAuto, false)
+        _hzWrapSlot(_protoMsgBase, "IsTranslatingEx", "protoMsgIsTrEx", _hzFalseWhenAuto, false)
+        _hzWrapSlot(_protoMsgBase, "IsTranslatingGoogle", "protoMsgIsTrGoogle", _hzFalseWhenAuto, false)
+    end
+
+    -- Viewport live-overlay hook on ChatItem vtbl: any visible bubble scrolled into view translates in-place
+    local _chatItemVtbl = _hzResolveBaseClassVtbl("Slg.UI.UIChatNew.Component.ChatItem.ChatItem", true)
+    if type(_chatItemVtbl) == "table" then
+        _hzWrapSlot(_chatItemVtbl, "UpdateItem", "vtblChatItemUpdate", function(origFn)
+            return function(self, chatData, index, ...)
+                local _res = _hzPack(origFn(self, chatData, index, ...))
+                pcall(function()
+                    local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                    if cfg and cfg.enabled and cfg.auto and type(chatData) == "table" then
+                        _hzTryAutoTranslateMsg(nil, chatData)
+                    end
+                end)
+                return _hzUnpack(_res, 1, _res.n)
+            end
+        end, false)
+        _hzWrapSlot(_chatItemVtbl, "IsShowTranslationButton", "vtblChatItemShowBtn", function(origFn)
+            return function(self, ...)
+                local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                if cfg and cfg.enabled and cfg.auto then
+                    return false
+                end
+                return origFn(self, ...)
+            end
+        end, false)
+        _hzWrapSlot(_chatItemVtbl, "RefreshTranslateState", "vtblChatItemRefreshTr", function(origFn)
+            return function(self, ...)
+                local cfg = _G.__HEINZ_TRANSLATOR_CFG__
+                if cfg and cfg.enabled and cfg.auto then
+                    pcall(function()
+                        if self._translateBtnObj and self._translateBtnObj.gameObject then
+                            self._translateBtnObj.gameObject:SetActive(false)
+                        end
+                        if self._translateExBtnObj and self._translateExBtnObj.gameObject then
+                            self._translateExBtnObj.gameObject:SetActive(false)
+                        end
+                        if self._translateGoogleBtnObj and self._translateGoogleBtnObj.gameObject then
+                            self._translateGoogleBtnObj.gameObject:SetActive(false)
+                        end
+                        if self._translation and self._translation.gameObject then
+                            self._translation.gameObject:SetActive(false)
+                        end
+                    end)
+                    return
+                end
+                return origFn(self, ...)
+            end
+        end, false)
+    end
+
+    -- Immediately sweep visible/priority rooms (World, Cross-State, Alliance, or currently open chat tab)
+    if _hasEngineProtos then
+        pcall(function()
+            if _G.CS and _G.CS.UnityEngine and _G.CS.UnityEngine.Application then
+                _G.CS.UnityEngine.Application.runInBackground = true
+            end
+        end)
+    end
+    if _hasEngineProtos and type(rm) == "table" then
+        pcall(_hzScanActiveRoomsOnly, tm, rm, 8)
+        _hzRefreshAllVisibleChatUI()
     end
 end
 
 local _hzHookedTm = _hzHookedGetLang or (type(tm) == "table" and type(tm.DoTranslate) == "function")
-local _hzHookedAny = _hzHookedTm or _hzHookedOnHandle or _hzHookedAddChat
+local _hzHookedAny = _hzHookedTm or _hzHookedOnHandle or _hzHookedAddChat or _hzHookedProtos
 if not _hzHookedAny then
     return "TRANSLATOR_HOOK_PENDING:" .. tostring(_hzPort) .. ":" .. tostring(_hzTarget)
 end
@@ -1858,6 +2470,12 @@ local function _hzJsonEsc(s)
     out = out:gsub("\\n", "\\\\n")
     out = out:gsub("\\t", "\\\\t")
     return out
+end
+
+local function _hzGetLoadedDiag(modName)
+    local loaded = package and package.loaded and package.loaded[modName]
+    if type(loaded) == "table" then return loaded end
+    return nil
 end
 
 local function _hzResolveCmDiag()
@@ -1896,41 +2514,85 @@ local function _hzResolveTmDiag(cm)
     return nil
 end
 
+local function _hzGetInstVtblDiag(inst)
+    if type(inst) ~= "table" then return nil end
+    local mt = getmetatable(inst)
+    if type(mt) == "table" and type(mt.__index) == "table" then
+        return mt.__index
+    end
+    return nil
+end
+
 local cm = _hzResolveCmDiag()
 local tm = _hzResolveTmDiag(cm)
 local rm = (type(cm) == "table") and (cm.Room or cm.RoomManager) or nil
-local hasCm = (type(cm) == "table")
-local hasTm = (type(tm) == "table")
+
+local protoTm = _hzGetInstVtblDiag(tm) or _hzGetLoadedDiag("SlgEngine.Chat.Controller.TranslateManagerBase")
+local protoCm = _hzGetInstVtblDiag(cm) or _hzGetLoadedDiag("SlgEngine.Chat.ChatManager2Base")
+local protoRm = _hzGetInstVtblDiag(rm) or _hzGetLoadedDiag("SlgEngine.Chat.Controller.ChatRoomManagerBase")
+local hasCm = (type(cm) == "table") or (protoCm ~= nil)
+local hasTm = (type(tm) == "table") or (protoTm ~= nil)
 
 local cfg = _G.__HEINZ_TRANSLATOR_CFG__
 local origs = _G.__HEINZ_ORIG_TR_FUNCS__
+
+local function _hzCheckSlot(tbl, key, slotName, requireRaw)
+    if type(tbl) ~= "table" then return true, false end
+    local fn = requireRaw and rawget(tbl, key) or tbl[key]
+    if type(fn) ~= "function" then return true, false end
+    local rec = origs and origs[slotName]
+    if type(rec) == "table" and rec.tbl == tbl and fn == rec.wrapper then
+        return true, true
+    end
+    return false, false
+end
+
 local hooked = false
 if type(cfg) == "table" and cfg.enabled and type(origs) == "table" then
     local matchedAny = false
     local allSlotsOk = true
-    if (hasTm and type(tm.GetLangString) == "function") or type(origs.tmGetLangString) == "table" then
-        if hasTm and type(tm.GetLangString) == "function" and type(origs.tmGetLangString) == "table" and tm.GetLangString == origs.tmGetLangString.wrapper then
-            matchedAny = true
-        else
+
+    if protoTm ~= nil then
+        local okP, mP = _hzCheckSlot(protoTm, "GetLangString", "protoTmGetLangString", false)
+        if not okP then allSlotsOk = false elseif mP then matchedAny = true end
+    end
+    if type(tm) == "table" and (protoTm == nil or rawget(tm, "GetLangString") ~= nil) then
+        local okI, mI = _hzCheckSlot(tm, "GetLangString", "tmGetLangString", protoTm ~= nil)
+        if not okI then allSlotsOk = false elseif mI then matchedAny = true end
+    elseif protoTm == nil and type(origs.tmGetLangString) == "table" then
+        allSlotsOk = false
+    end
+
+    if cfg.auto then
+        if protoCm ~= nil then
+            local okP, mP = _hzCheckSlot(protoCm, "OnHandleMessage", "protoCmOnHandleMessage", false)
+            if not okP then allSlotsOk = false elseif mP then matchedAny = true end
+        end
+        if type(cm) == "table" and (protoCm == nil or rawget(cm, "OnHandleMessage") ~= nil) then
+            local okI, mI = _hzCheckSlot(cm, "OnHandleMessage", "cmOnHandleMessage", protoCm ~= nil)
+            if not okI then allSlotsOk = false elseif mI then matchedAny = true end
+        elseif protoCm == nil and type(origs.cmOnHandleMessage) == "table" then
             allSlotsOk = false
         end
-    end
-    if cfg.auto then
-        if (hasCm and type(cm.OnHandleMessage) == "function") or type(origs.cmOnHandleMessage) == "table" then
-            if hasCm and type(cm.OnHandleMessage) == "function" and type(origs.cmOnHandleMessage) == "table" and cm.OnHandleMessage == origs.cmOnHandleMessage.wrapper then
-                matchedAny = true
-            else
-                allSlotsOk = false
-            end
+
+        if protoRm ~= nil then
+            local okP, mP = _hzCheckSlot(protoRm, "AddChat", "protoRmAddChat", false)
+            if not okP then allSlotsOk = false elseif mP then matchedAny = true end
         end
-        if (type(rm) == "table" and type(rm.AddChat) == "function") or type(origs.rmAddChat) == "table" then
-            if type(rm) == "table" and type(rm.AddChat) == "function" and type(origs.rmAddChat) == "table" and rm.AddChat == origs.rmAddChat.wrapper then
-                matchedAny = true
-            else
-                allSlotsOk = false
-            end
+        if type(rm) == "table" and (protoRm == nil or rawget(rm, "AddChat") ~= nil) then
+            local okI, mI = _hzCheckSlot(rm, "AddChat", "rmAddChat", protoRm ~= nil)
+            if not okI then allSlotsOk = false elseif mI then matchedAny = true end
+        elseif protoRm == nil and type(origs.rmAddChat) == "table" then
+            allSlotsOk = false
+        end
+
+        local dcCfg = (type(_G.LuaEntry) == "table") and _G.LuaEntry.DataConfig or nil
+        if type(dcCfg) == "table" and type(dcCfg.CheckSwitch) == "function" then
+            local okD, _ = _hzCheckSlot(dcCfg, "CheckSwitch", "dataConfigCheckSwitch", false)
+            if not okD then allSlotsOk = false end
         end
     end
+
     hooked = matchedAny and allSlotsOk
 end
 

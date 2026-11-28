@@ -744,6 +744,19 @@ def _sync_translator_tick(
                     continue
                 prev_sig = translator_hook_sig.get(pid)
                 if prev_sig == tr_sig:
+                    if need_probe and tr_enabled and cd is not None and hasattr(tr_mod, "build_translator_diag_lua"):
+                        try:
+                            diag_lua = str(tr_mod.build_translator_diag_lua() or "")
+                            if diag_lua:
+                                ok_d, raw_d = cd.frida_eval_lua(int(pid), diag_lua, timeout=3.0, retries=0)
+                                if ok_d and raw_d:
+                                    diag_obj = json.loads(str(raw_d))
+                                    if isinstance(diag_obj, dict) and diag_obj.get("hooked") is False:
+                                        translator_hook_sig.pop(pid, None)
+                                        prev_sig = None
+                        except Exception:
+                            pass
+                if prev_sig == tr_sig:
                     continue
                 if not tr_enabled and prev_sig is None:
                     continue
